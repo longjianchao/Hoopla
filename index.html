@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+	<title>Hoopla</title>
+
+	<script type="text/javascript" src="lib/underscore.js"></script>
+	<script type="text/javascript" src="lib/eelens.js"></script>
+	<script type="text/javascript" src="lib/canvas.js"></script>
+	<script type="text/javascript" src="lib/conrec.js"></script>
+	<script type="text/javascript" src="lib/optimize.js"></script>
+	<script type="text/javascript" src="hoopla.js"></script>
+	<script type="text/javascript">
+		var imgd = new Image();
+		imgd.crossOrigin="anonymous";
+		imgd.src = 'https://cdn.rawgit.com/linan7788626/Hoopla/Preprocessing_input_pics/images/lensed_galaxy.jpg';
+		imgd.width = 400;
+		imgd.height = 400;
+		window.onload = function(e){
+
+			// Create a hoopla object. The ID is that of the <div>
+    		var lets = new Hoopla({
+				id:'hoopla-srcmodel',
+				srcmodel: 'hoopla-srcmodel',
+				prediction: 'hoopla-prediction',
+				//pixscale: 0.0375
+				pixscale: 0.0225
+    		});
+
+    		// Using Brian C's Marking Surface library!!!
+    		var ms = new MarkingSurface({
+				inputName: 'mass-model',
+				tool: MarkingSurface.EllipseTool,
+    		});
+
+    		var containerEl = document.getElementById("marking-container");
+    		containerEl.appendChild(ms.el);
+
+    		var img = new Image();
+    		img.onload = function() {
+				let width = img.width;
+				let height = img.height;
+
+				ms.addShape('image', {
+					'xlink:href': img.src,
+					width: width,
+					height: height
+				});
+				ms.svg.attr({
+					width: 400,
+					height: 400
+				});
+				ms.rescale(0, 0, width, height);
+				let scaleX = 400 / img.width;
+				let scaleY = 400 / img.height;
+
+				function getThetaE(d) {
+					let a = d.rx * lets.pixscale;
+					let b = d.ry * lets.pixscale;
+					return Math.sqrt(a * b);
+					//return Math.max(a , b);
+				}
+
+				function getAratio(d) {
+					let a = d.rx;
+					let b = d.ry;
+					return a / b;
+				}
+
+				function getAngle(d) {
+					return d.angle;
+				}
+
+				function getCoords(d) {
+					return lets.lens.pix2ang({x: scaleX * d.x, y: scaleY * d.y});
+				}
+
+
+				function updateModel() {
+					let data = JSON.parse(ms.getValue());
+					// console.log(ms.tools)
+					let components = data.map(function(d) {
+						let coords = getCoords(d);
+						return {
+							plane: "lens",
+							theta_e: getThetaE(d),
+							ell: getAratio(d),
+							ang: getAngle(d),
+							x: coords.x,
+							y: coords.y
+						}
+					});
+					lets.updateModel(components);
+					// console.log(components);
+				}
+				let debouncedUpdateModel = _.debounce(updateModel, 200);
+				ms.on('marking-surface:change', debouncedUpdateModel);
+			}
+			img.src = "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg";
+
+			// Source Models
+    		var ms_src = new MarkingSurface({
+				inputName: 'src-model',
+				tool: MarkingSurface.EllipseTool
+    		});
+    		var containerEl_src = document.getElementById("marking-container-src");
+    		containerEl_src.appendChild(ms_src.el);
+
+    		var img_src = new Image();
+    		img_src.onload = function() {
+				let width = img_src.width;
+				let height = img_src.height;
+
+				ms_src.addShape('image', {
+					'xlink:href': img_src.src,
+					width: width,
+					height: height
+				});
+				ms_src.svg.attr({
+					width: 400,
+					height: 400
+				});
+				ms_src.rescale(0, 0, width, height);
+				let scaleX = 400 / img_src.width;
+				let scaleY = 400 / img_src.height;
+
+				function getSize(d) {
+					let a = d.rx * lets.pixscale;
+					let b = d.ry * lets.pixscale;
+					return Math.sqrt(a * b);
+					//return Math.max(a , b);
+				}
+
+				function getAratio(d) {
+					let a = d.rx;
+					let b = d.ry;
+					return a / b;
+				}
+
+				function getAngle(d) {
+					return d.angle;
+				}
+
+				function getCoords(d) {
+					return lets.lens.pix2ang({x: scaleX * d.x, y: scaleY * d.y});
+				}
+
+				function updateModel() {
+					let data = JSON.parse(ms_src.getValue());
+					console.log(ms_src.tools);
+					let components = data.map(function(d) {
+						let coords = getCoords(d);
+						return {
+							plane: "source",
+							size: getSize(d),
+							ell: getAratio(d),
+							ang: getAngle(d),
+							x: coords.x,
+							y: coords.y
+						}
+					});
+					lets.updateModel(components);
+					console.log(components)
+				}
+				let debouncedUpdateModel = _.debounce(updateModel, 200);
+				ms_src.on('marking-surface:change', debouncedUpdateModel);
+			}
+			img_src.src = "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg";
+
+			document.getElementById('imageUpload').onchange = function(e) {
+				let imageFile = this.files[0];
+				let url = window.URL.createObjectURL(imageFile);
+				img.src = url;
+				img_src.src = url;
+				console.log(url);
+				document.getElementById("hoopla-srcmodel").style.backgroundImage
+					= "url(" + url + ")";
+				document.getElementById("hoopla-prediction").style.backgroundImage
+					= "url(" + url + ")";
+
+			};
+
+			document.getElementById("showModels").onclick = function fun() {
+				//lets.showModels(img_src.src.split('/')[img_src.src.split('/').length-1].split('.')[0]+'.JSON');
+				lets.showModels(img_src.src);
+			};
+
+			document.getElementById('buttonExecute').onclick = function passURL() {
+				const url = document.getElementById('textbox1').value;
+				img.src = url;
+				img_src.src = url;
+				document.getElementById("hoopla-srcmodel").style.backgroundImage
+					= "url(" + url + ")";
+				document.getElementById("hoopla-prediction").style.backgroundImage
+					= "url(" + url + ")";
+			};
+
+			document.getElementById('modelUpload').onchange = function(e) {
+				let input = e.target;
+
+				let reader = new FileReader();
+				reader.onload = function(){
+					let text = reader.result;
+					let data = JSON.parse(text);
+					let components = data.components;
+					lets.loadModel(components);
+					lets.update({x:lets.lens.ang2pix(components[1].x),y:lets.lens.ang2pix(components[1].y)});
+					lets.freezeSrcModel = true;
+				};
+				reader.readAsText(input.files[0]);
+			};
+
+			function calAlpha(xl,yl,xlc,ylc,re,ql,phl) {
+
+				if(ql <1.0){
+					phl = Math.PI * ((-phl+90) / 180);
+				}else{
+					ql = 1.0/ql-0.0000000001;
+					phl = Math.PI * (-phl / 180);
+				}
+
+				const alpha = {x: 0.0, y: 0.0};
+				let x, y, cs, sn;
+				let sx_r, sy_r, psi, sq, pd1, pd2, fx1, fx2, qs, a1, a2;
+				const rc = 0.0;
+
+				cs = Math.cos(phl);
+				sn = Math.sin(phl);
+
+				x = xl - xlc;
+				y = yl - ylc;
+
+				sx_r = x * cs + y * sn;
+				sy_r = -x * sn + y * cs;
+
+				psi = Math.sqrt(ql*ql*(rc*rc+sx_r*sx_r)+sy_r*sy_r);
+
+				sq = Math.sqrt(1.0-ql*ql);
+				pd1 = psi + rc;
+				pd2 = psi + rc*ql*ql;
+				fx1 = sq * sx_r / pd1;
+				fx2 = sq * sy_r / pd2;
+				qs = Math.sqrt(ql);
+
+				a1 = qs / sq * Math.atan(fx1);
+				a2 = qs / sq * Math.atanh(fx2);
+
+				let dx = (a1 * cs - a2 * sn);
+				let dy = (a2 * cs + a1 * sn);
+
+				// Add lensing effects of just this component:
+				alpha.x = re*dx;
+				alpha.y = re*dy;
+				return alpha;
+			}
+
+			function calImage(xs, ys, xsc, ysc, sig2, qs, phs) {
+				let r2, res, phirad;
+				// Loop over x and y. Store 1-D pixel index as i.
+				phirad = -phs/180*Math.PI;
+				let xnew = (xs-xsc) * Math.cos(phirad) + (ys-ysc) * Math.sin(phirad)
+				let ynew = (ys-ysc) * Math.cos(phirad) - (xs-xsc) * Math.sin(phirad)
+				r2 = ( xnew*xnew/qs + ynew*ynew*qs );
+				res = Math.exp(-r2/(2.0*sig2*sig2*0.693));
+				return res; // Allow this function to be chainable
+			}
+
+			function model_lensed_images(p, x1, x2) {
+				let xc1, xc2, re, ql, phl;
+				xc1 = p[0];
+				xc2 = p[1];
+				re = p[2];
+				ql = p[3];
+				phl = p[4];
+
+				let alpha = calAlpha(x1,x2,xc1,xc2,re,ql,phl);
+
+				let y1 = x1 - alpha.x;
+				let y2 = x2 - alpha.y;
+
+				let yc1, yc2, sig2, qs, phs;
+				yc1 = p[5];
+				yc2 = p[6];
+				sig2 = p[7];
+				qs = p[8];
+				phs = p[9];
+
+				return calImage(y1, y2, yc1, yc2, sig2, qs, phs);
+			}
+
+			function chi2_2(p) {
+				let predictedimage = [];
+				let alpha = []
+
+				for(let i = 0 ; i < imgd.width*imgd.height ; i++){
+					alpha[i] = { x: 0.0, y: 0.0 };
+					predictedimage[i] = 0;
+				}
+				// Declare outside the for loop for efficiency
+				let x, y;
+				let tr, cs, sn;
+				let rc = 0.0;
+				let ql;
+				// Loop over pixels:
+				for(let i = 0 ; i < imgd.width*imgd.height ; i++){
+					// Loop over lens components:
+						if(p[3] <1.0){
+							ql = p[3];
+							tr = Math.PI * ((-p[4]+90) / 180);
+						}else{
+							ql = 1.0/p[3]-0.0000000001;
+							tr = Math.PI * (-p[4] / 180);
+						}
+
+						cs = Math.cos(tr);
+						sn = Math.sin(tr);
+
+						x = i % imgd.width - p[0]/lets.pixscale;
+						y = Math.floor(i/imgd.width) - p[1]/lets.pixscale;
+
+						sx_r = x * cs + y * sn;
+						sy_r = -x * sn + y * cs;
+
+						psi = Math.sqrt(ql*ql*(rc*rc+sx_r*sx_r)+sy_r*sy_r);
+
+						sq = Math.sqrt(1.0-ql*ql);
+						pd1 = psi + rc;
+						pd2 = psi + rc*ql*ql;
+						fx1 = sq * sx_r / pd1;
+						fx2 = sq * sy_r / pd2;
+						qs = Math.sqrt(ql);
+
+						a1 = qs / sq * Math.atan(fx1);
+						a2 = qs / sq * Math.atanh(fx2);
+
+						dx = (a1 * cs - a2 * sn);
+						dy = (a2 * cs + a1 * sn);
+
+						// Add lensing effects of just this component:
+						alpha[i].x = p[2]/lets.pixscale*dx;
+						alpha[i].y = p[2]/lets.pixscale*dy;
+				}
+
+				let d = { x: 0, y: 0 };
+				let i = 0;
+				let r2 = 0;
+				// Since for a Gaussian, half light radius (size) = sigma * sqrt(2*ln(2))
+				//var factor = 1.0/(0.693*this.source[0].size_px*this.source[0].size_px)
+				let sig2 = p[7]*p[7]*0.693/lets.pixscale/lets.pixscale;
+				let row, col, s, v;
+				let phirad,xnew,ynew;
+				for (row = 0; row < imgd.width; row++) {
+					for (col = 0; col < imgd.height; col++) {
+						d.x = col - p[5] / lets.pixscale - alpha[i].x + 4.5;
+						d.y = row - p[6] / lets.pixscale - alpha[i].y + 4.5;
+						phirad = -p[9] / 180 * Math.PI;
+						xnew = d.x * Math.cos(phirad) + d.y * Math.sin(phirad)
+						ynew = d.y * Math.cos(phirad) - d.x * Math.sin(phirad)
+						r2 = (xnew * xnew / p[8] + ynew * ynew * p[8]);
+						v = Math.exp(-r2 / (2.0 * sig2));
+						predictedimage[i++] = v;
+					}
+				}
+				let c = document.getElementById("myCanvas");
+				let ctx = c.getContext("2d");
+				ctx.drawImage(imgd, 0, 0);
+				let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
+				let data = dstdata.data;
+
+				let red = new Array(data.length/4);
+				for(let i = 0, n = red.length; i < n; i ++) {
+					red[i] = data[i*4]/255.;
+				}
+
+
+				let chi = new Array(red.length);
+				let testimg = new Array(red.length);
+				for(let i = 0 ; i < imgd.width*imgd.height ; i++){
+			        chi[i] = (red[i] - predictedimage[i])*red[i]*red[i];
+						//console.log([red[i], testimg[i]]);
+			    }
+				let res = optimize.vector.dot(chi, chi);
+				console.log(res);
+
+				for (let y = 0; y < imgd.width; ++y) {
+				    for (let x = 0; x < imgd.height; ++x) {
+						let index = (y * imgd.width + x) * 4;
+						let index2 = (y * imgd.width + x);
+
+				        //data[index]   = Math.floor(red[index2]*255);    // red
+				        //data[index]   = Math.floor(testimg[index2]*255);    // red
+						data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
+				        //data[index]   = 128;    // red
+				        data[++index] = 0;    // green
+				        data[++index] = 0;    // blue
+				        data[++index] = 255;      // alpha
+				    }
+				}
+
+				dstdata.data = data;
+				ctx.putImageData(dstdata, 0, 0);
+				return res;
+			}
+
+			function standardDeviation(values){
+				let avg = average(values);
+
+				let squareDiffs = values.map(function(value){
+					let diff = value - avg;
+					return diff * diff;
+				});
+
+				let avgSquareDiff = average(squareDiffs);
+
+				return Math.sqrt(avgSquareDiff);
+			}
+
+			function average(data){
+				let sum = data.reduce(function(sum, value){
+					return sum + value;
+				}, 0);
+
+				return sum / data.length;
+			}
+			//计算图像的卡方值
+			function chi2_rescale(p) {
+				let c = document.getElementById("myCanvas");
+				let ctx = c.getContext("2d");
+				ctx.drawImage(imgd, 0, 0);
+				let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
+				let data = dstdata.data;
+
+				let red = new Array(data.length/4);
+				for(let i = 0, n = red.length; i < n; i ++) {
+					red[i] = data[i*4]/255.;
+				}
+
+				const fscale = 4;
+				const chi = new Array(red.length / fscale / fscale);
+				const testimg = new Array(red.length);
+				const redstd = standardDeviation(red);
+				for(let row = 0 ; row < imgd.width ; row+=fscale){
+					for(let col = 0 ; col < imgd.height ; col+=fscale){
+						let i,i2,x,y;
+						i = row*imgd.height+col;
+						i2 = row/fscale*imgd.height/fscale+col/fscale;
+						x = col*0.0225 - 4.5;
+						y = row*0.0225 - 4.5;
+			        	testimg[i] = model_lensed_images(p, x, y);
+			        	chi[i2] = (red[i] -
+								testimg[i])/redstd/redstd/(chi.length);
+					}
+			    }
+				let res = optimize.vector.dot(chi, chi);
+
+				// console.log(res);
+
+				return res;
+			}
+
+			function chi2(p) {
+			    var i;
+				//var red = getRedData();
+				//var canvas = document.createElement('canvas');
+
+				var c = document.getElementById("myCanvas");
+				var ctx = c.getContext("2d");
+				ctx.drawImage(imgd, 0, 0);
+				var dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
+				var data = dstdata.data;
+
+				var red = new Array(data.length/4);
+				for(var i = 0, n = red.length; i < n; i ++) {
+					red[i] = data[i*4]/255.;
+				}
+
+
+				var chi = new Array(red.length);
+				var testimg = new Array(red.length);
+				var redstd = standardDeviation(red);
+				for(var row = 0 ; row < 400 ; row++){
+					for(var col = 0 ; col < 400 ; col++){
+						i = row*400+col;
+						x = col*0.0225 - 4.5;
+						y = row*0.0225 - 4.5;
+			        	testimg[i] = model_lensed_images(p, x, y);
+			        	//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
+			        	chi[i] = (red[i] - testimg[i])/redstd/redstd;
+						//console.log([red[i], testimg[i]]);
+					}
+			    }
+			    var res = optimize.vector.dot(chi, chi);
+				console.log(res);
+
+				//for (var y = 0; y < imgd.width; ++y) {
+				//    for (var x = 0; x < imgd.height; ++x) {
+				//        var index = (y * imgd.width + x) * 4;
+				//		var index2 = (y * imgd.width + x);
+				//
+				//        //data[index]   = Math.floor(red[index2]*255);    // red
+				//        //data[index]   = Math.floor(testimg[index2]*255);    // red
+				//		data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
+				//        //data[index]   = 128;    // red
+				//        data[++index] = 0;    // green
+				//        data[++index] = 0;    // blue
+				//        data[++index] = 255;      // alpha
+				//    }
+				//}
+
+				//dstdata.data = data;
+				//ctx.putImageData(dstdata, 0, 0);
+				return res;
+			}
+
+			function show_res(p) {
+
+				let c = document.getElementById("myCanvas");
+				let ctx = c.getContext("2d");
+				ctx.drawImage(imgd, 0, 0);
+				let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
+				let data = dstdata.data;
+
+				let red = new Array(data.length/4);
+				for(let i = 0, n = red.length; i < n; i ++) {
+					red[i] = data[i*4]/255.;
+				}
+
+
+				let chi = new Array(red.length);
+				let testimg = new Array(red.length);
+				let redstd = standardDeviation(red);
+				let i,x,y;
+				for (let row = 0; row < 400; row++) {
+					for (let col = 0; col < 400; col++) {
+						i = row * 400 + col;
+						x = col * 0.0225 - 4.5;
+						y = row * 0.0225 - 4.5;
+						testimg[i] = model_lensed_images(p, x, y);
+						//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
+						chi[i] = (red[i] - testimg[i]) / redstd / redstd;
+					}
+				}
+				let res = optimize.vector.dot(chi, chi);
+				console.log('res:'+res);
+
+				for (let y = 0; y < imgd.width; ++y) {
+				    for (let x = 0; x < imgd.height; ++x) {
+						let index = (y * imgd.width + x) * 4;
+						let index2 = (y * imgd.width + x);
+
+				        //data[index]   = Math.floor(red[index2]*255);    // red
+				        //data[index]   = Math.floor(testimg[index2]*255);    // red
+						data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
+				        //data[index]   = 128;    // red
+				        data[++index] = 0;    // green
+				        data[++index] = 0;    // blue
+				        data[++index] = 255;      // alpha
+				    }
+				}
+
+				dstdata.data = data;
+				ctx.putImageData(dstdata, 0, 0);
+				return res;
+			}
+
+			const sleep = (timeout= 1000)=>new Promise((resolve, reject)=>{
+				setTimeout(resolve, timeout);
+			});
+
+			let it=0;
+			let timer = async(timeout) => {
+
+				for(let i = 0; i< timeout; i++) {
+					let p0;
+					let xc1, xc2, re, ql, phl;
+					if (i === timeout-1 && it === 50){
+						console.log("建模结果有偏差，waiting...");
+						i/=2;
+					}
+					xc1 = lets.models[0].components[1].x;
+					xc2 = lets.models[0].components[1].y;
+					re  = lets.models[0].components[1].theta_e;
+					ql  = lets.models[0].components[1].ell;
+					phl = lets.models[0].components[1].ang;
+					let yc1, yc2, sig2, qs, phs;
+					yc1 = lets.models[0].components[0].x;
+					yc2 = lets.models[0].components[0].y;
+					sig2= lets.models[0].components[0].size;
+					qs  = lets.models[0].components[0].ell;
+					phs = lets.models[0].components[0].ang;
+
+					p0 = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
+					let p = optimize.fmin(chi2_rescale, p0, {ftol: 1e-6, maxiter: 50});
+					let p1=p.x;
+					if(it===p[1]&&it<50) break;
+					it=p.iterations;
+					// let p1 = optimize.newton(chi2_rescale, p0, {ftol: 1e-6, maxiter: 100});
+					console.log(p1);
+					show_res(p1);
+
+					lets.models[0].components[1].x = p1[0];
+					lets.models[0].components[1].y = p1[1];
+					lets.models[0].components[1].theta_e = p1[2];
+					lets.models[0].components[1].ell = p1[3];
+					lets.models[0].components[1].ang = p1[4];
+					lets.models[0].components[0].x = p1[5];
+					lets.models[0].components[0].y = p1[6];
+					lets.models[0].components[0].size = p1[7];
+					lets.models[0].components[0].ell = p1[8];
+					lets.models[0].components[0].ang = p1[9];
+					lets.loadModel(lets.models[0].components);
+					console.log(lets.models[0].components);
+					lets.update({x:lets.lens.ang2pix(p1[0]),y:lets.lens.ang2pix(p1[1])});
+					lets.freezeSrcModel = true;
+					updateCanvas(p1)
+					await sleep(1);
+
+				}
+			}
+
+			function updateCanvas(p1) {
+				let ang = lets.lens.ang2pix({x: p1[0], y: p1[1]});
+				ms.tools[0].mark.x = ang.x;
+				ms.tools[0].mark.y = ang.y;
+				ms.tools[0].mark.angle = p1[4];
+				ms.tools[0].mark.ry = p1[2]/(lets.lens.pixscale*Math.sqrt(p1[3]));
+				ms.tools[0].mark.rx = ms.tools[0].mark.ry * p1[3];
+				ms.renderTools();
+
+				let ang2 = lets.lens.ang2pix({x: p1[5], y: p1[6]});
+				ms_src.tools[0].mark.x = ang2.x;
+				ms_src.tools[0].mark.y = ang2.y
+				ms_src.tools[0].mark.angle = p1[9];
+				ms_src.tools[0].mark.ry = p1[7]/(lets.lens.pixscale*Math.sqrt(p1[8]));
+				ms_src.tools[0].mark.rx = ms_src.tools[0].mark.ry *p1[8];
+				ms_src.renderTools();
+			}
+
+			document.getElementById("optimization").onclick = function do_fit() {
+				if(ms.tools.length === 0){
+					window.alert('Please input Mass Model!');
+					return;
+				}
+				if(ms_src.tools.length === 0){
+					window.alert('Please input Source Model!');
+					return;
+				}
+				timer(8);
+
+			};
+
+		}
+	</script>
+
+	<style type="text/css">
+		body {
+			font-family: serif,Helvetica,Arial,sans-serif;
+			background-color: black;
+			color: #ffffff;
+		}
+
+		.container {
+			width: 840px;
+		}
+		.container2{
+			width: 1260px;
+		}
+
+		#tag{
+			width:60px;
+			font-family: Arial;
+			background-color: lightblue;
+			text-align: center;
+			font-size: medium;
+			color: black;
+			position: absolute;
+			left: 340px;
+			padding: 5px;
+			border-radius: 5px;
+			transition: opacity 0.3s ease-in-out;
+		}
+		h1, h2, h3, h4 { font-family: Arial,serif; }
+		h1 { margin-bottom: 0.5em; color: #FFFFFF; }
+
+		h4 { color: #666666; }
+		a { color: #666666; }
+
+		.inline {
+		    position: relative;
+		    display: inline;
+		    margin-left: 5px;
+		}
+
+		.inline-block {
+		    display: inline-block;
+		}
+
+		.captions {
+			font-size:20px;
+			font-weight: bold;
+		    display: block;
+		    height: 40px;
+		}
+
+		#masscaption,#srcincaption {
+			padding-top:5px;
+			border: 1px solid #666666;
+			background-color: #666666;
+			width: 380px;
+			color: #ffffff;
+			padding-left: 20px;
+			margin-bottom: 10px;
+		}
+
+		#srccaption, #predcaption {
+			padding-top:10px;
+			border: 1px solid #666666;
+			background-color: #666666;
+			width: 380px;
+			color: #ffffff;
+			padding-left: 20px;
+			margin-bottom: 10px;
+		}
+
+		.bar {
+			width: 400px;
+			height: 400px;
+			float: left;
+			margin: 5px;
+			border: 1px solid #666666;
+			/*background-image: url("http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg");*/
+			background-image: url("./images/ering.jpg");
+			background-size: 400px 400px;
+		}
+		.barTitle {
+			font-family: Arial,serif;
+			text-align: center;
+			padding-bottom:35px;
+			font-size:27px;
+			font-weight: bold;
+			width: 400px;
+			height: 20px;
+			float: left;
+			margin: 5px;
+			/*margin-bottom: -5px;*/
+			border: 1px solid #666666;
+			background-color:#666666;
+		}
+
+		.greywords {
+			color: #666666;
+		}
+
+		#footer {
+			position:absolute;
+			color: #666666;
+			bottom:0;
+			margin-bottom:40px;
+			width:100%;
+			height:100px;   /* Height of the footer */
+		}
+
+		.button {
+			display: inline-block;
+			border-radius: 2px;
+			background-color: #0f79ac;
+			border: none;
+			color: #FFFFFF;
+			text-align: center;
+			font-size: 18px;
+			padding: 10px;
+			width: 200px;
+			transition: all 0.5s;
+			cursor: pointer;
+			margin: 5px;
+		}
+
+		.button span {
+			cursor: pointer;
+			display: inline-block;
+			position: relative;
+			transition: 0.5s;
+		}
+
+		.button span:after {
+			content: '»';
+			position: absolute;
+			opacity: 0;
+			top: 0;
+			right: -20px;
+			transition: 0.5s;
+		}
+
+		.button:hover span {
+			padding-right: 25px;
+		}
+
+		.button:hover span:after {
+			opacity: 1;
+			right: 0;
+		}
+
+		#homebutton {
+			position: absolute;
+			left: 1035px;
+			top: 30px;
+		}
+
+		.Uploadbtn {
+			position: relative;
+			overflow: hidden;
+			display: inline-block;
+			border-radius: 2px;
+			background-color: #0f79ac;
+			border: none;
+			color: #FFFFFF;
+			text-align: center;
+			font-size: 18px;
+			padding: 10px;
+			width: 200px;
+			transition: all 0.5s;
+			cursor: pointer;
+			margin: 5px;
+		}
+
+		.Uploadbtn .input-upload {
+			position: absolute;
+			top: 0;
+			right: 0;
+			margin: 0;
+			padding: 0;
+			opacity: 0;
+			height:100%;
+			width:100%;
+		}
+
+		#textbox1 {
+			border: 0px #666666;
+			border-radius: 2px;
+			font-size: 18px;
+			margin: 5px;
+			margin-bottom: 0px;
+			padding: 10px;
+			width: 620px;
+			height: 20px;
+		}
+
+		.wrapper {
+			margin: 5px;
+			background-color: #666666;
+			border:0px solid #666666;
+			border-radius: 2px;
+			display:inline-block;
+		}
+
+	</style>
+
+<body>
+	<div>
+		<header class="inner">
+			<h1>Hoopla</h1>
+			<h4><a href="https://github.com/linan7788626/hoopla">Lens
+					Modeling in Javascript</a> with Elliptical Lenses and Sources</h4>
+		</header>
+	</div>
+
+	<div class="container">
+		<div id="masscaption" class="barTitle">
+			<p style="margin-top: 10px;margin-left: -8px;">Mass Model</p>
+
+		</div>
+		<div id="srccaption" class="barTitle">
+			<p style="margin-top: 10px;margin-left: -8px;">Source Model</p>
+		</div>
+	</div>
+	<div class="container">
+		<div id="marking-container" class="bar"></div>
+		<div id="marking-container-src" class="bar" style="color: #666666;"></div>
+	</div>
+	<table>
+		<tr class="container2">
+		<td>
+			<div id="masscaption" class="barTitle">
+				<p style="margin-top: 10px;margin-left: -8px;">Source Plane</p>
+			</div>
+		</td>
+		<td>
+			<div id="srccaption" class="barTitle">
+				<p style="margin-top: 10px;margin-left: -8px;">Image Plane</p>
+			</div>
+		</td>
+		<td>
+			<div id="masscaption" class="barTitle">
+				<p style="margin-top: 10px;margin-left: -8px;">Difference Plane</p>
+			</div>
+		</td>
+
+		</tr>
+
+		<tr class="container2">
+		<td><div id="hoopla-srcmodel" class="bar">
+			<p id="tag" style="display: none">Freezed</p>
+		</div></td>
+		<td><div id="hoopla-prediction" class="bar"></div></td>
+		<td><canvas id="myCanvas"  width="400" height="400" style="border:1px solid #d3d3d3;float: left;margin: 5px;">
+		</canvas></td>
+		</tr>
+	</table>
+
+	<div class="container">
+	<button class="button" id="showModels"
+			style="vertical-align:middle;width:193px;background-color:#666666"><span>Save Models</span></button>
+	<button class="Uploadbtn" style="vertical-align:middle;width:193px;background-color:#666666">
+		<input class="input-upload" type="file" id="modelUpload"/>
+		<span>Load Models</span>
+	</button>
+
+	<button class="Uploadbtn" style="vertical-align:middle;width:193px;background-color:#666666">
+		<input class="input-upload" type="file" id="imageUpload"/>
+		<span>Upload Images</span>
+	</button>
+
+	<button class="button" id="optimization"
+			style="vertical-align:middle;width:193px"><span>Optimization</span></button>
+
+	<div class="wrapper">
+		<input id="textbox1" type="text" placeholder="Input the URL of an Image"/>
+		<button class="button" id="buttonExecute" style="width:150px;background-color:#666666"
+		><span>Upload URL</span></button>
+	</div>
+	</div>
+
+
+	<div class="container">
+	<footer>
+		<p class="greywords"><a
+			href="https://github.com/linan7788626/Hoopla">Hoopla</a>
+			is based on <a href="https://github.com/drphilmarshall/LensWrangler">
+			LensWrangler</a> by <a href="https://github.com/drphilmarshall">Phil Marshall</a>, <a href="https://github.com/kapadia">Amit Kapadia</a> and <a href="https://github.com/slowe">Stuart Lowe</a>,<br/>
+            but with modifications by <a href="https://github.com/linan7788626">Nan Li</a>. <br/>
+	        This page is published with <a href="http://pages.github.com">GitHub Pages</a>. <br/>
+		</p>
+	</footer>
+
+	</div>
+
+<!--	<canvas id="myCanvas" width="400" height="400" style="border:1px solid #d3d3d3;">-->
+<!--		Your browser does not support the HTML5 canvas tag.-->
+<!--	</canvas>-->
+
+    <script type="text/javascript" src="lib/marking/marking-surface.js"></script>
+    <script type="text/javascript" src="lib/marking/tools/ellipse.js"></script>
+</body>
