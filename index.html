@@ -23,7 +23,8 @@
 				srcmodel: 'hoopla-srcmodel',
 				prediction: 'hoopla-prediction',
 				//pixscale: 0.0375
-				pixscale: 0.0225
+				pixscale: 0.0225,
+				src: "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg"
     		});
 
     		// Using Brian C's Marking Surface library!!!
@@ -146,7 +147,6 @@
 
 				function updateModel() {
 					let data = JSON.parse(ms_src.getValue());
-					console.log(ms_src.tools);
 					let components = data.map(function(d) {
 						let coords = getCoords(d);
 						return {
@@ -159,7 +159,7 @@
 						}
 					});
 					lets.updateModel(components);
-					console.log(components)
+					// console.log(components)
 				}
 				let debouncedUpdateModel = _.debounce(updateModel, 200);
 				ms_src.on('marking-surface:change', debouncedUpdateModel);
@@ -167,18 +167,30 @@
 			img_src.src = "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg";
 
 			document.getElementById('imageUpload').onchange = function(e) {
+				// document.getElementById('dialog').style.display = 'block';
 				let imageFile = this.files[0];
 				let url = window.URL.createObjectURL(imageFile);
 				img.src = url;
 				img_src.src = url;
+				ms.tools.pop();
+				ms_src.tools.pop();
+				lets.srcmodelPaper.clear();
+				lets.srcmodelPaper.src = url;
+				lets.predictionPaper.clear();
+				lets.predictionPaper.src = url;
+				lets.paper.src = url;
 				console.log(url);
 				document.getElementById("hoopla-srcmodel").style.backgroundImage
 					= "url(" + url + ")";
 				document.getElementById("hoopla-prediction").style.backgroundImage
 					= "url(" + url + ")";
 
+				console.log(document.getElementById("hoopla-prediction"));
+				console.log(lets.predictionPaper);
 			};
-
+			document.getElementById("close-button").addEventListener("click", function() {
+				document.getElementById("dialog").style.display = "none";
+			});
 			document.getElementById("showModels").onclick = function fun() {
 				//lets.showModels(img_src.src.split('/')[img_src.src.split('/').length-1].split('.')[0]+'.JSON');
 				lets.showModels(img_src.src);
@@ -524,7 +536,6 @@
 					red[i] = data[i*4]/255.;
 				}
 
-
 				let chi = new Array(red.length);
 				let testimg = new Array(red.length);
 				let redstd = standardDeviation(red);
@@ -608,7 +619,7 @@
 					lets.models[0].components[0].ell = p1[8];
 					lets.models[0].components[0].ang = p1[9];
 					lets.loadModel(lets.models[0].components);
-					console.log(lets.models[0].components);
+					// console.log(lets.models[0].components);
 					lets.update({x:lets.lens.ang2pix(p1[0]),y:lets.lens.ang2pix(p1[1])});
 					lets.freezeSrcModel = true;
 					updateCanvas(p1)
@@ -644,215 +655,13 @@
 					window.alert('Please input Source Model!');
 					return;
 				}
+
 				timer(8);
 
 			};
 
 		}
 	</script>
-
-	<style type="text/css">
-		body {
-			font-family: serif,Helvetica,Arial,sans-serif;
-			background-color: black;
-			color: #ffffff;
-		}
-
-		.container {
-			width: 840px;
-		}
-		.container2{
-			width: 1260px;
-		}
-
-		#tag{
-			width:60px;
-			font-family: Arial,serif;
-			background-color: orange;
-			text-align: center;
-			font-size: medium;
-			color: black;
-			position: absolute;
-			left: 340px;
-			padding: 5px;
-			border-radius: 5px;
-			transition: opacity 0.3s ease-in-out;
-		}
-		h1, h2, h3, h4 { font-family: Arial,serif; }
-		h1 { margin-bottom: 0.5em; color: #FFFFFF; }
-
-		h4 { color: #666666; }
-		a { color: #666666; }
-
-		.inline {
-		    position: relative;
-		    display: inline;
-		    margin-left: 5px;
-		}
-
-		.inline-block {
-		    display: inline-block;
-		}
-
-		.captions {
-			font-size:20px;
-			font-weight: bold;
-		    display: block;
-		    height: 40px;
-		}
-
-		#masscaption,#srcincaption {
-			padding-top:5px;
-			border: 1px solid #666666;
-			background-color: #666666;
-			width: 380px;
-			color: #ffffff;
-			padding-left: 20px;
-			margin-bottom: 10px;
-		}
-
-		#srccaption, #predcaption {
-			padding-top:10px;
-			border: 1px solid #666666;
-			background-color: #666666;
-			width: 380px;
-			color: #ffffff;
-			padding-left: 20px;
-			margin-bottom: 10px;
-		}
-
-		.bar {
-			width: 400px;
-			height: 400px;
-			float: left;
-			margin: 5px;
-			border: 1px solid #666666;
-			/*background-image: url("http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg");*/
-			background-image: url("./images/ering.jpg");
-			background-size: 400px 400px;
-		}
-		.barTitle {
-			font-family: Arial,serif;
-			text-align: center;
-			padding-bottom:35px;
-			font-size:27px;
-			font-weight: bold;
-			width: 400px;
-			height: 20px;
-			float: left;
-			margin: 5px;
-			/*margin-bottom: -5px;*/
-			border: 1px solid #666666;
-			background-color:#666666;
-		}
-
-		.greywords {
-			color: #666666;
-		}
-
-		#footer {
-			position:absolute;
-			color: #666666;
-			bottom:0;
-			margin-bottom:40px;
-			width:100%;
-			height:100px;   /* Height of the footer */
-		}
-
-		.button {
-			display: inline-block;
-			border-radius: 2px;
-			background-color: #0f79ac;
-			border: none;
-			color: #FFFFFF;
-			text-align: center;
-			font-size: 18px;
-			padding: 10px;
-			width: 200px;
-			transition: all 0.5s;
-			cursor: pointer;
-			margin: 5px;
-		}
-
-		.button span {
-			cursor: pointer;
-			display: inline-block;
-			position: relative;
-			transition: 0.5s;
-		}
-
-		.button span:after {
-			content: '»';
-			position: absolute;
-			opacity: 0;
-			top: 0;
-			right: -20px;
-			transition: 0.5s;
-		}
-
-		.button:hover span {
-			padding-right: 25px;
-		}
-
-		.button:hover span:after {
-			opacity: 1;
-			right: 0;
-		}
-
-		#homebutton {
-			position: absolute;
-			left: 1035px;
-			top: 30px;
-		}
-
-		.Uploadbtn {
-			position: relative;
-			overflow: hidden;
-			display: inline-block;
-			border-radius: 2px;
-			background-color: #0f79ac;
-			border: none;
-			color: #FFFFFF;
-			text-align: center;
-			font-size: 18px;
-			padding: 10px;
-			width: 200px;
-			transition: all 0.5s;
-			cursor: pointer;
-			margin: 5px;
-		}
-
-		.Uploadbtn .input-upload {
-			position: absolute;
-			top: 0;
-			right: 0;
-			margin: 0;
-			padding: 0;
-			opacity: 0;
-			height:100%;
-			width:100%;
-		}
-
-		#textbox1 {
-			border: 0px #666666;
-			border-radius: 2px;
-			font-size: 18px;
-			margin: 5px;
-			margin-bottom: 0px;
-			padding: 10px;
-			width: 620px;
-			height: 20px;
-		}
-
-		.wrapper {
-			margin: 5px;
-			background-color: #666666;
-			border:0px solid #666666;
-			border-radius: 2px;
-			display:inline-block;
-		}
-
-	</style>
 
 <body>
 	<div>
@@ -929,6 +738,23 @@
 	</div>
 	</div>
 
+	<div id="dialog">
+		<div id="dialog-content">
+			<span id="close-button">×</span>
+			<form>
+				<label for="image-url">图片地址：</label>
+				<input type="text" id="image-url">
+				<br>
+				<label for="image-width">图片宽度：</label>
+				<input type="number" id="image-width">
+				<br>
+				<label for="image-height">图片高度：</label>
+				<input type="number" id="image-height">
+				<br>
+				<button type="submit">提交</button>
+			</form>
+		</div>
+	</div>
 
 	<div class="container">
 	<footer>
@@ -950,3 +776,220 @@
     <script type="text/javascript" src="lib/marking/marking-surface.js"></script>
     <script type="text/javascript" src="lib/marking/tools/ellipse.js"></script>
 </body>
+
+
+<style type="text/css">
+	body {
+		font-family: serif,Helvetica,Arial,sans-serif;
+		background-color: black;
+		color: #ffffff;
+	}
+
+	.container {
+		width: 840px;
+	}
+	.container2{
+		width: 1260px;
+	}
+
+	#tag{
+		width:60px;
+		font-family: Arial,serif;
+		background-color: orange;
+		text-align: center;
+		font-size: medium;
+		color: black;
+		position: absolute;
+		left: 340px;
+		padding: 5px;
+		border-radius: 5px;
+		transition: opacity 0.3s ease-in-out;
+	}
+	h1, h2, h3, h4 { font-family: Arial,serif; }
+	h1 { margin-bottom: 0.5em; color: #FFFFFF; }
+
+	h4 { color: #666666; }
+	a { color: #666666; }
+
+	#dialog {
+		display: none;
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(0, 0, 0, 0.5);
+	}
+
+	#dialog-content {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: 500px;
+		height: 300px;
+		background-color: white;
+		padding: 20px;
+	}
+
+	#dialog-content form {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	#dialog-content input {
+		width: 100%;
+		margin-bottom: 10px;
+	}
+
+	#dialog-content button {
+		margin-top: 10px;
+	}
+
+	#masscaption,#srcincaption {
+		padding-top:5px;
+		border: 1px solid #666666;
+		background-color: #666666;
+		width: 380px;
+		color: #ffffff;
+		padding-left: 20px;
+		margin-bottom: 10px;
+	}
+
+	#srccaption, #predcaption {
+		padding-top:10px;
+		border: 1px solid #666666;
+		background-color: #666666;
+		width: 380px;
+		color: #ffffff;
+		padding-left: 20px;
+		margin-bottom: 10px;
+	}
+
+	.bar {
+		width: 400px;
+		height: 400px;
+		float: left;
+		margin: 5px;
+		border: 1px solid #666666;
+		/*background-image: url("http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg");*/
+		background-image: url("./images/ering.jpg");
+		background-size: 400px 400px;
+	}
+	.barTitle {
+		font-family: Arial,serif;
+		text-align: center;
+		padding-bottom:35px;
+		font-size:27px;
+		font-weight: bold;
+		width: 400px;
+		height: 20px;
+		float: left;
+		margin: 5px;
+		/*margin-bottom: -5px;*/
+		border: 1px solid #666666;
+		background-color:#666666;
+	}
+
+	.greywords {
+		color: #666666;
+	}
+
+	#footer {
+		position:absolute;
+		color: #666666;
+		bottom:0;
+		margin-bottom:40px;
+		width:100%;
+		height:100px;   /* Height of the footer */
+	}
+
+	.button {
+		display: inline-block;
+		border-radius: 2px;
+		background-color: #0f79ac;
+		border: none;
+		color: #FFFFFF;
+		text-align: center;
+		font-size: 18px;
+		padding: 10px;
+		width: 200px;
+		transition: all 0.5s;
+		cursor: pointer;
+		margin: 5px;
+	}
+
+	.button span {
+		cursor: pointer;
+		display: inline-block;
+		position: relative;
+		transition: 0.5s;
+	}
+
+	.button span:after {
+		content: '»';
+		position: absolute;
+		opacity: 0;
+		top: 0;
+		right: -20px;
+		transition: 0.5s;
+	}
+
+	.button:hover span {
+		padding-right: 25px;
+	}
+
+	.button:hover span:after {
+		opacity: 1;
+		right: 0;
+	}
+
+	.Uploadbtn {
+		position: relative;
+		overflow: hidden;
+		display: inline-block;
+		border-radius: 2px;
+		background-color: #0f79ac;
+		border: none;
+		color: #FFFFFF;
+		text-align: center;
+		font-size: 18px;
+		padding: 10px;
+		width: 200px;
+		transition: all 0.5s;
+		cursor: pointer;
+		margin: 5px;
+	}
+
+	.Uploadbtn .input-upload {
+		position: absolute;
+		top: 0;
+		right: 0;
+		margin: 0;
+		padding: 0;
+		opacity: 0;
+		height:100%;
+		width:100%;
+	}
+
+	#textbox1 {
+		border: 0px #666666;
+		border-radius: 2px;
+		font-size: 18px;
+		margin: 5px;
+		margin-bottom: 0px;
+		padding: 10px;
+		width: 620px;
+		height: 20px;
+	}
+
+	.wrapper {
+		margin: 5px;
+		background-color: #666666;
+		border:0px solid #666666;
+		border-radius: 2px;
+		display:inline-block;
+	}
+
+</style>

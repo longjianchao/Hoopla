@@ -316,11 +316,12 @@
 	// 初始化透镜模型
 	Hoopla.prototype.init = function(inp,fnCallback){
 		console.log("init");
-
+		// console.log(this.predictionPaper);
 		this.model = this.getModel(inp);
 		let _this = this;
 		_this.freezeSrcModel=false;
 		if(typeof this.model.src === "string") this.loadImage(this.model.src);
+		// console.log(this.model.src);
 		if(typeof this.model.components === "object"){
 			this.lens.removeAll('lens');
 			this.lens.removeAll('source');
@@ -523,6 +524,7 @@
 			}
 			this.img.src = src;
 		}
+
 		return this;
 	}
 
