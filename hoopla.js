@@ -287,13 +287,15 @@
 		addEvent(this.paper.canvas,"mouseover",function(e){
 			_obj.trigger("mouseover")
 		});
-		addEvent(this.paper.canvas,"click",(e)=>{
+		addEvent(this.paper.canvas,"click",function(e){
 			_obj.freezeSrcModel = !_obj.freezeSrcModel;
 			let tag = document.getElementById('tag');
 			if(_obj.freezeSrcModel){
-				tag.style.display = "block";
+				tag.innerText = "Freezed";
+				tag.style.backgroundColor = "lightblue";
 			}else{
-				tag.style.display = "none";
+				tag.innerText = "Active";
+				tag.style.backgroundColor = "orange";
 			}
 
 		});
@@ -364,11 +366,6 @@
 			}
 		}
 
-		// console.log("===================================================================")
-		// console.log(this.paper);
-		// console.log(this.srcmodelPaper);
-		// console.log(this.predictionPaper)
-
 		// this.paper.clear();
 		this.srcmodelPaper.clear();
 		this.predictionPaper.clear();
@@ -390,7 +387,6 @@
 				this.srcmodelPaper.bind(e[i], { ev:ev, hoopla:this }, function(e) {
 					_this.e = {x:e.x, y:e.y};
 					if (!_this.freezeSrcModel) {
-
 						e.data.hoopla.update(e);
 					}
 				});
