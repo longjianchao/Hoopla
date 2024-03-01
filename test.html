@@ -1,14 +1,28 @@
 <!DOCTYPE HTML>
 <html>
   <head>
-    <style>
-      body {
-        margin: 0px;
-        padding: 0px;
-      }
-    </style>
   </head>
+
   <body>
+  <div class="popup-form">
+    <h2>Image Settings</h2>
+    <form>
+      <label for="image-url">Image URL:</label>
+      <input type="button" id="image-url" placeholder="Select Image">
+
+      <label for="image-height">Image Height (px):</label>
+      <input type="number" id="image-height" placeholder="Enter the height of the image in pixels">
+
+      <label for="image-width">Image Width (px):</label>
+      <input type="number" id="image-width" placeholder="Enter the width of the image in pixels">
+
+      <label for="pixel-size">Pixel Scale (px):</label>
+      <input type="number" id="pixel-size" placeholder="Enter the pixel size of the image">
+
+      <button type="submit">Submit</button>
+      <button type="button" id="close-form-button">Close</button>
+    </form>
+  </div>
     <!--<canvas id="myCanvas" width="578" height="400"></canvas>-->
     <script>
       function drawImage(img) {
@@ -40,4 +54,47 @@
 
     </script>
   </body>
-</html>      
+</html>
+
+<style type="text/css">
+  .popup-form {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    padding: 20px;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    box-shadow: 0 3px 6px 0 rgba(0, 0, 0, 0.16);
+    display: none;
+
+  }
+
+  .popup-form.active {
+    display: block;
+  }
+  .popup-form label{
+    width: 200px;
+    padding: 0.5em;
+  }
+  .popup-form input {
+    width: 300px;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+  }
+
+  .popup-form button {
+    padding: 10px 20px;
+    margin-right: 10px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    cursor: pointer;
+  }
+
+  .popup-form button:hover {
+    background-color: #f5f5f5;
+  }
+
+</style>

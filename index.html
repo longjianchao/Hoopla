@@ -166,31 +166,53 @@
 			}
 			img_src.src = "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg";
 
-			document.getElementById('imageUpload').onchange = function(e) {
-				// document.getElementById('dialog').style.display = 'block';
-				let imageFile = this.files[0];
-				let url = window.URL.createObjectURL(imageFile);
-				img.src = url;
-				img_src.src = url;
-				ms.tools.pop();
-				ms_src.tools.pop();
-				lets.srcmodelPaper.clear();
-				lets.srcmodelPaper.src = url;
-				lets.predictionPaper.clear();
-				lets.predictionPaper.src = url;
-				lets.paper.src = url;
-				console.log(url);
-				document.getElementById("hoopla-srcmodel").style.backgroundImage
-					= "url(" + url + ")";
-				document.getElementById("hoopla-prediction").style.backgroundImage
-					= "url(" + url + ")";
 
-				console.log(document.getElementById("hoopla-prediction"));
-				console.log(lets.predictionPaper);
+
+			document.getElementById('imageUpload').onclick = function(e) {
+				document.getElementById("imgURL").innerText="";
+				document.getElementById("pixel-scale").value="";
+				document.getElementById("image-width").value="";
+				document.getElementById("image-height").value="";
+				document.querySelector('.popup-form').classList.add('active');
 			};
-			document.getElementById("close-button").addEventListener("click", function() {
-				document.getElementById("dialog").style.display = "none";
-			});
+			document.getElementById("close-form-button").onclick = function(){
+                document.querySelector('.popup-form').classList.remove('active');
+            }
+            document.getElementById("image-url").onchange = function(){
+                let imageFile = this.files[0];
+                let url = window.URL.createObjectURL(imageFile);
+                document.getElementById("imgURL").innerText = url;
+            }
+            document.getElementById("confirm").onclick = function() {
+			    let url = document.getElementById("imgURL").innerText;
+			    let pixscale = document.getElementById("pixel-scale").value;
+			    let width = document.getElementById("image-width").value;
+			    let height = document.getElementById("image-height").value;
+			    console.log(pixscale);
+			    if(url == null || pixscale == null){
+			    	window.alert("Please input entire information of image!");
+			    	return;
+				}
+                img.src = url;
+                img_src.src = url;
+                ms.tools.pop();
+                ms_src.tools.pop();
+                lets.pixscale = pixscale;
+                lets.srcmodelPaper.clear();
+                lets.srcmodelPaper.src = url;
+                lets.predictionPaper.clear();
+                lets.predictionPaper.src = url;
+                lets.paper.src = url;
+                console.log(url);
+                document.getElementById("hoopla-srcmodel").style.backgroundImage
+                	= "url(" + url + ")";
+                document.getElementById("hoopla-prediction").style.backgroundImage
+                	= "url(" + url + ")";
+                console.log(lets);
+				document.querySelector('.popup-form').classList.remove('active');
+            }
+
+
 			document.getElementById("showModels").onclick = function fun() {
 				//lets.showModels(img_src.src.split('/')[img_src.src.split('/').length-1].split('.')[0]+'.JSON');
 				lets.showModels(img_src.src);
@@ -205,6 +227,7 @@
 				document.getElementById("hoopla-prediction").style.backgroundImage
 					= "url(" + url + ")";
 			};
+
 
 			document.getElementById('modelUpload').onchange = function(e) {
 				let input = e.target;
@@ -462,17 +485,11 @@
 								testimg[i])/redstd/redstd/(chi.length);
 					}
 			    }
-				let res = optimize.vector.dot(chi, chi);
-
-				// console.log(res);
-
-				return res;
+                return optimize.vector.dot(chi, chi);
 			}
 
 			function chi2(p) {
 			    var i;
-				//var red = getRedData();
-				//var canvas = document.createElement('canvas');
 
 				var c = document.getElementById("myCanvas");
 				var ctx = c.getContext("2d");
@@ -724,7 +741,7 @@
 	</button>
 
 	<button class="Uploadbtn" style="vertical-align:middle;width:193px;background-color:#666666">
-		<input class="input-upload" type="file" id="imageUpload"/>
+		<input class="input-upload" type="button" id="imageUpload"/>
 		<span>Upload Images</span>
 	</button>
 
@@ -738,23 +755,42 @@
 	</div>
 	</div>
 
-	<div id="dialog">
-		<div id="dialog-content">
-			<span id="close-button">×</span>
-			<form>
-				<label for="image-url">图片地址：</label>
-				<input type="text" id="image-url">
-				<br>
-				<label for="image-width">图片宽度：</label>
-				<input type="number" id="image-width">
-				<br>
-				<label for="image-height">图片高度：</label>
-				<input type="number" id="image-height">
-				<br>
-				<button type="submit">提交</button>
-			</form>
-		</div>
-	</div>
+
+    <div class="popup-form">
+        <h2 style="color: black;text-align: center">Image Settings</h2>
+        <form onsubmit="return false;">
+            <div class="form-item1">
+                <label for="image-url" style="margin-right: 80px;">Image URL:</label>
+                <button class="Uploadbtn" id="img-upload" style="width:200px;background-color:#1fc0db">
+                    <input class="input-upload" type="file" id="image-url"/>
+                    <span>Select Image</span>
+                </button>
+                <br/>
+                <span id="imgURL" content="" style="width: 100%;height: 30px;color: black"></span>
+            </div>
+            <br />
+            <div class="form-item">
+                <label for="image-height">Image Height (px):</label>
+                <input type="number" id="image-height" value="image-height" placeholder="Enter the height of the image in pixels">
+            </div>
+            <br/>
+            <div class="form-item">
+                <label for="image-width">Image Width (px):</label>
+                <input type="number" id="image-width" value="image-width" placeholder="Enter the width of the image in pixels">
+            </div>
+            <br/>
+            <div class="form-item">
+                <label for="pixel-scale">Pixel Scale (px):</label>
+                <input type="text" id="pixel-scale" placeholder="Enter the pixel size of the image">
+            </div>
+            <br/>
+            <div class="form-item">
+                <button type="submit" id="confirm">Confirm</button>
+                <button type="button" id="close-form-button">Close</button>
+            </div>
+
+        </form>
+    </div>
 
 	<div class="container">
 	<footer>
@@ -811,41 +847,72 @@
 	h4 { color: #666666; }
 	a { color: #666666; }
 
-	#dialog {
-		display: none;
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		background-color: rgba(0, 0, 0, 0.5);
+	#confirm{
+		width: 100px;
+		margin-left: 90px;
+		background-color: #1fc0db;
+		color: white;
+	}
+	#close-form-button{
+		width: 100px;
+		margin-left: 100px;
+		background-color: crimson;
+		color: white;
 	}
 
-	#dialog-content {
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: 500px;
-		height: 300px;
-		background-color: white;
-		padding: 20px;
-	}
+    .popup-form {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 500px;
+        padding: 20px;
+        background-color: #fff;
+        border: 1px solid #c1a3a3;
+        box-shadow: 0 3px 6px 0 rgba(0, 0, 0, 0.16);
+        display: none;
+        border-radius: 5px;
+    }
+    .form-item{
+        height: 50px;
+    }
+    .form-item1{
+        height: 80px;
+    }
+    .popup-form.active {
+        display: block;
+    }
+    .popup-form label{
+        font-size: medium;
+        font-family: Arial,serif;
+        color: black;
+        width: 200px;
+        margin-bottom: 10px;
+        vertical-align: middle;
+    }
 
-	#dialog-content form {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-	}
+label {}
+    .popup-form input {
+        width: 300px;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+        float: right;
+    }
 
-	#dialog-content input {
-		width: 100%;
-		margin-bottom: 10px;
-	}
+    .popup-form button {
+        padding: 10px 20px;
+        margin-right: 10px;
+        border: 1px solid #ccc;
+        background-color: #fff;
+        cursor: pointer;
+        border-radius: 7px;
+        color: white;
+    }
 
-	#dialog-content button {
-		margin-top: 10px;
-	}
+    .popup-form button:hover {
+        background-color: #f5f5f5;
+    }
 
 	#masscaption,#srcincaption {
 		padding-top:5px;
@@ -858,7 +925,7 @@
 	}
 
 	#srccaption, #predcaption {
-		padding-top:10px;
+		padding-top:5px;
 		border: 1px solid #666666;
 		background-color: #666666;
 		width: 380px;
@@ -907,7 +974,7 @@
 
 	.button {
 		display: inline-block;
-		border-radius: 2px;
+		border-radius: 7px;
 		background-color: #0f79ac;
 		border: none;
 		color: #FFFFFF;
@@ -918,6 +985,7 @@
 		transition: all 0.5s;
 		cursor: pointer;
 		margin: 5px;
+
 	}
 
 	.button span {
@@ -949,7 +1017,7 @@
 		position: relative;
 		overflow: hidden;
 		display: inline-block;
-		border-radius: 2px;
+		border-radius: 7px;
 		background-color: #0f79ac;
 		border: none;
 		color: #FFFFFF;
