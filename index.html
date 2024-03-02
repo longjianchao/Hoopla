@@ -198,6 +198,8 @@
                 ms.tools.pop();
                 ms_src.tools.pop();
                 lets.pixscale = pixscale;
+                lets.width = width;
+                lets.height = height;
                 lets.srcmodelPaper.clear();
                 lets.srcmodelPaper.src = url;
                 lets.predictionPaper.clear();
@@ -724,7 +726,10 @@
 
 		<tr class="container2">
 		<td><div id="hoopla-srcmodel" class="bar">
-			<p id="tag" style="display: block">Active</p>
+			<p id="tag" class="tooltip" style="display: block">
+				<span class="tooltiptext">Interactive Mode is activated, click left button of the mouse to turn into Freezed mode.</span>
+				Interactive
+			</p>
 		</div></td>
 		<td><div id="hoopla-prediction" class="bar"></div></td>
 		<td><canvas id="myCanvas"  width="400" height="400" style="border:1px solid #d3d3d3;float: left;margin: 5px;">
@@ -829,14 +834,14 @@
 	}
 
 	#tag{
-		width:60px;
+		width:80px;
 		font-family: Arial,serif;
 		background-color: orange;
 		text-align: center;
 		font-size: medium;
 		color: black;
 		position: absolute;
-		left: 340px;
+		left: 320px;
 		padding: 5px;
 		border-radius: 5px;
 		transition: opacity 0.3s ease-in-out;
@@ -1058,6 +1063,28 @@ label {}
 		border:0px solid #666666;
 		border-radius: 2px;
 		display:inline-block;
+	}
+	.tooltip {
+		position: relative;
+		display: inline-block;
+	}
+
+	.tooltip .tooltiptext {
+		visibility: hidden;
+		width: 220px;
+		background-color: black;
+		color: white;
+		text-align: center;
+		border-radius: 6px;
+		padding: 5px 0;
+		/* Position the tooltip */
+		position: absolute;
+		bottom: 125%;
+		margin-left: -70px;
+	}
+
+	.tooltip:hover .tooltiptext {
+		visibility: visible;
 	}
 
 </style>

@@ -291,10 +291,10 @@
 			_obj.freezeSrcModel = !_obj.freezeSrcModel;
 			let tag = document.getElementById('tag');
 			if(_obj.freezeSrcModel){
-				tag.innerText = "Freezed";
+				tag.innerHTML = "<span class=\"tooltiptext\">Freezed Mode is activated, click left button of the mouse to turn into interactive mode.</span>Freezed"
 				tag.style.backgroundColor = "lightblue";
 			}else{
-				tag.innerText = "Active";
+				tag.innerHTML = "<span class=\"tooltiptext\">Interactive Mode is activated, click left button of the mouse to turn into freezed mode.</span>Interactive";
 				tag.style.backgroundColor = "orange";
 			}
 
