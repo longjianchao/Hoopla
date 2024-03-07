@@ -9,6 +9,7 @@
 	<script type="text/javascript" src="lib/conrec.js"></script>
 	<script type="text/javascript" src="lib/optimize.js"></script>
 	<script type="text/javascript" src="hoopla.js"></script>
+
 	<script type="text/javascript">
 		var imgd = new Image();
 		imgd.crossOrigin="anonymous";
@@ -166,8 +167,6 @@
 			}
 			img_src.src = "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg";
 
-
-
 			document.getElementById('imageUpload').onclick = function(e) {
 				document.getElementById("imgURL").innerText="";
 				document.getElementById("pixel-scale").value="";
@@ -189,7 +188,8 @@
 			    let width = document.getElementById("image-width").value;
 			    let height = document.getElementById("image-height").value;
 			    console.log(pixscale);
-			    if(url == null || pixscale == null){
+
+			    if((url === ''||null) || (pixscale === ''||null)){
 			    	window.alert("Please input entire information of image!");
 			    	return;
 				}
@@ -205,7 +205,6 @@
                 lets.predictionPaper.clear();
                 lets.predictionPaper.src = url;
                 lets.paper.src = url;
-                console.log(url);
                 document.getElementById("hoopla-srcmodel").style.backgroundImage
                 	= "url(" + url + ")";
                 document.getElementById("hoopla-prediction").style.backgroundImage
@@ -220,16 +219,6 @@
 				lets.showModels(img_src.src);
 			};
 
-			document.getElementById('buttonExecute').onclick = function passURL() {
-				const url = document.getElementById('textbox1').value;
-				img.src = url;
-				img_src.src = url;
-				document.getElementById("hoopla-srcmodel").style.backgroundImage
-					= "url(" + url + ")";
-				document.getElementById("hoopla-prediction").style.backgroundImage
-					= "url(" + url + ")";
-			};
-
 
 			document.getElementById('modelUpload').onchange = function(e) {
 				let input = e.target;
@@ -240,11 +229,25 @@
 					let data = JSON.parse(text);
 					let components = data.components;
 					lets.loadModel(components);
-					lets.update({x:lets.lens.ang2pix(components[1].x),y:lets.lens.ang2pix(components[1].y)});
+					if(ms.tools.length===0){
+						ms.addTool();
+					}
+					if(ms_src.tools.length===0){
+						ms_src.addTool();
+					}
 					lets.freezeSrcModel = true;
+					updateCanvas(components);
+					lets.update({x:lets.lens.ang2pix(components[1].x),y:lets.lens.ang2pix(components[1].y)});
+					console.log(lets.freezeSrcModel);
+
+					let tag = document.getElementById('tag');
+					tag.innerHTML = "<span class=\"tooltiptext\">Freezed Mode is unactivated, click left button of the mouse to turn into interactive mode.</span>Freezed"
+					tag.style.backgroundColor = "lightblue";
 				};
+
 				reader.readAsText(input.files[0]);
 			};
+
 
 			function calAlpha(xl,yl,xlc,ylc,re,ql,phl) {
 
@@ -591,6 +594,49 @@
 				ctx.putImageData(dstdata, 0, 0);
 				return res;
 			}
+			let chartInstance = null // 声明一个全局变量来存储 Chart 实例
+			function drawChiSquareCurve(chiSquaredValues) {
+				let ctx = document.getElementById("Curve");
+				if (chartInstance) {
+					// 如果之前有 Chart 实例存在，则更新其数据和选项
+					chartInstance.data.labels = Array.from({ length: chiSquaredValues.length }, (_, i) => 50*(i + 1));
+					chartInstance.data.datasets[0].data = chiSquaredValues;
+					chartInstance.update();
+				} else {
+					// 如果之前没有 Chart 实例存在，则创建一个新的实例
+					chartInstance = new Chart(ctx, {
+						type: 'line',
+						data: {
+							labels: Array.from({length: chiSquaredValues.length}, (_, i) => i + 1),
+							datasets: [
+								{
+									label: '卡方值',
+									data: chiSquaredValues,
+									borderColor: 'blue',
+									backgroundColor: 'rgba(0, 0, 255, 0.1)',
+								},
+							],
+						},
+						options: {
+							responsive: true,
+							scales: {
+								x: {
+									title: {
+										display: true,
+										text: '迭代次数',
+									},
+								},
+								y: {
+									title: {
+										display: true,
+										text: '卡方值',
+									},
+								},
+							},
+						},
+					});
+				}
+			}
 
 			const sleep = (timeout= 1000)=>new Promise((resolve, reject)=>{
 				setTimeout(resolve, timeout);
@@ -598,7 +644,7 @@
 
 			let it=0;
 			let timer = async(timeout) => {
-
+				let chiSquaredValues = [];
 				for(let i = 0; i< timeout; i++) {
 					let p0;
 					let xc1, xc2, re, ql, phl;
@@ -620,13 +666,14 @@
 
 					p0 = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
 					let p = optimize.fmin(chi2_rescale, p0, {ftol: 1e-6, maxiter: 50});
-					let p1=p.x;
+					let p1=p.x,chival = p.res;
 					if(it===p[1]&&it<50) break;
-					it=p.iterations;
+					it=chival.iterations;
+					chiSquaredValues.push(chival.fval);
 					// let p1 = optimize.newton(chi2_rescale, p0, {ftol: 1e-6, maxiter: 100});
 					console.log(p1);
 					show_res(p1);
-
+					drawChiSquareCurve(chiSquaredValues);
 					lets.models[0].components[1].x = p1[0];
 					lets.models[0].components[1].y = p1[1];
 					lets.models[0].components[1].theta_e = p1[2];
@@ -641,27 +688,26 @@
 					// console.log(lets.models[0].components);
 					lets.update({x:lets.lens.ang2pix(p1[0]),y:lets.lens.ang2pix(p1[1])});
 					lets.freezeSrcModel = true;
-					updateCanvas(p1)
+					updateCanvas(lets.models[0].components);
 					await sleep(1);
-
 				}
 			}
 
-			function updateCanvas(p1) {
-				let ang = lets.lens.ang2pix({x: p1[0], y: p1[1]});
+			function updateCanvas(components) {
+				let ang = lets.lens.ang2pix({x: components[1].x, y: components[1].y});
 				ms.tools[0].mark.x = ang.x;
 				ms.tools[0].mark.y = ang.y;
-				ms.tools[0].mark.angle = p1[4];
-				ms.tools[0].mark.ry = p1[2]/(lets.lens.pixscale*Math.sqrt(p1[3]));
-				ms.tools[0].mark.rx = ms.tools[0].mark.ry * p1[3];
+				ms.tools[0].mark.angle = components[1].ang ;
+				ms.tools[0].mark.ry = components[1].theta_e/(lets.lens.pixscale*Math.sqrt(components[1].ell));
+				ms.tools[0].mark.rx = ms.tools[0].mark.ry * components[1].ell;
 				ms.renderTools();
 
-				let ang2 = lets.lens.ang2pix({x: p1[5], y: p1[6]});
+				let ang2 = lets.lens.ang2pix({x: components[0].x, y: components[0].y});
 				ms_src.tools[0].mark.x = ang2.x;
 				ms_src.tools[0].mark.y = ang2.y
-				ms_src.tools[0].mark.angle = p1[9];
-				ms_src.tools[0].mark.ry = p1[7]/(lets.lens.pixscale*Math.sqrt(p1[8]));
-				ms_src.tools[0].mark.rx = ms_src.tools[0].mark.ry *p1[8];
+				ms_src.tools[0].mark.angle = components[0].ang;
+				ms_src.tools[0].mark.ry = components[0].size/(lets.lens.pixscale*Math.sqrt(components[0].ell ));
+				ms_src.tools[0].mark.rx = ms_src.tools[0].mark.ry *components[0].ell ;
 				ms_src.renderTools();
 			}
 
@@ -674,9 +720,12 @@
 					window.alert('Please input Source Model!');
 					return;
 				}
-
+				let tag2 = document.getElementById('tag2');
+				tag2.style.backgroundColor = 'blue';
+				console.log(tag2);
 				timer(8);
-
+				console.log('-------------------------------');
+				document.getElementById('tag2').style.backgroundImage = 'yellow';
 			};
 
 		}
@@ -691,49 +740,75 @@
 		</header>
 	</div>
 
-	<div class="container">
-		<div id="masscaption" class="barTitle">
-			<p style="margin-top: 10px;margin-left: -8px;">Mass Model</p>
 
-		</div>
-		<div id="srccaption" class="barTitle">
-			<p style="margin-top: 10px;margin-left: -8px;">Source Model</p>
-		</div>
-	</div>
-	<div class="container">
-		<div id="marking-container" class="bar"></div>
-		<div id="marking-container-src" class="bar" style="color: #666666;"></div>
-	</div>
 	<table>
+		<tr class="container">
+			<td>
+				<div id="masscaption" class="barTitle">
+					<p style="margin-top: 10px;margin-left: -8px;">Mass Model</p>
+				</div>
+			</td>
+			<td>
+				<div id="srccaption" class="barTitle">
+					<p style="margin-top: 10px;margin-left: -8px;">Source Model</p>
+				</div>
+			</td>
+		</tr>
+		<tr class="container">
+			<td>
+				<div id="marking-container" class="bar"></div>
+			</td>
+			<td>
+				<div id="marking-container-src" class="bar" style="color: #666666;"></div>
+			</td>
+		</tr>
 		<tr class="container2">
-		<td>
-			<div id="masscaption" class="barTitle">
-				<p style="margin-top: 10px;margin-left: -8px;">Source Plane</p>
-			</div>
-		</td>
-		<td>
-			<div id="srccaption" class="barTitle">
-				<p style="margin-top: 10px;margin-left: -8px;">Image Plane</p>
-			</div>
-		</td>
-		<td>
-			<div id="masscaption" class="barTitle">
-				<p style="margin-top: 10px;margin-left: -8px;">Difference Plane</p>
-			</div>
-		</td>
+			<td>
+				<div id="masscaption" class="barTitle">
+					<p style="margin-top: 10px;margin-left: -8px;">Source Plane</p>
+				</div>
+			</td>
+			<td>
+				<div id="srccaption" class="barTitle">
+					<p style="margin-top: 10px;margin-left: -8px;">Image Plane</p>
+				</div>
+			</td>
 
 		</tr>
 
 		<tr class="container2">
-		<td><div id="hoopla-srcmodel" class="bar">
-			<p id="tag" class="tooltip" style="display: block">
-				<span class="tooltiptext">Interactive Mode is activated, click left button of the mouse to turn into Freezed mode.</span>
-				Interactive
-			</p>
-		</div></td>
-		<td><div id="hoopla-prediction" class="bar"></div></td>
-		<td><canvas id="myCanvas"  width="400" height="400" style="border:1px solid #d3d3d3;float: left;margin: 5px;">
-		</canvas></td>
+			<td><div id="hoopla-srcmodel" class="bar">
+				<p id="tag" class="tooltip" style="display: block">
+					<span class="tooltiptext">Interactive Mode is activated, click left button of the mouse to turn into Freezed mode.</span>
+					Interactive
+				</p>
+			</div></td>
+			<td>
+				<div id="hoopla-prediction" class="bar">
+					<p id="tag2" style="background-color: #8ee58a;display: block;left: 730px">Running...</p>
+				</div>
+			</td>
+
+		</tr>
+		<tr>
+			<td>
+				<div id="masscaption" class="barTitle">
+					<p style="margin-top: 10px;margin-left: -8px;">Difference Plane</p>
+				</div>
+			</td>
+			<td>
+				<div id="masscaption" class="barTitle">
+					<p style="margin-top: 10px;margin-left: -8px;">Chi-Square Curve</p>
+				</div>
+			</td>
+		</tr>
+		<tr>
+			<td>
+				<canvas id="myCanvas"  width="400" height="400" style="border:1px solid #d3d3d3;float: left;margin: 5px;"></canvas>
+			</td>
+			<td>
+				<canvas id="Curve"  width="400" height="400" style="background-color: whitesmoke;border:1px solid #d3d3d3;float: left;margin: 5px;"></canvas>
+			</td>
 		</tr>
 	</table>
 
@@ -752,12 +827,6 @@
 
 	<button class="button" id="optimization"
 			style="vertical-align:middle;width:193px"><span>Optimization</span></button>
-
-	<div class="wrapper">
-		<input id="textbox1" type="text" placeholder="Input the URL of an Image"/>
-		<button class="button" id="buttonExecute" style="width:150px;background-color:#666666"
-		><span>Upload URL</span></button>
-	</div>
 	</div>
 
 
@@ -776,12 +845,12 @@
             <br />
             <div class="form-item">
                 <label for="image-height">Image Height (px):</label>
-                <input type="number" id="image-height" value="image-height" placeholder="Enter the height of the image in pixels">
+                <input type="number" id="image-height" placeholder="Enter the height of the image in pixels">
             </div>
             <br/>
             <div class="form-item">
                 <label for="image-width">Image Width (px):</label>
-                <input type="number" id="image-width" value="image-width" placeholder="Enter the width of the image in pixels">
+                <input type="number" id="image-width"  placeholder="Enter the width of the image in pixels">
             </div>
             <br/>
             <div class="form-item">
@@ -813,7 +882,7 @@
 <!--	<canvas id="myCanvas" width="400" height="400" style="border:1px solid #d3d3d3;">-->
 <!--		Your browser does not support the HTML5 canvas tag.-->
 <!--	</canvas>-->
-
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="text/javascript" src="lib/marking/marking-surface.js"></script>
     <script type="text/javascript" src="lib/marking/tools/ellipse.js"></script>
 </body>
@@ -833,7 +902,7 @@
 		width: 1260px;
 	}
 
-	#tag{
+	#tag,#tag2{
 		width:80px;
 		font-family: Arial,serif;
 		background-color: orange;
@@ -846,6 +915,7 @@
 		border-radius: 5px;
 		transition: opacity 0.3s ease-in-out;
 	}
+
 	h1, h2, h3, h4 { font-family: Arial,serif; }
 	h1 { margin-bottom: 0.5em; color: #FFFFFF; }
 
@@ -1057,13 +1127,6 @@ label {}
 		height: 20px;
 	}
 
-	.wrapper {
-		margin: 5px;
-		background-color: #666666;
-		border:0px solid #666666;
-		border-radius: 2px;
-		display:inline-block;
-	}
 	.tooltip {
 		position: relative;
 		display: inline-block;

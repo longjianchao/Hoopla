@@ -77,6 +77,7 @@
 				}
 			]
 		});
+
 		this.init();
 	}
 
@@ -291,7 +292,7 @@
 			_obj.freezeSrcModel = !_obj.freezeSrcModel;
 			let tag = document.getElementById('tag');
 			if(_obj.freezeSrcModel){
-				tag.innerHTML = "<span class=\"tooltiptext\">Freezed Mode is activated, click left button of the mouse to turn into interactive mode.</span>Freezed"
+				tag.innerHTML = "<span class=\"tooltiptext\">Freezed Mode is unactivated, click left button of the mouse to turn into interactive mode.</span>Freezed"
 				tag.style.backgroundColor = "lightblue";
 			}else{
 				tag.innerHTML = "<span class=\"tooltiptext\">Interactive Mode is activated, click left button of the mouse to turn into freezed mode.</span>Interactive";
@@ -299,6 +300,24 @@
 			}
 
 		});
+		// let tag = document.getElementById('tag');
+		// tag.addEventListener('change',()=>{
+		// 	this.freezeSrcModel = !this.freezeSrcModel;
+		//
+		// });
+		// Object.defineProperties(window,'_obj.freezeSrcModel',{
+		// 	get: function() { return _obj.freezeSrcModel; },
+		// 	set: function(v) {
+		// 		_obj.freezeSrcModel = !_obj.freezeSrcModel;
+		// 		if(_obj.freezeSrcModel){
+		// 			tag.innerHTML = "<span class=\"tooltiptext\">Freezed Mode is activated, click left button of the mouse to turn into interactive mode.</span>Freezed"
+		// 			tag.style.backgroundColor = "lightblue";
+		// 		}else{
+		// 			tag.innerHTML = "<span class=\"tooltiptext\">Interactive Mode is activated, click left button of the mouse to turn into freezed mode.</span>Interactive";
+		// 			tag.style.backgroundColor = "orange";
+		// 		}
+		// 	}
+		// })
 		return this;
 	}
 
