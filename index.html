@@ -16,29 +16,29 @@
 		imgd.src = 'https://cdn.rawgit.com/linan7788626/Hoopla/Preprocessing_input_pics/images/lensed_galaxy.jpg';
 		imgd.width = 400;
 		imgd.height = 400;
-		window.onload = function(e){
-
+		var lets,ms,ms_src,containerEl,containerEl_src,img,img_src;
+		function setup(){
 			// Create a hoopla object. The ID is that of the <div>
-    		var lets = new Hoopla({
+			lets = new Hoopla({
 				id:'hoopla-srcmodel',
 				srcmodel: 'hoopla-srcmodel',
 				prediction: 'hoopla-prediction',
 				//pixscale: 0.0375
 				pixscale: 0.0225,
 				src: "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg"
-    		});
+			});
 
-    		// Using Brian C's Marking Surface library!!!
-    		var ms = new MarkingSurface({
+			// Using Brian C's Marking Surface library!!!
+			ms = new MarkingSurface({
 				inputName: 'mass-model',
 				tool: MarkingSurface.EllipseTool,
-    		});
+			});
 
-    		var containerEl = document.getElementById("marking-container");
-    		containerEl.appendChild(ms.el);
+			containerEl = document.getElementById("marking-container");
+			containerEl.appendChild(ms.el);
 
-    		var img = new Image();
-    		img.onload = function() {
+			img = new Image();
+			img.onload = function() {
 				let width = img.width;
 				let height = img.height;
 
@@ -100,15 +100,15 @@
 			img.src = "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg";
 
 			// Source Models
-    		var ms_src = new MarkingSurface({
+			ms_src = new MarkingSurface({
 				inputName: 'src-model',
 				tool: MarkingSurface.EllipseTool
-    		});
-    		var containerEl_src = document.getElementById("marking-container-src");
-    		containerEl_src.appendChild(ms_src.el);
+			});
+			containerEl_src = document.getElementById("marking-container-src");
+			containerEl_src.appendChild(ms_src.el);
 
-    		var img_src = new Image();
-    		img_src.onload = function() {
+			img_src = new Image();
+			img_src.onload = function() {
 				let width = img_src.width;
 				let height = img_src.height;
 
@@ -166,7 +166,10 @@
 				ms_src.on('marking-surface:change', debouncedUpdateModel);
 			}
 			img_src.src = "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg";
+		}
 
+		window.onload = function(e){
+			setup();
 			document.getElementById('imageUpload').onclick = function(e) {
 				document.getElementById("imgURL").innerText="";
 				document.getElementById("pixel-scale").value="";
@@ -175,43 +178,75 @@
 				document.querySelector('.popup-form').classList.add('active');
 			};
 			document.getElementById("close-form-button").onclick = function(){
-                document.querySelector('.popup-form').classList.remove('active');
-            }
-            document.getElementById("image-url").onchange = function(){
-                let imageFile = this.files[0];
-                let url = window.URL.createObjectURL(imageFile);
-                document.getElementById("imgURL").innerText = url;
-            }
-            document.getElementById("confirm").onclick = function() {
-			    let url = document.getElementById("imgURL").innerText;
-			    let pixscale = document.getElementById("pixel-scale").value;
-			    let width = document.getElementById("image-width").value;
-			    let height = document.getElementById("image-height").value;
-			    console.log(pixscale);
-
-			    if((url === ''||null) || (pixscale === ''||null)){
-			    	window.alert("Please input entire information of image!");
-			    	return;
-				}
-                img.src = url;
-                img_src.src = url;
-                ms.tools.pop();
-                ms_src.tools.pop();
-                lets.pixscale = pixscale;
-                lets.width = width;
-                lets.height = height;
-                lets.srcmodelPaper.clear();
-                lets.srcmodelPaper.src = url;
-                lets.predictionPaper.clear();
-                lets.predictionPaper.src = url;
-                lets.paper.src = url;
-                document.getElementById("hoopla-srcmodel").style.backgroundImage
-                	= "url(" + url + ")";
-                document.getElementById("hoopla-prediction").style.backgroundImage
-                	= "url(" + url + ")";
-                console.log(lets);
 				document.querySelector('.popup-form').classList.remove('active');
-            }
+			}
+			document.getElementById("image-url").onchange = function(){
+				let imageFile = this.files[0];
+				if(imageFile&&imageFile.type){
+					const fileType = imageFile.type;
+					if(fileType!=='image/jpeg'&&fileType!=='image/png'&&fileType!=='image/jps'){
+						window.alert('Only files in jpg or png format can be uploaded!');
+						return;
+					}
+				}else{
+					window.alert('Please select a valid file!');
+					return;
+				}
+				let url = window.URL.createObjectURL(imageFile);
+				document.getElementById("imgURL").innerText = url;
+			}
+			document.getElementById("confirm").onclick = function() {
+				let url = document.getElementById("imgURL").innerText;
+				let pixscale = document.getElementById("pixel-scale").value;
+				let width = document.getElementById("image-width").value;
+				let height = document.getElementById("image-height").value;
+				const regex = /^\d{0,2}(\.\d{0,6})?$/;
+				const regex2 = /^\d{1,5}$/;
+				if((url === ''||null) || (pixscale === ''||null)){
+					window.alert("Please input entire information of image!");
+					return;
+				}
+				if(regex2.test(width)){
+					lets.width = width;
+				}else{
+					window.alert('Please re-enter the width of the image correctly!');
+					return;
+				}
+				if(regex2.test(height)){
+					lets.height = height;
+				}else{
+					window.alert('Please re-enter the height of the image correctly!');
+					return;
+				}
+				if(regex.test(pixscale)){
+					lets.pixscale = pixscale;
+					console.log(lets);
+				}else{
+					window.alert('Please re-enter the pixel scale of the image correctly!');
+					return;
+				}
+				console.log(pixscale);
+
+				img.src = url;
+				img_src.src = url;
+				ms.tools.pop();
+				ms_src.tools.pop();
+
+				lets.width = width;
+				lets.height = height;
+				lets.srcmodelPaper.clear();
+				lets.srcmodelPaper.src = url;
+				lets.predictionPaper.clear();
+				lets.predictionPaper.src = url;
+				lets.paper.src = url;
+				document.getElementById("hoopla-srcmodel").style.backgroundImage
+						= "url(" + url + ")";
+				document.getElementById("hoopla-prediction").style.backgroundImage
+						= "url(" + url + ")";
+				document.getElementById('newPixelScale').innerText = pixscale;
+				console.log(lets);
+				document.querySelector('.popup-form').classList.remove('active');
+			}
 
 
 			document.getElementById("showModels").onclick = function fun() {
@@ -222,7 +257,6 @@
 
 			document.getElementById('modelUpload').onchange = function(e) {
 				let input = e.target;
-
 				let reader = new FileReader();
 				reader.onload = function(){
 					let text = reader.result;
@@ -235,39 +269,151 @@
 					if(ms_src.tools.length===0){
 						ms_src.addTool();
 					}
+					console.log(components);
 					lets.freezeSrcModel = true;
 					updateCanvas(components);
 					lets.update({x:lets.lens.ang2pix(components[1].x),y:lets.lens.ang2pix(components[1].y)});
 					console.log(lets.freezeSrcModel);
-
 					let tag = document.getElementById('tag');
 					tag.innerHTML = "<span class=\"tooltiptext\">Freezed Mode is unactivated, click left button of the mouse to turn into interactive mode.</span>Freezed"
 					tag.style.backgroundColor = "lightblue";
 				};
-
+				let modelFile = input.files[0];
+				if(modelFile){
+					if(modelFile.type !== 'application/json'){
+						input.value = '';
+						window.alert('Model file must be a json file.');
+						return;
+					}
+				}else {
+					window.alert('Please select a valid file.');
+					return;
+				}
 				reader.readAsText(input.files[0]);
 			};
+		}
 
 
-			function calAlpha(xl,yl,xlc,ylc,re,ql,phl) {
 
-				if(ql <1.0){
-					phl = Math.PI * ((-phl+90) / 180);
+		function reset() {
+			let pixscale = document.getElementById('newPixelScale').value;
+			const regex = /^\d{0,2}(\.\d{0,6})?$/;
+			if(regex.test(pixscale)){
+				lets.pixscale = pixscale;
+				console.log(lets);
+			}else{
+				window.alert('Pixel-scale is not a legitimate input!');
+
+			}
+
+		}
+		function calAlpha(xl,yl,xlc,ylc,re,ql,phl) {
+
+			if(ql <1.0){
+				phl = Math.PI * ((-phl+90) / 180);
+			}else{
+				ql = 1.0/ql-0.0000000001;
+				phl = Math.PI * (-phl / 180);
+			}
+
+			const alpha = {x: 0.0, y: 0.0};
+			let x, y, cs, sn;
+			let sx_r, sy_r, psi, sq, pd1, pd2, fx1, fx2, qs, a1, a2;
+			const rc = 0.0;
+
+			cs = Math.cos(phl);
+			sn = Math.sin(phl);
+
+			x = xl - xlc;
+			y = yl - ylc;
+
+			sx_r = x * cs + y * sn;
+			sy_r = -x * sn + y * cs;
+
+			psi = Math.sqrt(ql*ql*(rc*rc+sx_r*sx_r)+sy_r*sy_r);
+
+			sq = Math.sqrt(1.0-ql*ql);
+			pd1 = psi + rc;
+			pd2 = psi + rc*ql*ql;
+			fx1 = sq * sx_r / pd1;
+			fx2 = sq * sy_r / pd2;
+			qs = Math.sqrt(ql);
+
+			a1 = qs / sq * Math.atan(fx1);
+			a2 = qs / sq * Math.atanh(fx2);
+
+			let dx = (a1 * cs - a2 * sn);
+			let dy = (a2 * cs + a1 * sn);
+
+			// Add lensing effects of just this component:
+			alpha.x = re*dx;
+			alpha.y = re*dy;
+			return alpha;
+		}
+
+		function calImage(xs, ys, xsc, ysc, sig2, qs, phs) {
+			let r2, res, phirad;
+			// Loop over x and y. Store 1-D pixel index as i.
+			phirad = -phs/180*Math.PI;
+			let xnew = (xs-xsc) * Math.cos(phirad) + (ys-ysc) * Math.sin(phirad)
+			let ynew = (ys-ysc) * Math.cos(phirad) - (xs-xsc) * Math.sin(phirad)
+			r2 = ( xnew*xnew/qs + ynew*ynew*qs );
+			res = Math.exp(-r2/(2.0*sig2*sig2*0.693));
+			return res; // Allow this function to be chainable
+		}
+
+		function model_lensed_images(p, x1, x2) {
+			let xc1, xc2, re, ql, phl;
+			xc1 = p[0];
+			xc2 = p[1];
+			re = p[2];
+			ql = p[3];
+			phl = p[4];
+
+			let alpha = calAlpha(x1,x2,xc1,xc2,re,ql,phl);
+
+			let y1 = x1 - alpha.x;
+			let y2 = x2 - alpha.y;
+
+			let yc1, yc2, sig2, qs, phs;
+			yc1 = p[5];
+			yc2 = p[6];
+			sig2 = p[7];
+			qs = p[8];
+			phs = p[9];
+
+			return calImage(y1, y2, yc1, yc2, sig2, qs, phs);
+		}
+
+		function chi2_2(p) {
+			let predictedimage = [];
+			let alpha = []
+
+			for(let i = 0 ; i < imgd.width*imgd.height ; i++){
+				alpha[i] = { x: 0.0, y: 0.0 };
+				predictedimage[i] = 0;
+			}
+			// Declare outside the for loop for efficiency
+			let x, y;
+			let tr, cs, sn;
+			let rc = 0.0;
+			let ql;
+			// Loop over pixels:
+			for(let i = 0 ; i < imgd.width*imgd.height ; i++){
+				// Loop over lens components:
+				if(p[3] <1.0){
+					ql = p[3];
+					tr = Math.PI * ((-p[4]+90) / 180);
 				}else{
-					ql = 1.0/ql-0.0000000001;
-					phl = Math.PI * (-phl / 180);
+					ql = 1.0/p[3]-0.0000000001;
+					tr = Math.PI * (-p[4] / 180);
 				}
 
-				const alpha = {x: 0.0, y: 0.0};
-				let x, y, cs, sn;
-				let sx_r, sy_r, psi, sq, pd1, pd2, fx1, fx2, qs, a1, a2;
-				const rc = 0.0;
+				cs = Math.cos(tr);
+				sn = Math.sin(tr);
 
-				cs = Math.cos(phl);
-				sn = Math.sin(phl);
-
-				x = xl - xlc;
-				y = yl - ylc;
+				x = i % imgd.width - p[0]/lets.pixscale;
+				y = Math.floor(i/imgd.width) - p[1]/lets.pixscale;
 
 				sx_r = x * cs + y * sn;
 				sy_r = -x * sn + y * cs;
@@ -284,449 +430,364 @@
 				a1 = qs / sq * Math.atan(fx1);
 				a2 = qs / sq * Math.atanh(fx2);
 
-				let dx = (a1 * cs - a2 * sn);
-				let dy = (a2 * cs + a1 * sn);
+				dx = (a1 * cs - a2 * sn);
+				dy = (a2 * cs + a1 * sn);
 
 				// Add lensing effects of just this component:
-				alpha.x = re*dx;
-				alpha.y = re*dy;
-				return alpha;
+				alpha[i].x = p[2]/lets.pixscale*dx;
+				alpha[i].y = p[2]/lets.pixscale*dy;
 			}
 
-			function calImage(xs, ys, xsc, ysc, sig2, qs, phs) {
-				let r2, res, phirad;
-				// Loop over x and y. Store 1-D pixel index as i.
-				phirad = -phs/180*Math.PI;
-				let xnew = (xs-xsc) * Math.cos(phirad) + (ys-ysc) * Math.sin(phirad)
-				let ynew = (ys-ysc) * Math.cos(phirad) - (xs-xsc) * Math.sin(phirad)
-				r2 = ( xnew*xnew/qs + ynew*ynew*qs );
-				res = Math.exp(-r2/(2.0*sig2*sig2*0.693));
-				return res; // Allow this function to be chainable
+			let d = { x: 0, y: 0 };
+			let i = 0;
+			let r2 = 0;
+			// Since for a Gaussian, half light radius (size) = sigma * sqrt(2*ln(2))
+			//var factor = 1.0/(0.693*this.source[0].size_px*this.source[0].size_px)
+			let sig2 = p[7]*p[7]*0.693/lets.pixscale/lets.pixscale;
+			let row, col, s, v;
+			let phirad,xnew,ynew;
+			for (row = 0; row < imgd.width; row++) {
+				for (col = 0; col < imgd.height; col++) {
+					d.x = col - p[5] / lets.pixscale - alpha[i].x + 4.5;
+					d.y = row - p[6] / lets.pixscale - alpha[i].y + 4.5;
+					phirad = -p[9] / 180 * Math.PI;
+					xnew = d.x * Math.cos(phirad) + d.y * Math.sin(phirad)
+					ynew = d.y * Math.cos(phirad) - d.x * Math.sin(phirad)
+					r2 = (xnew * xnew / p[8] + ynew * ynew * p[8]);
+					v = Math.exp(-r2 / (2.0 * sig2));
+					predictedimage[i++] = v;
+				}
+			}
+			let c = document.getElementById("myCanvas");
+			let ctx = c.getContext("2d");
+			ctx.drawImage(imgd, 0, 0);
+			let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
+			let data = dstdata.data;
+
+			let red = new Array(data.length/4);
+			for(let i = 0, n = red.length; i < n; i ++) {
+				red[i] = data[i*4]/255.;
 			}
 
-			function model_lensed_images(p, x1, x2) {
-				let xc1, xc2, re, ql, phl;
-				xc1 = p[0];
-				xc2 = p[1];
-				re = p[2];
-				ql = p[3];
-				phl = p[4];
 
-				let alpha = calAlpha(x1,x2,xc1,xc2,re,ql,phl);
+			let chi = new Array(red.length);
+			let testimg = new Array(red.length);
+			for(let i = 0 ; i < imgd.width*imgd.height ; i++){
+				chi[i] = (red[i] - predictedimage[i])*red[i]*red[i];
+				//console.log([red[i], testimg[i]]);
+			}
+			let res = optimize.vector.dot(chi, chi);
+			console.log(res);
 
-				let y1 = x1 - alpha.x;
-				let y2 = x2 - alpha.y;
+			for (let y = 0; y < imgd.width; ++y) {
+				for (let x = 0; x < imgd.height; ++x) {
+					let index = (y * imgd.width + x) * 4;
+					let index2 = (y * imgd.width + x);
 
-				let yc1, yc2, sig2, qs, phs;
-				yc1 = p[5];
-				yc2 = p[6];
-				sig2 = p[7];
-				qs = p[8];
-				phs = p[9];
-
-				return calImage(y1, y2, yc1, yc2, sig2, qs, phs);
+					//data[index]   = Math.floor(red[index2]*255);    // red
+					//data[index]   = Math.floor(testimg[index2]*255);    // red
+					data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
+					//data[index]   = 128;    // red
+					data[++index] = 0;    // green
+					data[++index] = 0;    // blue
+					data[++index] = 255;      // alpha
+				}
 			}
 
-			function chi2_2(p) {
-				let predictedimage = [];
-				let alpha = []
+			dstdata.data = data;
+			ctx.putImageData(dstdata, 0, 0);
+			return res;
+		}
 
-				for(let i = 0 ; i < imgd.width*imgd.height ; i++){
-					alpha[i] = { x: 0.0, y: 0.0 };
-					predictedimage[i] = 0;
-				}
-				// Declare outside the for loop for efficiency
-				let x, y;
-				let tr, cs, sn;
-				let rc = 0.0;
-				let ql;
-				// Loop over pixels:
-				for(let i = 0 ; i < imgd.width*imgd.height ; i++){
-					// Loop over lens components:
-						if(p[3] <1.0){
-							ql = p[3];
-							tr = Math.PI * ((-p[4]+90) / 180);
-						}else{
-							ql = 1.0/p[3]-0.0000000001;
-							tr = Math.PI * (-p[4] / 180);
-						}
+		function standardDeviation(values){
+			let avg = average(values);
 
-						cs = Math.cos(tr);
-						sn = Math.sin(tr);
+			let squareDiffs = values.map(function(value){
+				let diff = value - avg;
+				return diff * diff;
+			});
 
-						x = i % imgd.width - p[0]/lets.pixscale;
-						y = Math.floor(i/imgd.width) - p[1]/lets.pixscale;
+			let avgSquareDiff = average(squareDiffs);
 
-						sx_r = x * cs + y * sn;
-						sy_r = -x * sn + y * cs;
+			return Math.sqrt(avgSquareDiff);
+		}
 
-						psi = Math.sqrt(ql*ql*(rc*rc+sx_r*sx_r)+sy_r*sy_r);
+		function average(data){
+			let sum = data.reduce(function(sum, value){
+				return sum + value;
+			}, 0);
 
-						sq = Math.sqrt(1.0-ql*ql);
-						pd1 = psi + rc;
-						pd2 = psi + rc*ql*ql;
-						fx1 = sq * sx_r / pd1;
-						fx2 = sq * sy_r / pd2;
-						qs = Math.sqrt(ql);
+			return sum / data.length;
+		}
+		//计算图像的卡方值
+		function chi2_rescale(p) {
+			let c = document.getElementById("myCanvas");
+			let ctx = c.getContext("2d");
+			ctx.drawImage(imgd, 0, 0);
+			let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
+			let data = dstdata.data;
 
-						a1 = qs / sq * Math.atan(fx1);
-						a2 = qs / sq * Math.atanh(fx2);
-
-						dx = (a1 * cs - a2 * sn);
-						dy = (a2 * cs + a1 * sn);
-
-						// Add lensing effects of just this component:
-						alpha[i].x = p[2]/lets.pixscale*dx;
-						alpha[i].y = p[2]/lets.pixscale*dy;
-				}
-
-				let d = { x: 0, y: 0 };
-				let i = 0;
-				let r2 = 0;
-				// Since for a Gaussian, half light radius (size) = sigma * sqrt(2*ln(2))
-				//var factor = 1.0/(0.693*this.source[0].size_px*this.source[0].size_px)
-				let sig2 = p[7]*p[7]*0.693/lets.pixscale/lets.pixscale;
-				let row, col, s, v;
-				let phirad,xnew,ynew;
-				for (row = 0; row < imgd.width; row++) {
-					for (col = 0; col < imgd.height; col++) {
-						d.x = col - p[5] / lets.pixscale - alpha[i].x + 4.5;
-						d.y = row - p[6] / lets.pixscale - alpha[i].y + 4.5;
-						phirad = -p[9] / 180 * Math.PI;
-						xnew = d.x * Math.cos(phirad) + d.y * Math.sin(phirad)
-						ynew = d.y * Math.cos(phirad) - d.x * Math.sin(phirad)
-						r2 = (xnew * xnew / p[8] + ynew * ynew * p[8]);
-						v = Math.exp(-r2 / (2.0 * sig2));
-						predictedimage[i++] = v;
-					}
-				}
-				let c = document.getElementById("myCanvas");
-				let ctx = c.getContext("2d");
-				ctx.drawImage(imgd, 0, 0);
-				let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
-				let data = dstdata.data;
-
-				let red = new Array(data.length/4);
-				for(let i = 0, n = red.length; i < n; i ++) {
-					red[i] = data[i*4]/255.;
-				}
-
-
-				let chi = new Array(red.length);
-				let testimg = new Array(red.length);
-				for(let i = 0 ; i < imgd.width*imgd.height ; i++){
-			        chi[i] = (red[i] - predictedimage[i])*red[i]*red[i];
-						//console.log([red[i], testimg[i]]);
-			    }
-				let res = optimize.vector.dot(chi, chi);
-				console.log(res);
-
-				for (let y = 0; y < imgd.width; ++y) {
-				    for (let x = 0; x < imgd.height; ++x) {
-						let index = (y * imgd.width + x) * 4;
-						let index2 = (y * imgd.width + x);
-
-				        //data[index]   = Math.floor(red[index2]*255);    // red
-				        //data[index]   = Math.floor(testimg[index2]*255);    // red
-						data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
-				        //data[index]   = 128;    // red
-				        data[++index] = 0;    // green
-				        data[++index] = 0;    // blue
-				        data[++index] = 255;      // alpha
-				    }
-				}
-
-				dstdata.data = data;
-				ctx.putImageData(dstdata, 0, 0);
-				return res;
+			let red = new Array(data.length/4);
+			for(let i = 0, n = red.length; i < n; i ++) {
+				red[i] = data[i*4]/255.;
 			}
 
-			function standardDeviation(values){
-				let avg = average(values);
+			const fscale = 4;
+			const chi = new Array(red.length / fscale / fscale);
+			const testimg = new Array(red.length);
+			const redstd = standardDeviation(red);
+			for(let row = 0 ; row < imgd.width ; row+=fscale){
+				for(let col = 0 ; col < imgd.height ; col+=fscale){
+					let i,i2,x,y;
+					i = row*imgd.height+col;
+					i2 = row/fscale*imgd.height/fscale+col/fscale;
+					x = col*0.0225 - 4.5;
+					y = row*0.0225 - 4.5;
+					testimg[i] = model_lensed_images(p, x, y);
+					chi[i2] = (red[i] -
+							testimg[i])/redstd/redstd/(chi.length);
+				}
+			}
+			return optimize.vector.dot(chi, chi);
+		}
 
-				let squareDiffs = values.map(function(value){
-					let diff = value - avg;
-					return diff * diff;
-				});
+		function chi2(p) {
+			var i;
 
-				let avgSquareDiff = average(squareDiffs);
+			var c = document.getElementById("myCanvas");
+			var ctx = c.getContext("2d");
+			ctx.drawImage(imgd, 0, 0);
+			var dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
+			var data = dstdata.data;
 
-				return Math.sqrt(avgSquareDiff);
+			var red = new Array(data.length/4);
+			for(var i = 0, n = red.length; i < n; i ++) {
+				red[i] = data[i*4]/255.;
 			}
 
-			function average(data){
-				let sum = data.reduce(function(sum, value){
-					return sum + value;
-				}, 0);
 
-				return sum / data.length;
-			}
-			//计算图像的卡方值
-			function chi2_rescale(p) {
-				let c = document.getElementById("myCanvas");
-				let ctx = c.getContext("2d");
-				ctx.drawImage(imgd, 0, 0);
-				let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
-				let data = dstdata.data;
-
-				let red = new Array(data.length/4);
-				for(let i = 0, n = red.length; i < n; i ++) {
-					red[i] = data[i*4]/255.;
+			var chi = new Array(red.length);
+			var testimg = new Array(red.length);
+			var redstd = standardDeviation(red);
+			for(var row = 0 ; row < 400 ; row++){
+				for(var col = 0 ; col < 400 ; col++){
+					i = row*400+col;
+					x = col*0.0225 - 4.5;
+					y = row*0.0225 - 4.5;
+					testimg[i] = model_lensed_images(p, x, y);
+					//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
+					chi[i] = (red[i] - testimg[i])/redstd/redstd;
+					//console.log([red[i], testimg[i]]);
 				}
-
-				const fscale = 4;
-				const chi = new Array(red.length / fscale / fscale);
-				const testimg = new Array(red.length);
-				const redstd = standardDeviation(red);
-				for(let row = 0 ; row < imgd.width ; row+=fscale){
-					for(let col = 0 ; col < imgd.height ; col+=fscale){
-						let i,i2,x,y;
-						i = row*imgd.height+col;
-						i2 = row/fscale*imgd.height/fscale+col/fscale;
-						x = col*0.0225 - 4.5;
-						y = row*0.0225 - 4.5;
-			        	testimg[i] = model_lensed_images(p, x, y);
-			        	chi[i2] = (red[i] -
-								testimg[i])/redstd/redstd/(chi.length);
-					}
-			    }
-                return optimize.vector.dot(chi, chi);
 			}
+			var res = optimize.vector.dot(chi, chi);
+			console.log(res);
 
-			function chi2(p) {
-			    var i;
+			//for (var y = 0; y < imgd.width; ++y) {
+			//    for (var x = 0; x < imgd.height; ++x) {
+			//        var index = (y * imgd.width + x) * 4;
+			//		var index2 = (y * imgd.width + x);
+			//
+			//        //data[index]   = Math.floor(red[index2]*255);    // red
+			//        //data[index]   = Math.floor(testimg[index2]*255);    // red
+			//		data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
+			//        //data[index]   = 128;    // red
+			//        data[++index] = 0;    // green
+			//        data[++index] = 0;    // blue
+			//        data[++index] = 255;      // alpha
+			//    }
+			//}
 
-				var c = document.getElementById("myCanvas");
-				var ctx = c.getContext("2d");
-				ctx.drawImage(imgd, 0, 0);
-				var dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
-				var data = dstdata.data;
+			//dstdata.data = data;
+			//ctx.putImageData(dstdata, 0, 0);
+			return res;
+		}
 
-				var red = new Array(data.length/4);
-				for(var i = 0, n = red.length; i < n; i ++) {
-					red[i] = data[i*4]/255.;
-				}
+		function show_res(p) {
 
+			let c = document.getElementById("myCanvas");
+			let ctx = c.getContext("2d");
+			ctx.drawImage(imgd, 0, 0);
+			let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
+			let data = dstdata.data;
 
-				var chi = new Array(red.length);
-				var testimg = new Array(red.length);
-				var redstd = standardDeviation(red);
-				for(var row = 0 ; row < 400 ; row++){
-					for(var col = 0 ; col < 400 ; col++){
-						i = row*400+col;
-						x = col*0.0225 - 4.5;
-						y = row*0.0225 - 4.5;
-			        	testimg[i] = model_lensed_images(p, x, y);
-			        	//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
-			        	chi[i] = (red[i] - testimg[i])/redstd/redstd;
-						//console.log([red[i], testimg[i]]);
-					}
-			    }
-			    var res = optimize.vector.dot(chi, chi);
-				console.log(res);
-
-				//for (var y = 0; y < imgd.width; ++y) {
-				//    for (var x = 0; x < imgd.height; ++x) {
-				//        var index = (y * imgd.width + x) * 4;
-				//		var index2 = (y * imgd.width + x);
-				//
-				//        //data[index]   = Math.floor(red[index2]*255);    // red
-				//        //data[index]   = Math.floor(testimg[index2]*255);    // red
-				//		data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
-				//        //data[index]   = 128;    // red
-				//        data[++index] = 0;    // green
-				//        data[++index] = 0;    // blue
-				//        data[++index] = 255;      // alpha
-				//    }
-				//}
-
-				//dstdata.data = data;
-				//ctx.putImageData(dstdata, 0, 0);
-				return res;
+			let red = new Array(data.length/4);
+			for(let i = 0, n = red.length; i < n; i ++) {
+				red[i] = data[i*4]/255.;
 			}
 
-			function show_res(p) {
-
-				let c = document.getElementById("myCanvas");
-				let ctx = c.getContext("2d");
-				ctx.drawImage(imgd, 0, 0);
-				let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
-				let data = dstdata.data;
-
-				let red = new Array(data.length/4);
-				for(let i = 0, n = red.length; i < n; i ++) {
-					red[i] = data[i*4]/255.;
+			let chi = new Array(red.length);
+			let testimg = new Array(red.length);
+			let redstd = standardDeviation(red);
+			let i,x,y;
+			for (let row = 0; row < 400; row++) {
+				for (let col = 0; col < 400; col++) {
+					i = row * 400 + col;
+					x = col * 0.0225 - 4.5;
+					y = row * 0.0225 - 4.5;
+					testimg[i] = model_lensed_images(p, x, y);
+					//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
+					chi[i] = (red[i] - testimg[i]) / redstd / redstd;
 				}
-
-				let chi = new Array(red.length);
-				let testimg = new Array(red.length);
-				let redstd = standardDeviation(red);
-				let i,x,y;
-				for (let row = 0; row < 400; row++) {
-					for (let col = 0; col < 400; col++) {
-						i = row * 400 + col;
-						x = col * 0.0225 - 4.5;
-						y = row * 0.0225 - 4.5;
-						testimg[i] = model_lensed_images(p, x, y);
-						//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
-						chi[i] = (red[i] - testimg[i]) / redstd / redstd;
-					}
-				}
-				let res = optimize.vector.dot(chi, chi);
-				console.log('res:'+res);
-
-				for (let y = 0; y < imgd.width; ++y) {
-				    for (let x = 0; x < imgd.height; ++x) {
-						let index = (y * imgd.width + x) * 4;
-						let index2 = (y * imgd.width + x);
-
-				        //data[index]   = Math.floor(red[index2]*255);    // red
-				        //data[index]   = Math.floor(testimg[index2]*255);    // red
-						data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
-				        //data[index]   = 128;    // red
-				        data[++index] = 0;    // green
-				        data[++index] = 0;    // blue
-				        data[++index] = 255;      // alpha
-				    }
-				}
-
-				dstdata.data = data;
-				ctx.putImageData(dstdata, 0, 0);
-				return res;
 			}
-			let chartInstance = null // 声明一个全局变量来存储 Chart 实例
-			function drawChiSquareCurve(chiSquaredValues) {
-				let ctx = document.getElementById("Curve");
-				if (chartInstance) {
-					// 如果之前有 Chart 实例存在，则更新其数据和选项
-					chartInstance.data.labels = Array.from({ length: chiSquaredValues.length }, (_, i) => 50*(i + 1));
-					chartInstance.data.datasets[0].data = chiSquaredValues;
-					chartInstance.update();
-				} else {
-					// 如果之前没有 Chart 实例存在，则创建一个新的实例
-					chartInstance = new Chart(ctx, {
-						type: 'line',
-						data: {
-							labels: Array.from({length: chiSquaredValues.length}, (_, i) => i + 1),
-							datasets: [
-								{
-									label: '卡方值',
-									data: chiSquaredValues,
-									borderColor: 'blue',
-									backgroundColor: 'rgba(0, 0, 255, 0.1)',
+			let res = optimize.vector.dot(chi, chi);
+			console.log('res:'+res);
+
+			for (let y = 0; y < imgd.width; ++y) {
+				for (let x = 0; x < imgd.height; ++x) {
+					let index = (y * imgd.width + x) * 4;
+					let index2 = (y * imgd.width + x);
+
+					//data[index]   = Math.floor(red[index2]*255);    // red
+					//data[index]   = Math.floor(testimg[index2]*255);    // red
+					data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
+					//data[index]   = 128;    // red
+					data[++index] = 0;    // green
+					data[++index] = 0;    // blue
+					data[++index] = 255;      // alpha
+				}
+			}
+
+			dstdata.data = data;
+			ctx.putImageData(dstdata, 0, 0);
+			return res;
+		}
+		let chartInstance = null // 声明一个全局变量来存储 Chart 实例
+		function drawChiSquareCurve(chiSquaredValues) {
+			let ctx = document.getElementById("Curve");
+			if (chartInstance) {
+				// 如果之前有 Chart 实例存在，则更新其数据和选项
+				chartInstance.data.labels = Array.from({ length: chiSquaredValues.length }, (_, i) => 50*(i + 1));
+				chartInstance.data.datasets[0].data = chiSquaredValues;
+				chartInstance.update();
+			} else {
+				// 如果之前没有 Chart 实例存在，则创建一个新的实例
+				chartInstance = new Chart(ctx, {
+					type: 'line',
+					data: {
+						labels: Array.from({length: chiSquaredValues.length}, (_, i) => i + 1),
+						datasets: [
+							{
+								label: '卡方值',
+								data: chiSquaredValues,
+								borderColor: 'blue',
+								backgroundColor: 'rgba(0, 0, 255, 0.1)',
+							},
+						],
+					},
+					options: {
+						responsive: true,
+						scales: {
+							x: {
+								title: {
+									display: true,
+									text: '迭代次数',
 								},
-							],
-						},
-						options: {
-							responsive: true,
-							scales: {
-								x: {
-									title: {
-										display: true,
-										text: '迭代次数',
-									},
-								},
-								y: {
-									title: {
-										display: true,
-										text: '卡方值',
-									},
+							},
+							y: {
+								title: {
+									display: true,
+									text: '卡方值',
 								},
 							},
 						},
-					});
+					},
+				});
+			}
+		}
+
+		const sleep = (timeout= 1000)=>new Promise((resolve, reject)=>{
+			setTimeout(resolve, timeout);
+		});
+
+		let it=0;
+		let timer = async(timeout) => {
+			let chiSquaredValues = [];
+			for(let i = 0; i< timeout; i++) {
+				let p0;
+				let xc1, xc2, re, ql, phl;
+				if (i === timeout-1 && it === 50){
+					console.log("建模结果有偏差，waiting...");
+					i/=2;
 				}
+				xc1 = lets.models[0].components[1].x;
+				xc2 = lets.models[0].components[1].y;
+				re  = lets.models[0].components[1].theta_e;
+				ql  = lets.models[0].components[1].ell;
+				phl = lets.models[0].components[1].ang;
+				let yc1, yc2, sig2, qs, phs;
+				yc1 = lets.models[0].components[0].x;
+				yc2 = lets.models[0].components[0].y;
+				sig2= lets.models[0].components[0].size;
+				qs  = lets.models[0].components[0].ell;
+				phs = lets.models[0].components[0].ang;
+
+				p0 = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
+				let p = optimize.fmin(chi2_rescale, p0, {ftol: 1e-6, maxiter: 50});
+				let p1=p.x,chival = p.res;
+				if(it===p[1]&&it<50) break;
+				it=chival.iterations;
+				chiSquaredValues.push(chival.fval);
+				// let p1 = optimize.newton(chi2_rescale, p0, {ftol: 1e-6, maxiter: 100});
+				console.log(p1);
+				show_res(p1);
+				drawChiSquareCurve(chiSquaredValues);
+				lets.models[0].components[1].x = p1[0];
+				lets.models[0].components[1].y = p1[1];
+				lets.models[0].components[1].theta_e = p1[2];
+				lets.models[0].components[1].ell = p1[3];
+				lets.models[0].components[1].ang = p1[4];
+				lets.models[0].components[0].x = p1[5];
+				lets.models[0].components[0].y = p1[6];
+				lets.models[0].components[0].size = p1[7];
+				lets.models[0].components[0].ell = p1[8];
+				lets.models[0].components[0].ang = p1[9];
+				lets.loadModel(lets.models[0].components);
+				// console.log(lets.models[0].components);
+				lets.update({x:lets.lens.ang2pix(p1[0]),y:lets.lens.ang2pix(p1[1])});
+				lets.freezeSrcModel = true;
+				updateCanvas(lets.models[0].components);
+				await sleep(1);
+			}
+		}
+		function updateCanvas(components) {
+			let ang = lets.lens.ang2pix({x: components[1].x, y: components[1].y});
+			ms.tools[0].mark.x = ang.x;
+			ms.tools[0].mark.y = ang.y;
+			ms.tools[0].mark.angle = components[1].ang ;
+			ms.tools[0].mark.ry = components[1].theta_e/(lets.lens.pixscale*Math.sqrt(components[1].ell));
+			ms.tools[0].mark.rx = ms.tools[0].mark.ry * components[1].ell;
+			ms.renderTools();
+
+			let ang2 = lets.lens.ang2pix({x: components[0].x, y: components[0].y});
+			ms_src.tools[0].mark.x = ang2.x;
+			ms_src.tools[0].mark.y = ang2.y
+			ms_src.tools[0].mark.angle = components[0].ang;
+			ms_src.tools[0].mark.ry = components[0].size/(lets.lens.pixscale*Math.sqrt(components[0].ell ));
+			ms_src.tools[0].mark.rx = ms_src.tools[0].mark.ry *components[0].ell ;
+			ms_src.renderTools();
+		}
+
+		function do_fit() {
+			if(ms.tools.length === 0){
+				window.alert('Please input Mass Model!');
+				return;
+			}
+			if(ms_src.tools.length === 0){
+				window.alert('Please input Source Model!');
+				return;
+			}
+			let tag2 = document.getElementById('tag2');
+			tag2.style.display = 'block';
+			console.log(tag2);
+
+			let timerCallback = async () => {
+				await timer(8); // 执行1次timer函数
+				console.log(lets);
+				tag2.style.display = 'none';
 			}
 
-			const sleep = (timeout= 1000)=>new Promise((resolve, reject)=>{
-				setTimeout(resolve, timeout);
-			});
-
-			let it=0;
-			let timer = async(timeout) => {
-				let chiSquaredValues = [];
-				for(let i = 0; i< timeout; i++) {
-					let p0;
-					let xc1, xc2, re, ql, phl;
-					if (i === timeout-1 && it === 50){
-						console.log("建模结果有偏差，waiting...");
-						i/=2;
-					}
-					xc1 = lets.models[0].components[1].x;
-					xc2 = lets.models[0].components[1].y;
-					re  = lets.models[0].components[1].theta_e;
-					ql  = lets.models[0].components[1].ell;
-					phl = lets.models[0].components[1].ang;
-					let yc1, yc2, sig2, qs, phs;
-					yc1 = lets.models[0].components[0].x;
-					yc2 = lets.models[0].components[0].y;
-					sig2= lets.models[0].components[0].size;
-					qs  = lets.models[0].components[0].ell;
-					phs = lets.models[0].components[0].ang;
-
-					p0 = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
-					let p = optimize.fmin(chi2_rescale, p0, {ftol: 1e-6, maxiter: 50});
-					let p1=p.x,chival = p.res;
-					if(it===p[1]&&it<50) break;
-					it=chival.iterations;
-					chiSquaredValues.push(chival.fval);
-					// let p1 = optimize.newton(chi2_rescale, p0, {ftol: 1e-6, maxiter: 100});
-					console.log(p1);
-					show_res(p1);
-					drawChiSquareCurve(chiSquaredValues);
-					lets.models[0].components[1].x = p1[0];
-					lets.models[0].components[1].y = p1[1];
-					lets.models[0].components[1].theta_e = p1[2];
-					lets.models[0].components[1].ell = p1[3];
-					lets.models[0].components[1].ang = p1[4];
-					lets.models[0].components[0].x = p1[5];
-					lets.models[0].components[0].y = p1[6];
-					lets.models[0].components[0].size = p1[7];
-					lets.models[0].components[0].ell = p1[8];
-					lets.models[0].components[0].ang = p1[9];
-					lets.loadModel(lets.models[0].components);
-					// console.log(lets.models[0].components);
-					lets.update({x:lets.lens.ang2pix(p1[0]),y:lets.lens.ang2pix(p1[1])});
-					lets.freezeSrcModel = true;
-					updateCanvas(lets.models[0].components);
-					await sleep(1);
-				}
-			}
-
-			function updateCanvas(components) {
-				let ang = lets.lens.ang2pix({x: components[1].x, y: components[1].y});
-				ms.tools[0].mark.x = ang.x;
-				ms.tools[0].mark.y = ang.y;
-				ms.tools[0].mark.angle = components[1].ang ;
-				ms.tools[0].mark.ry = components[1].theta_e/(lets.lens.pixscale*Math.sqrt(components[1].ell));
-				ms.tools[0].mark.rx = ms.tools[0].mark.ry * components[1].ell;
-				ms.renderTools();
-
-				let ang2 = lets.lens.ang2pix({x: components[0].x, y: components[0].y});
-				ms_src.tools[0].mark.x = ang2.x;
-				ms_src.tools[0].mark.y = ang2.y
-				ms_src.tools[0].mark.angle = components[0].ang;
-				ms_src.tools[0].mark.ry = components[0].size/(lets.lens.pixscale*Math.sqrt(components[0].ell ));
-				ms_src.tools[0].mark.rx = ms_src.tools[0].mark.ry *components[0].ell ;
-				ms_src.renderTools();
-			}
-
-			document.getElementById("optimization").onclick = function do_fit() {
-				if(ms.tools.length === 0){
-					window.alert('Please input Mass Model!');
-					return;
-				}
-				if(ms_src.tools.length === 0){
-					window.alert('Please input Source Model!');
-					return;
-				}
-				let tag2 = document.getElementById('tag2');
-				tag2.style.backgroundColor = 'blue';
-				console.log(tag2);
-				timer(8);
-				console.log('-------------------------------');
-				document.getElementById('tag2').style.backgroundImage = 'yellow';
-			};
+			timerCallback(); // 将迭代次数作为参数传递给timerCallback函数
 
 		}
 	</script>
@@ -785,7 +846,7 @@
 			</div></td>
 			<td>
 				<div id="hoopla-prediction" class="bar">
-					<p id="tag2" style="background-color: #8ee58a;display: block;left: 730px">Running...</p>
+					<p id="tag2" style="background-color: #8ee58a;display: none;left: 730px">Running...</p>
 				</div>
 			</td>
 
@@ -813,30 +874,37 @@
 	</table>
 
 	<div class="container">
-	<button class="button" id="showModels"
-			style="vertical-align:middle;width:193px;background-color:#666666"><span>Save Models</span></button>
-	<button class="Uploadbtn" style="vertical-align:middle;width:193px;background-color:#666666">
-		<input class="input-upload" type="file" id="modelUpload"/>
-		<span>Load Models</span>
-	</button>
+		<button class="button" id="showModels"
+				style="vertical-align:middle;width:193px;background-color:#666666"><span>Save Models</span>
+		</button>
+		<button class="Uploadbtn"  style="vertical-align:middle;width:193px;background-color:#666666">
+			<input class="input-upload" type="file" id="modelUpload"/>
+			<span>Load Models</span>
+		</button>
 
-	<button class="Uploadbtn" style="vertical-align:middle;width:193px;background-color:#666666">
-		<input class="input-upload" type="button" id="imageUpload"/>
-		<span>Upload Images</span>
-	</button>
-
-	<button class="button" id="optimization"
-			style="vertical-align:middle;width:193px"><span>Optimization</span></button>
+		<button class="Uploadbtn"  style="vertical-align:middle;width:193px;background-color:#666666">
+			<input class="input-upload" type="button" id="imageUpload"/>
+			<span>Upload Images</span>
+		</button>
+		<button class="button" id="optimization" onclick="do_fit()"
+				style="vertical-align:middle;width:193px"><span>Optimization</span>
+		</button>
 	</div>
-
+	<div class="container" style="height: 50px;">
+		<span>Current pixel-scale: </span>
+		<input class="pixscale" id="newPixelScale" placeholder="0.0225" type="number">
+		<button class="button" onclick="reset()" style="width: 200px;background-color: #666666;vertical-align: middle">
+			<span>Reset Pixel-Scale</span>
+		</button>
+	</div>
 
     <div class="popup-form">
         <h2 style="color: black;text-align: center">Image Settings</h2>
         <form onsubmit="return false;">
             <div class="form-item1">
                 <label for="image-url" style="margin-right: 80px;">Image URL:</label>
-                <button class="Uploadbtn" id="img-upload" style="width:200px;background-color:#1fc0db">
-                    <input class="input-upload" type="file" id="image-url"/>
+                <button class="Uploadbtn" id="img-upload"  style="width:200px;background-color:#1fc0db">
+                    <input class="input-upload" type="file"  id="image-url"/>
                     <span>Select Image</span>
                 </button>
                 <br/>
@@ -859,8 +927,8 @@
             </div>
             <br/>
             <div class="form-item">
-                <button type="submit" id="confirm">Confirm</button>
-                <button type="button" id="close-form-button">Close</button>
+                <button type="submit" id="confirm" >Confirm</button>
+                <button type="button" id="close-form-button" >Close</button>
             </div>
 
         </form>
@@ -965,6 +1033,12 @@
         margin-bottom: 10px;
         vertical-align: middle;
     }
+	.pixscale{
+		width: 120px;
+		height: 20px;
+		font-size: medium;
+		border-radius: 5px;
+	}
 
 label {}
     .popup-form input {
