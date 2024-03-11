@@ -17,6 +17,7 @@
 		imgd.width = 400;
 		imgd.height = 400;
 		var lets,ms,ms_src,containerEl,containerEl_src,img,img_src;
+		// 初始化工作，包括对象的生成及赋值，以及一些函数操作
 		function setup(){
 			// Create a hoopla object. The ID is that of the <div>
 			lets = new Hoopla({
@@ -262,7 +263,22 @@
 					let text = reader.result;
 					let data = JSON.parse(text);
 					let components = data.components;
+					let url = data.src;
+					let pixscale = data.pixscale;
 					lets.loadModel(components);
+					// img.src = url;
+					// img_src.src = url;
+					// ms.tools.pop();
+					// ms_src.tools.pop();
+					// lets.srcmodelPaper.clear();
+					// lets.srcmodelPaper.src = url;
+					// lets.predictionPaper.clear();
+					// lets.predictionPaper.src = url;
+					// lets.paper.src = url;
+					// document.getElementById("hoopla-srcmodel").style.backgroundImage
+					// 		= "url(" + url + ")";
+					// document.getElementById("hoopla-prediction").style.backgroundImage
+					// 		= "url(" + url + ")";
 					if(ms.tools.length===0){
 						ms.addTool();
 					}
@@ -270,6 +286,8 @@
 						ms_src.addTool();
 					}
 					console.log(components);
+
+					// lets.pixscale = pixscale;
 					lets.freezeSrcModel = true;
 					updateCanvas(components);
 					lets.update({x:lets.lens.ang2pix(components[1].x),y:lets.lens.ang2pix(components[1].y)});
@@ -293,8 +311,7 @@
 			};
 		}
 
-
-
+		// 重置pixel scale
 		function reset() {
 			let pixscale = document.getElementById('newPixelScale').value;
 			const regex = /^\d{0,2}(\.\d{0,6})?$/;
@@ -305,8 +322,9 @@
 				window.alert('Pixel-scale is not a legitimate input!');
 
 			}
-
 		}
+
+		//计算单个镜头成神对图像（x，y）的弯曲效应
 		function calAlpha(xl,yl,xlc,ylc,re,ql,phl) {
 
 			if(ql <1.0){
@@ -351,6 +369,7 @@
 			return alpha;
 		}
 
+		//根据弯曲后的点(x-, αx, y-αy)计算该点在重构图像中的光度值。
 		function calImage(xs, ys, xsc, ysc, sig2, qs, phs) {
 			let r2, res, phirad;
 			// Loop over x and y. Store 1-D pixel index as i.
@@ -362,6 +381,7 @@
 			return res; // Allow this function to be chainable
 		}
 
+		//给定一组镜头参数,对每个图像点调用calAlpha()和calImage()计算预测图像光度值
 		function model_lensed_images(p, x1, x2) {
 			let xc1, xc2, re, ql, phl;
 			xc1 = p[0];
@@ -499,6 +519,7 @@
 			return res;
 		}
 
+		//计算标准差
 		function standardDeviation(values){
 			let avg = average(values);
 
@@ -512,6 +533,7 @@
 			return Math.sqrt(avgSquareDiff);
 		}
 
+		//计算平均值
 		function average(data){
 			let sum = data.reduce(function(sum, value){
 				return sum + value;
@@ -519,7 +541,7 @@
 
 			return sum / data.length;
 		}
-		//计算图像的卡方值
+		//考虑放缩因子，对图像downsampling后进行最小二乘拟合,加快计算速度
 		function chi2_rescale(p) {
 			let c = document.getElementById("myCanvas");
 			let ctx = c.getContext("2d");
@@ -892,7 +914,7 @@
 	</div>
 	<div class="container" style="height: 50px;">
 		<span>Current pixel-scale: </span>
-		<input class="pixscale" id="newPixelScale" placeholder="0.0225" type="number">
+		<input class="pixscale" id="newPixelScale" type="number">
 		<button class="button" onclick="reset()" style="width: 200px;background-color: #666666;vertical-align: middle">
 			<span>Reset Pixel-Scale</span>
 		</button>

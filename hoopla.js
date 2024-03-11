@@ -58,6 +58,7 @@
 			name: 'Example',
 			src:" http://lenszoo.files.wordpress.com/2013/12/asw0009cjs-zoomed.jpg",
 			PSFwidth: 1.2,
+			pixscale: this.pixscale,
 			source: {
 				plane: "source",
 				size:  0.7,
@@ -425,7 +426,7 @@
 								 //}, 4);
 		this.models[0].name = imgSrc.split('/')[imgSrc.split('/').length-1].split('.')[0];
 		this.models[0].src = imgSrc;
-
+		this.models[0].pixscale = this.pixscale;
 		delete this.models[0].source;
 		delete this.models[0].PSFwidth;
 
