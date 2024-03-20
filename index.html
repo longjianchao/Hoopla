@@ -77,7 +77,6 @@
 					return lets.lens.pix2ang({x: scaleX * d.x, y: scaleY * d.y});
 				}
 
-
 				function updateModel() {
 					let data = JSON.parse(ms.getValue());
 					// console.log(ms.tools)
@@ -193,6 +192,7 @@
 					window.alert('Please select a valid file!');
 					return;
 				}
+				console.log(imageFile);
 				let url = window.URL.createObjectURL(imageFile);
 				document.getElementById("imgURL").innerText = url;
 			}
@@ -221,7 +221,6 @@
 				}
 				if(regex.test(pixscale)){
 					lets.pixscale = pixscale;
-					console.log(lets);
 				}else{
 					window.alert('Please re-enter the pixel scale of the image correctly!');
 					return;
@@ -230,6 +229,7 @@
 
 				img.src = url;
 				img_src.src = url;
+				imgd.src = url;
 				ms.tools.pop();
 				ms_src.tools.pop();
 
@@ -244,8 +244,8 @@
 						= "url(" + url + ")";
 				document.getElementById("hoopla-prediction").style.backgroundImage
 						= "url(" + url + ")";
-				document.getElementById('newPixelScale').innerText = pixscale;
-				console.log(lets);
+				document.getElementById('newPixelScale').value = pixscale;
+				console.log(lets.model.components);
 				document.querySelector('.popup-form').classList.remove('active');
 			}
 
@@ -291,7 +291,6 @@
 					lets.freezeSrcModel = true;
 					updateCanvas(components);
 					lets.update({x:lets.lens.ang2pix(components[1].x),y:lets.lens.ang2pix(components[1].y)});
-					console.log(lets.freezeSrcModel);
 					let tag = document.getElementById('tag');
 					tag.innerHTML = "<span class=\"tooltiptext\">Freezed Mode is unactivated, click left button of the mouse to turn into interactive mode.</span>Freezed"
 					tag.style.backgroundColor = "lightblue";
@@ -566,64 +565,12 @@
 					x = col*0.0225 - 4.5;
 					y = row*0.0225 - 4.5;
 					testimg[i] = model_lensed_images(p, x, y);
-					chi[i2] = (red[i] -
-							testimg[i])/redstd/redstd/(chi.length);
+					chi[i2] = (red[i] - testimg[i])/redstd/redstd/(chi.length);
 				}
 			}
 			return optimize.vector.dot(chi, chi);
 		}
 
-		function chi2(p) {
-			var i;
-
-			var c = document.getElementById("myCanvas");
-			var ctx = c.getContext("2d");
-			ctx.drawImage(imgd, 0, 0);
-			var dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
-			var data = dstdata.data;
-
-			var red = new Array(data.length/4);
-			for(var i = 0, n = red.length; i < n; i ++) {
-				red[i] = data[i*4]/255.;
-			}
-
-
-			var chi = new Array(red.length);
-			var testimg = new Array(red.length);
-			var redstd = standardDeviation(red);
-			for(var row = 0 ; row < 400 ; row++){
-				for(var col = 0 ; col < 400 ; col++){
-					i = row*400+col;
-					x = col*0.0225 - 4.5;
-					y = row*0.0225 - 4.5;
-					testimg[i] = model_lensed_images(p, x, y);
-					//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
-					chi[i] = (red[i] - testimg[i])/redstd/redstd;
-					//console.log([red[i], testimg[i]]);
-				}
-			}
-			var res = optimize.vector.dot(chi, chi);
-			console.log(res);
-
-			//for (var y = 0; y < imgd.width; ++y) {
-			//    for (var x = 0; x < imgd.height; ++x) {
-			//        var index = (y * imgd.width + x) * 4;
-			//		var index2 = (y * imgd.width + x);
-			//
-			//        //data[index]   = Math.floor(red[index2]*255);    // red
-			//        //data[index]   = Math.floor(testimg[index2]*255);    // red
-			//		data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
-			//        //data[index]   = 128;    // red
-			//        data[++index] = 0;    // green
-			//        data[++index] = 0;    // blue
-			//        data[++index] = 255;      // alpha
-			//    }
-			//}
-
-			//dstdata.data = data;
-			//ctx.putImageData(dstdata, 0, 0);
-			return res;
-		}
 
 		function show_res(p) {
 
@@ -670,7 +617,9 @@
 				}
 			}
 
-			dstdata.data = data;
+			for (let i = 0; i < data.length; i++) {
+				dstdata.data[i] = data[i];
+			}
 			ctx.putImageData(dstdata, 0, 0);
 			return res;
 		}
@@ -722,9 +671,10 @@
 			setTimeout(resolve, timeout);
 		});
 
-		let it=0;
+
 		let timer = async(timeout) => {
 			let chiSquaredValues = [];
+			let it = 0,chival = 0,j = 0;
 			for(let i = 0; i< timeout; i++) {
 				let p0;
 				let xc1, xc2, re, ql, phl;
@@ -732,43 +682,46 @@
 					console.log("建模结果有偏差，waiting...");
 					i/=2;
 				}
-				xc1 = lets.models[0].components[1].x;
-				xc2 = lets.models[0].components[1].y;
-				re  = lets.models[0].components[1].theta_e;
-				ql  = lets.models[0].components[1].ell;
-				phl = lets.models[0].components[1].ang;
+				xc1 = lets.model.components[1].x;
+				xc2 = lets.model.components[1].y;
+				re  = lets.model.components[1].theta_e;
+				ql  = lets.model.components[1].ell;
+				phl = lets.model.components[1].ang;
 				let yc1, yc2, sig2, qs, phs;
-				yc1 = lets.models[0].components[0].x;
-				yc2 = lets.models[0].components[0].y;
-				sig2= lets.models[0].components[0].size;
-				qs  = lets.models[0].components[0].ell;
-				phs = lets.models[0].components[0].ang;
+				yc1 = lets.model.components[0].x;
+				yc2 = lets.model.components[0].y;
+				sig2= lets.model.components[0].size;
+				qs  = lets.model.components[0].ell;
+				phs = lets.model.components[0].ang;
 
 				p0 = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
 				let p = optimize.fmin(chi2_rescale, p0, {ftol: 1e-6, maxiter: 50});
-				let p1=p.x,chival = p.res;
-				if(it===p[1]&&it<50) break;
-				it=chival.iterations;
-				chiSquaredValues.push(chival.fval);
+				let p1=p.x;
+
+				it = p.res.iterations;
+				chival = p.res.fval;
+				chiSquaredValues.push(chival);
 				// let p1 = optimize.newton(chi2_rescale, p0, {ftol: 1e-6, maxiter: 100});
 				console.log(p1);
 				show_res(p1);
 				drawChiSquareCurve(chiSquaredValues);
-				lets.models[0].components[1].x = p1[0];
-				lets.models[0].components[1].y = p1[1];
-				lets.models[0].components[1].theta_e = p1[2];
-				lets.models[0].components[1].ell = p1[3];
-				lets.models[0].components[1].ang = p1[4];
-				lets.models[0].components[0].x = p1[5];
-				lets.models[0].components[0].y = p1[6];
-				lets.models[0].components[0].size = p1[7];
-				lets.models[0].components[0].ell = p1[8];
-				lets.models[0].components[0].ang = p1[9];
-				lets.loadModel(lets.models[0].components);
-				// console.log(lets.models[0].components);
+				if(Math.abs(chival-p.res.fval)<1e-8 && it<50){
+					if(++j===2) break;
+				}
+				lets.model.components[1].x = p1[0];
+				lets.model.components[1].y = p1[1];
+				lets.model.components[1].theta_e = p1[2];
+				lets.model.components[1].ell = p1[3];
+				lets.model.components[1].ang = p1[4];
+				lets.model.components[0].x = p1[5];
+				lets.model.components[0].y = p1[6];
+				lets.model.components[0].size = p1[7];
+				lets.model.components[0].ell = p1[8];
+				lets.model.components[0].ang = p1[9];
+				lets.loadModel(lets.model.components);
 				lets.update({x:lets.lens.ang2pix(p1[0]),y:lets.lens.ang2pix(p1[1])});
 				lets.freezeSrcModel = true;
-				updateCanvas(lets.models[0].components);
+				updateCanvas(lets.model.components);
 				await sleep(1);
 			}
 		}
@@ -783,10 +736,10 @@
 
 			let ang2 = lets.lens.ang2pix({x: components[0].x, y: components[0].y});
 			ms_src.tools[0].mark.x = ang2.x;
-			ms_src.tools[0].mark.y = ang2.y
+			ms_src.tools[0].mark.y = ang2.y;
 			ms_src.tools[0].mark.angle = components[0].ang;
 			ms_src.tools[0].mark.ry = components[0].size/(lets.lens.pixscale*Math.sqrt(components[0].ell ));
-			ms_src.tools[0].mark.rx = ms_src.tools[0].mark.ry *components[0].ell ;
+			ms_src.tools[0].mark.rx = ms_src.tools[0].mark.ry *components[0].ell;
 			ms_src.renderTools();
 		}
 
@@ -801,7 +754,6 @@
 			}
 			let tag2 = document.getElementById('tag2');
 			tag2.style.display = 'block';
-			console.log(tag2);
 
 			let timerCallback = async () => {
 				await timer(8); // 执行1次timer函数
@@ -876,7 +828,7 @@
 		<tr>
 			<td>
 				<div id="masscaption" class="barTitle">
-					<p style="margin-top: 10px;margin-left: -8px;">Difference Plane</p>
+					<p style="margin-top: 10px;margin-left: -8px;">Residual Map</p>
 				</div>
 			</td>
 			<td>
@@ -1134,14 +1086,6 @@ label {}
 		color: #666666;
 	}
 
-	#footer {
-		position:absolute;
-		color: #666666;
-		bottom:0;
-		margin-bottom:40px;
-		width:100%;
-		height:100px;   /* Height of the footer */
-	}
 
 	.button {
 		display: inline-block;

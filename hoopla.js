@@ -53,8 +53,8 @@
 
 		// Setup our buttons etc
 		this.setup();
-		this.models = [];
-		this.models.push({
+		// this.models = [];
+		this.model = {
 			name: 'Example',
 			src:" http://lenszoo.files.wordpress.com/2013/12/asw0009cjs-zoomed.jpg",
 			PSFwidth: 1.2,
@@ -77,46 +77,45 @@
 					ang: 32
 				}
 			]
-		});
+		};
 
 		this.init();
 	}
 
 	Hoopla.prototype.loadModel = function(components) {
 		console.log('loadModel');
-		this.models[0].components = components;
+		this.model.components = components;
     	this.init();
 	}
 
 	Hoopla.prototype.updateModel = function(components) {
 		console.log('updateModel');
 		if (components.length === 0) {
-			if (this.models[0].components.length === 0) {
-				let source = this.models[0].source;
+			if (this.model.components.length === 0) {
+				let source = this.model.source;
 				components.splice(0, 0, source);
-				this.models[0].components = components;
+				this.model.components = components;
 			}
 		} else {
 			if (components[0].plane === "source") {
-				if (this.models[0].components[0].plane === "source") {
-					this.models[0].components[0] = components[0];
+				if (this.model.components[0].plane === "source") {
+					this.model.components[0] = components[0];
 				} else {
-					this.models[0].components.splice(0, 0, components[0]);
+					this.model.components.splice(0, 0, components[0]);
 				}
 			} else {
-				if (this.models[0].components[0].plane === "source") {
-					let source = this.models[0].components[0];
+				if (this.model.components[0].plane === "source") {
+					let source = this.model.components[0];
 					components.splice(0, 0, source);
 					// components.splice(2);
-					this.models[0].components = components;
+					this.model.components = components;
 				} else {
-					let source = this.models[0].source;
+					let source = this.model.source;
 					components.splice(0, 0, source);
-					this.models[0].components = components;
+					this.model.components = components;
 				}
 			}
 		}
-		// console.log(this.model.components);
 
 		this.init();
 	}
@@ -264,9 +263,6 @@
 		return this;
 	}
 
-	Hoopla.prototype.setStatus = function(msg){
-		if(document.getElementById('status')) document.getElementById('status').innerHTML = msg;
-	}
 
 
 	// We need to set up.
@@ -301,56 +297,35 @@
 			}
 
 		});
-		// let tag = document.getElementById('tag');
-		// tag.addEventListener('change',()=>{
-		// 	this.freezeSrcModel = !this.freezeSrcModel;
-		//
-		// });
-		// Object.defineProperties(window,'_obj.freezeSrcModel',{
-		// 	get: function() { return _obj.freezeSrcModel; },
-		// 	set: function(v) {
-		// 		_obj.freezeSrcModel = !_obj.freezeSrcModel;
-		// 		if(_obj.freezeSrcModel){
-		// 			tag.innerHTML = "<span class=\"tooltiptext\">Freezed Mode is activated, click left button of the mouse to turn into interactive mode.</span>Freezed"
-		// 			tag.style.backgroundColor = "lightblue";
-		// 		}else{
-		// 			tag.innerHTML = "<span class=\"tooltiptext\">Interactive Mode is activated, click left button of the mouse to turn into freezed mode.</span>Interactive";
-		// 			tag.style.backgroundColor = "orange";
-		// 		}
-		// 	}
-		// })
+
 		return this;
 	}
 
 	// Return a model by name
-	Hoopla.prototype.getModel = function(name){
-		if(typeof name === "string"){
-			for(let i = 0; i < this.models.length; i++){
-				if(this.models[i].name===name) return this.models[i];
-			}
-		}
-		// No match so return the first model
-		return this.models[0];
-	}
+	// Hoopla.prototype.getModel = function(name){
+	// 	if(typeof name === "string"){
+	// 		for(let i = 0; i < this.models.length; i++){
+	// 			if(this.models[i].name===name) return this.models[i];
+	// 		}
+	// 	}
+	// 	// No match so return the first model
+	// 	return this.models[0];
+	// }
 
 	// 初始化透镜模型
 	Hoopla.prototype.init = function(inp,fnCallback){
 		console.log("init");
-		// console.log(this.predictionPaper);
-		this.model = this.getModel(inp);
+		// this.model = this.getModel(inp);
 		let _this = this;
 		_this.freezeSrcModel=false;
 		if(typeof this.model.src === "string") this.loadImage(this.model.src);
-		// console.log(this.model.src);
 		if(typeof this.model.components === "object"){
 			this.lens.removeAll('lens');
 			this.lens.removeAll('source');
 
-
 			for(let i = 0; i < this.model.components.length ; i++){
 				this.lens.add(this.model.components[i]);
 			}
-			// console.log(this.lens);
 
 			this.lens.calculateAlpha();
 			this.lens.calculateImage();
@@ -387,7 +362,6 @@
 			}
 		}
 
-		// this.paper.clear();
 		this.srcmodelPaper.clear();
 		this.predictionPaper.clear();
 
@@ -420,17 +394,14 @@
 
 	// 显示模型信息并提供下载选项
 	Hoopla.prototype.showModels = function(imgSrc){
-		//var str = JSON.stringify(this.models[0].components,
-								 //function(key, val) {
-									 //return val.toFixed ? Number(val.toFixed(3)):val;
-								 //}, 4);
-		this.models[0].name = imgSrc.split('/')[imgSrc.split('/').length-1].split('.')[0];
-		this.models[0].src = imgSrc;
-		this.models[0].pixscale = this.pixscale;
-		delete this.models[0].source;
-		delete this.models[0].PSFwidth;
 
-		let str = JSON.stringify(this.models[0],
+		this.model.name = imgSrc.split('/')[imgSrc.split('/').length-1].split('.')[0];
+		this.model.src = imgSrc;
+		this.model.pixscale = this.pixscale;
+		delete this.model.source;
+		delete this.model.PSFwidth;
+
+		let str = JSON.stringify(this.model,
 								 function(key, val) {
 									 return val.toFixed ? Number(val.toFixed(3)):val;
 								 }, 4);
@@ -438,7 +409,7 @@
 		let link = document.createElement('a');
 		//link.download = 'lensModels.json';
 
-		link.download = this.models[0].name+'.JSON';
+		link.download = this.model.name+'.JSON';
 		let blob = new Blob([str], {type: 'text/plain'});
 		link.href = window.URL.createObjectURL(blob);
 		link.click();
@@ -464,7 +435,6 @@
 		// Paste original image
 		this.paper.pasteFromClipboard();
 		this.predictionPaper.clear();
-
 
 		if (this.showcrit) {
 			this.srcmodelPaper.clear();
@@ -590,19 +560,52 @@
 
 	// Extra mathematical/helper functions that will be useful - inspired by http://alexyoung.github.com/ico/
 	let G = {};
-	G.sum = function(a) { let i, sum; for (i = 0, sum = 0; i < a.length; sum += a[i++]) {} return sum; };
-	if (typeof Array.prototype.max === 'undefined') G.max = function(a) { return Math.max.apply({}, a); };
-	else G.max = function(a) { return a.max(); };
-	if (typeof Array.prototype.min === 'undefined') G.min = function(a) { return Math.min.apply({}, a); };
-	else G.min = function(a) { return a.min(); };
-	G.mean = function(a) { return G.sum(a) / a.length; };
-	G.stddev = function(a) { return Math.sqrt(G.variance(a)); };
-	G.log10 = function(v) { return Math.log(v)/2.302585092994046; };
-	G.variance = function(a) { let mean = G.mean(a), variance = 0; for (let i = 0; i < a.length; i++) variance += Math.pow(a[i] - mean, 2); return variance / (a.length - 1); };
+	G.sum = function(a) {
+		let i, sum;
+		for (i = 0, sum = 0; i < a.length; sum += a[i++]) {}
+		return sum;
+	};
+
+	if (typeof Array.prototype.max === 'undefined')
+		G.max = function(a) {
+			return Math.max.apply({}, a);
+		};
+	else
+		G.max = function(a) {
+			return a.max();
+		};
+	if (typeof Array.prototype.min === 'undefined')
+		G.min = function(a) {
+			return Math.min.apply({}, a);
+		};
+	else
+		G.min = function(a) {
+			return a.min();
+		};
+
+	G.mean = function(a) {
+		return G.sum(a) / a.length;
+	};
+
+	G.stddev = function(a) {
+		return Math.sqrt(G.variance(a));
+	};
+
+	G.log10 = function(v) {
+		return Math.log(v)/2.302585092994046;
+	};
+
+	G.variance = function(a) {
+		let mean = G.mean(a), variance = 0;
+		for (let i = 0; i < a.length; i++)
+			variance += Math.pow(a[i] - mean, 2);
+		return variance / (a.length - 1);
+	};
 	if (typeof Object.extend === 'undefined') {
 		G.extend = function(destination, source) {
 			for (let property in source) {
-				if (source.hasOwnProperty(property)) destination[property] = source[property];
+				if (source.hasOwnProperty(property))
+					destination[property] = source[property];
 			}
 			return destination;
 		};
