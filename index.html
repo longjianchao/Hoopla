@@ -79,7 +79,6 @@
 
 				function updateModel() {
 					let data = JSON.parse(ms.getValue());
-					// console.log(ms.tools)
 					let components = data.map(function(d) {
 						let coords = getCoords(d);
 						return {
@@ -92,12 +91,11 @@
 						}
 					});
 					lets.updateModel(components);
-					// console.log(components);
 				}
 				let debouncedUpdateModel = _.debounce(updateModel, 200);
 				ms.on('marking-surface:change', debouncedUpdateModel);
 			}
-			img.src = "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg";
+			img.src = "images\\ering.jpg";
 
 			// Source Models
 			ms_src = new MarkingSurface({
@@ -160,12 +158,11 @@
 						}
 					});
 					lets.updateModel(components);
-					// console.log(components)
 				}
 				let debouncedUpdateModel = _.debounce(updateModel, 200);
 				ms_src.on('marking-surface:change', debouncedUpdateModel);
 			}
-			img_src.src = "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg";
+			img_src.src = "images\\ering.jpg";
 		}
 
 		window.onload = function(e){
@@ -404,119 +401,6 @@
 			return calImage(y1, y2, yc1, yc2, sig2, qs, phs);
 		}
 
-		function chi2_2(p) {
-			let predictedimage = [];
-			let alpha = []
-
-			for(let i = 0 ; i < imgd.width*imgd.height ; i++){
-				alpha[i] = { x: 0.0, y: 0.0 };
-				predictedimage[i] = 0;
-			}
-			// Declare outside the for loop for efficiency
-			let x, y;
-			let tr, cs, sn;
-			let rc = 0.0;
-			let ql;
-			// Loop over pixels:
-			for(let i = 0 ; i < imgd.width*imgd.height ; i++){
-				// Loop over lens components:
-				if(p[3] <1.0){
-					ql = p[3];
-					tr = Math.PI * ((-p[4]+90) / 180);
-				}else{
-					ql = 1.0/p[3]-0.0000000001;
-					tr = Math.PI * (-p[4] / 180);
-				}
-
-				cs = Math.cos(tr);
-				sn = Math.sin(tr);
-
-				x = i % imgd.width - p[0]/lets.pixscale;
-				y = Math.floor(i/imgd.width) - p[1]/lets.pixscale;
-
-				sx_r = x * cs + y * sn;
-				sy_r = -x * sn + y * cs;
-
-				psi = Math.sqrt(ql*ql*(rc*rc+sx_r*sx_r)+sy_r*sy_r);
-
-				sq = Math.sqrt(1.0-ql*ql);
-				pd1 = psi + rc;
-				pd2 = psi + rc*ql*ql;
-				fx1 = sq * sx_r / pd1;
-				fx2 = sq * sy_r / pd2;
-				qs = Math.sqrt(ql);
-
-				a1 = qs / sq * Math.atan(fx1);
-				a2 = qs / sq * Math.atanh(fx2);
-
-				dx = (a1 * cs - a2 * sn);
-				dy = (a2 * cs + a1 * sn);
-
-				// Add lensing effects of just this component:
-				alpha[i].x = p[2]/lets.pixscale*dx;
-				alpha[i].y = p[2]/lets.pixscale*dy;
-			}
-
-			let d = { x: 0, y: 0 };
-			let i = 0;
-			let r2 = 0;
-			// Since for a Gaussian, half light radius (size) = sigma * sqrt(2*ln(2))
-			//var factor = 1.0/(0.693*this.source[0].size_px*this.source[0].size_px)
-			let sig2 = p[7]*p[7]*0.693/lets.pixscale/lets.pixscale;
-			let row, col, s, v;
-			let phirad,xnew,ynew;
-			for (row = 0; row < imgd.width; row++) {
-				for (col = 0; col < imgd.height; col++) {
-					d.x = col - p[5] / lets.pixscale - alpha[i].x + 4.5;
-					d.y = row - p[6] / lets.pixscale - alpha[i].y + 4.5;
-					phirad = -p[9] / 180 * Math.PI;
-					xnew = d.x * Math.cos(phirad) + d.y * Math.sin(phirad)
-					ynew = d.y * Math.cos(phirad) - d.x * Math.sin(phirad)
-					r2 = (xnew * xnew / p[8] + ynew * ynew * p[8]);
-					v = Math.exp(-r2 / (2.0 * sig2));
-					predictedimage[i++] = v;
-				}
-			}
-			let c = document.getElementById("myCanvas");
-			let ctx = c.getContext("2d");
-			ctx.drawImage(imgd, 0, 0);
-			let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
-			let data = dstdata.data;
-
-			let red = new Array(data.length/4);
-			for(let i = 0, n = red.length; i < n; i ++) {
-				red[i] = data[i*4]/255.;
-			}
-
-
-			let chi = new Array(red.length);
-			let testimg = new Array(red.length);
-			for(let i = 0 ; i < imgd.width*imgd.height ; i++){
-				chi[i] = (red[i] - predictedimage[i])*red[i]*red[i];
-				//console.log([red[i], testimg[i]]);
-			}
-			let res = optimize.vector.dot(chi, chi);
-			console.log(res);
-
-			for (let y = 0; y < imgd.width; ++y) {
-				for (let x = 0; x < imgd.height; ++x) {
-					let index = (y * imgd.width + x) * 4;
-					let index2 = (y * imgd.width + x);
-
-					//data[index]   = Math.floor(red[index2]*255);    // red
-					//data[index]   = Math.floor(testimg[index2]*255);    // red
-					data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
-					//data[index]   = 128;    // red
-					data[++index] = 0;    // green
-					data[++index] = 0;    // blue
-					data[++index] = 255;      // alpha
-				}
-			}
-
-			dstdata.data = data;
-			ctx.putImageData(dstdata, 0, 0);
-			return res;
-		}
 
 		//计算标准差
 		function standardDeviation(values){
@@ -760,9 +644,7 @@
 				console.log(lets);
 				tag2.style.display = 'none';
 			}
-
 			timerCallback(); // 将迭代次数作为参数传递给timerCallback函数
-
 		}
 	</script>
 

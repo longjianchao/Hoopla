@@ -301,21 +301,10 @@
 		return this;
 	}
 
-	// Return a model by name
-	// Hoopla.prototype.getModel = function(name){
-	// 	if(typeof name === "string"){
-	// 		for(let i = 0; i < this.models.length; i++){
-	// 			if(this.models[i].name===name) return this.models[i];
-	// 		}
-	// 	}
-	// 	// No match so return the first model
-	// 	return this.models[0];
-	// }
 
 	// 初始化透镜模型
 	Hoopla.prototype.init = function(inp,fnCallback){
 		console.log("init");
-		// this.model = this.getModel(inp);
 		let _this = this;
 		_this.freezeSrcModel=false;
 		if(typeof this.model.src === "string") this.loadImage(this.model.src);
