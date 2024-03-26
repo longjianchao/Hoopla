@@ -382,17 +382,17 @@
 	}
 
 	// 显示模型信息并提供下载选项
-	Hoopla.prototype.showModels = function(imgSrc){
+	Hoopla.prototype.saveModel = function(imgSrc){
 
 		this.model.name = imgSrc.split('/')[imgSrc.split('/').length-1].split('.')[0];
 		this.model.src = imgSrc;
 		this.model.pixscale = this.pixscale;
 		delete this.model.source;
 		delete this.model.PSFwidth;
-
+		// this.downloadImage();
 		let str = JSON.stringify(this.model,
 								 function(key, val) {
-									 return val.toFixed ? Number(val.toFixed(3)):val;
+									 return val.toFixed ? Number(val.toFixed(4)):val;
 								 }, 4);
 
 		let link = document.createElement('a');
@@ -404,6 +404,35 @@
 		link.click();
 	}
 
+	Hoopla.prototype.downloadImage = function downloadImage(){
+		//cavas 保存图片到本地  js 实现
+		//------------------------------------------------------------------------
+		//1.确定图片的类型  获取到的图片格式 data:image/Png;base64,......
+		var type ='png';//你想要什么图片格式 就选什么吧
+		var d=document.getElementById("hoopla-srcmodel");
+		var imgdata=d.toDataURL(type);
+		//2.0 将mime-type改为image/octet-stream,强制让浏览器下载
+		var fixtype=function(type){
+			type=type.toLocaleLowerCase().replace(/jpg/i,'jpeg');
+			var r=type.match(/png|jpeg|bmp|gif/)[0];
+			return 'image/'+r;
+		};
+		imgdata=imgdata.replace(fixtype(type),'image/octet-stream');
+		//3.0 将图片保存到本地
+		var savaFile=function(data,filename)
+		{
+			var save_link=document.createElementNS('http://www.w3.org/1999/xhtml', 'a');
+			save_link.href=data;
+			save_link.download=filename;
+			var event=document.createEvent('MouseEvents');
+			event.initMouseEvent('click',true,false,window,0,0,0,0,0,false,false,false,false,0,null);
+			save_link.dispatchEvent(event);
+		};
+		var filename=''+new Date().getDate()+'.'+type;
+		//注意咯 由于图片下载的比较少 就直接用当前几号做的图片名字
+		savaFile(imgdata,filename);
+		return filename;
+	}
 	// 更新透镜模型并重新计算图像
 	Hoopla.prototype.update = function(e){
 		if (!e) { return; }
@@ -418,7 +447,6 @@
 		src.y = coords.y;
 		this.model.components[0].x = coords.x;
 		this.model.components[0].y = coords.y;
-
 		// Add the source back
 		this.lens.add(src);
 		// Paste original image
@@ -432,7 +460,7 @@
 
 			this.drawContours(this.predictionPaper, critcurve, {color:'#ff9999', lw:1.1});
 			this.drawContours(this.srcmodelPaper, caustics, {color:'#66ff66', lw:1.1});
-    	}
+		}
 		// Re-calculate the lensed and true images
 		this.lens.calculateImage();
 		this.lens.calculateTrueImage();
@@ -449,8 +477,8 @@
 			}
 
 			let lasso = this.getContours(timage, [0.5]);
-      		outline = lasso.contourList();
-      		outline = this.downsample(outline);
+			outline = lasso.contourList();
+			outline = this.downsample(outline);
 			this.drawContours(this.srcmodelPaper, outline, {color:'#66ccff', lw:1.1});
 		}
 		// Calculate and overlay arcs outline:

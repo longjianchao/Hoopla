@@ -25,7 +25,7 @@
 				srcmodel: 'hoopla-srcmodel',
 				prediction: 'hoopla-prediction',
 				//pixscale: 0.0375
-				pixscale: 0.0225,
+				pixscale: 0.025,
 				src: "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg"
 			});
 
@@ -49,12 +49,12 @@
 					height: height
 				});
 				ms.svg.attr({
-					width: 400,
-					height: 400
+					width: width,
+					height: height
 				});
 				ms.rescale(0, 0, width, height);
-				let scaleX = 400 / img.width;
-				let scaleY = 400 / img.height;
+				let scaleX = width / img.width;
+				let scaleY = height / img.height;
 
 				function getThetaE(d) {
 					let a = d.rx * lets.pixscale;
@@ -116,12 +116,12 @@
 					height: height
 				});
 				ms_src.svg.attr({
-					width: 400,
-					height: 400
+					width: width,
+					height: height
 				});
 				ms_src.rescale(0, 0, width, height);
-				let scaleX = 400 / img_src.width;
-				let scaleY = 400 / img_src.height;
+				let scaleX = width / img_src.width;
+				let scaleY = height / img_src.height;
 
 				function getSize(d) {
 					let a = d.rx * lets.pixscale;
@@ -247,9 +247,9 @@
 			}
 
 
-			document.getElementById("showModels").onclick = function fun() {
+			document.getElementById("saveModel").onclick = function fun() {
 				//lets.showModels(img_src.src.split('/')[img_src.src.split('/').length-1].split('.')[0]+'.JSON');
-				lets.showModels(img_src.src);
+				lets.saveModel(img_src.src);
 			};
 
 
@@ -257,37 +257,24 @@
 				let input = e.target;
 				let reader = new FileReader();
 				reader.onload = function(){
-					let text = reader.result;
-					let data = JSON.parse(text);
+					let textdata = reader.result;
+					let data = JSON.parse(textdata);
 					let components = data.components;
+					console.log(textdata);
 					let url = data.src;
 					let pixscale = data.pixscale;
+					console.log(data);
 					lets.loadModel(components);
-					// img.src = url;
-					// img_src.src = url;
-					// ms.tools.pop();
-					// ms_src.tools.pop();
-					// lets.srcmodelPaper.clear();
-					// lets.srcmodelPaper.src = url;
-					// lets.predictionPaper.clear();
-					// lets.predictionPaper.src = url;
-					// lets.paper.src = url;
-					// document.getElementById("hoopla-srcmodel").style.backgroundImage
-					// 		= "url(" + url + ")";
-					// document.getElementById("hoopla-prediction").style.backgroundImage
-					// 		= "url(" + url + ")";
 					if(ms.tools.length===0){
 						ms.addTool();
 					}
 					if(ms_src.tools.length===0){
 						ms_src.addTool();
 					}
-					console.log(components);
-
-					// lets.pixscale = pixscale;
+					lets.pixscale = pixscale;
 					lets.freezeSrcModel = true;
 					updateCanvas(components);
-					lets.update({x:lets.lens.ang2pix(components[1].x),y:lets.lens.ang2pix(components[1].y)});
+					lets.update(lets.lens.ang2pix({x:components[0].x,y:components[0].y}));
 					let tag = document.getElementById('tag');
 					tag.innerHTML = "<span class=\"tooltiptext\">Freezed Mode is unactivated, click left button of the mouse to turn into interactive mode.</span>Freezed"
 					tag.style.backgroundColor = "lightblue";
@@ -306,6 +293,7 @@
 				reader.readAsText(input.files[0]);
 			};
 		}
+
 
 		// 重置pixel scale
 		function reset() {
@@ -434,7 +422,7 @@
 
 			let red = new Array(data.length/4);
 			for(let i = 0, n = red.length; i < n; i ++) {
-				red[i] = data[i*4]/255.;
+				red[i] = data[i*4]/255;
 			}
 
 			const fscale = 4;
@@ -446,8 +434,8 @@
 					let i,i2,x,y;
 					i = row*imgd.height+col;
 					i2 = row/fscale*imgd.height/fscale+col/fscale;
-					x = col*0.0225 - 4.5;
-					y = row*0.0225 - 4.5;
+					x = col* lets.pixscale - lets.pixscale*lets.width/2;
+					y = row* lets.pixscale - lets.pixscale*lets.width/2;
 					testimg[i] = model_lensed_images(p, x, y);
 					chi[i2] = (red[i] - testimg[i])/redstd/redstd/(chi.length);
 				}
@@ -466,7 +454,7 @@
 
 			let red = new Array(data.length/4);
 			for(let i = 0, n = red.length; i < n; i ++) {
-				red[i] = data[i*4]/255.;
+				red[i] = data[i*4]/255;
 			}
 
 			let chi = new Array(red.length);
@@ -476,8 +464,8 @@
 			for (let row = 0; row < 400; row++) {
 				for (let col = 0; col < 400; col++) {
 					i = row * 400 + col;
-					x = col * 0.0225 - 4.5;
-					y = row * 0.0225 - 4.5;
+					x = col * lets.pixscale - lets.pixscale*lets.width/2;
+					y = row * lets.pixscale - lets.pixscale*lets.width/2;
 					testimg[i] = model_lensed_images(p, x, y);
 					//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
 					chi[i] = (red[i] - testimg[i]) / redstd / redstd;
@@ -641,6 +629,11 @@
 
 			let timerCallback = async () => {
 				await timer(8); // 执行1次timer函数
+				// lets.model.components[1].y *= -1;
+				// lets.updateModel(lets.model.components);
+				// lets.update({x:lets.lens.ang2pix(lets.model.components[1].x),y:lets.lens.ang2pix(lets.model.components[1].y)});
+				// lets.freezeSrcModel = true;
+				// updateCanvas(lets.model.components);
 				console.log(lets);
 				tag2.style.display = 'none';
 			}
@@ -730,7 +723,7 @@
 	</table>
 
 	<div class="container">
-		<button class="button" id="showModels"
+		<button class="button" id="saveModel"
 				style="vertical-align:middle;width:193px;background-color:#666666"><span>Save Models</span>
 		</button>
 		<button class="Uploadbtn"  style="vertical-align:middle;width:193px;background-color:#666666">
