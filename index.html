@@ -11,12 +11,15 @@
 	<script type="text/javascript" src="hoopla.js"></script>
 
 	<script type="text/javascript">
+		var src = "images\\Figure_2.png";
+		var img_name = "Figure_2";
 		var imgd = new Image();
 		imgd.crossOrigin="anonymous";
-		imgd.src = 'https://cdn.rawgit.com/linan7788626/Hoopla/Preprocessing_input_pics/images/lensed_galaxy.jpg';
+		imgd.src = src;
 		imgd.width = 400;
 		imgd.height = 400;
 		var lets,ms,ms_src,containerEl,containerEl_src,img,img_src;
+
 		// 初始化工作，包括对象的生成及赋值，以及一些函数操作
 		function setup(){
 			// Create a hoopla object. The ID is that of the <div>
@@ -26,7 +29,7 @@
 				prediction: 'hoopla-prediction',
 				//pixscale: 0.0375
 				pixscale: 0.025,
-				src: "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg"
+				// src: "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg"
 			});
 
 			// Using Brian C's Marking Surface library!!!
@@ -95,7 +98,7 @@
 				let debouncedUpdateModel = _.debounce(updateModel, 200);
 				ms.on('marking-surface:change', debouncedUpdateModel);
 			}
-			img.src = "images\\ering.jpg";
+			img.src = src;
 
 			// Source Models
 			ms_src = new MarkingSurface({
@@ -162,7 +165,7 @@
 				let debouncedUpdateModel = _.debounce(updateModel, 200);
 				ms_src.on('marking-surface:change', debouncedUpdateModel);
 			}
-			img_src.src = "images\\ering.jpg";
+			img_src.src = src;
 		}
 
 		window.onload = function(e){
@@ -191,6 +194,7 @@
 				}
 				console.log(imageFile);
 				let url = window.URL.createObjectURL(imageFile);
+				img_name = imageFile.name;
 				document.getElementById("imgURL").innerText = url;
 			}
 			document.getElementById("confirm").onclick = function() {
@@ -230,8 +234,6 @@
 				ms.tools.pop();
 				ms_src.tools.pop();
 
-				lets.width = width;
-				lets.height = height;
 				lets.srcmodelPaper.clear();
 				lets.srcmodelPaper.src = url;
 				lets.predictionPaper.clear();
@@ -246,12 +248,9 @@
 				document.querySelector('.popup-form').classList.remove('active');
 			}
 
-
 			document.getElementById("saveModel").onclick = function fun() {
-				//lets.showModels(img_src.src.split('/')[img_src.src.split('/').length-1].split('.')[0]+'.JSON');
 				lets.saveModel(img_src.src);
 			};
-
 
 			document.getElementById('modelUpload').onchange = function(e) {
 				let input = e.target;
@@ -461,9 +460,9 @@
 			let testimg = new Array(red.length);
 			let redstd = standardDeviation(red);
 			let i,x,y;
-			for (let row = 0; row < 400; row++) {
-				for (let col = 0; col < 400; col++) {
-					i = row * 400 + col;
+			for (let row = 0; row < lets.width; row++) {
+				for (let col = 0; col < lets.height; col++) {
+					i = row * lets.width + col;
 					x = col * lets.pixscale - lets.pixscale*lets.width/2;
 					y = row * lets.pixscale - lets.pixscale*lets.width/2;
 					testimg[i] = model_lensed_images(p, x, y);
@@ -939,7 +938,7 @@ label {}
 		margin: 5px;
 		border: 1px solid #666666;
 		/*background-image: url("http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg");*/
-		background-image: url("./images/ering.jpg");
+		background-image: url("./images/Figure_2.png");
 		background-size: 400px 400px;
 	}
 	.barTitle {

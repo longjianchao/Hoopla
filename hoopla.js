@@ -381,10 +381,21 @@
 		return this;
 	}
 
+	Hoopla.prototype.getFormat = function(date){
+		var year = date.getFullYear();
+		var month = ('0' + (date.getMonth() + 1)).slice(-2);
+		var day = ('0' + date.getDate()).slice(-2);
+		var hours = ('0' + date.getHours()).slice(-2);
+		var minutes = ('0' + date.getMinutes()).slice(-2);
+
+		return year + month + day + hours + minutes;
+
+	}
 	// 显示模型信息并提供下载选项
 	Hoopla.prototype.saveModel = function(imgSrc){
 
-		this.model.name = imgSrc.split('/')[imgSrc.split('/').length-1].split('.')[0];
+		// this.model.name = imgSrc.split('/')[imgSrc.split('/').length-1].split('.')[0];
+		this.model.name = img_name + "_"+ this.getFormat(new Date());
 		this.model.src = imgSrc;
 		this.model.pixscale = this.pixscale;
 		delete this.model.source;
