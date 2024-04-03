@@ -11,7 +11,7 @@
 	<script type="text/javascript" src="hoopla.js"></script>
 
 	<script type="text/javascript">
-		var src = "images\\Figure_2.png";
+		var src = "images/Figure_1.png";
 		var img_name = "Figure_2";
 		var imgd = new Image();
 		imgd.crossOrigin="anonymous";
@@ -166,6 +166,11 @@
 				ms_src.on('marking-surface:change', debouncedUpdateModel);
 			}
 			img_src.src = src;
+			var bar = document.getElementsByClassName("bar");
+			for (let i=0; i<bar.length;i++){
+				bar[i].style.backgroundImage = "url(" + src + ")";
+			}
+
 		}
 
 		window.onload = function(e){
@@ -307,9 +312,34 @@
 			}
 		}
 
+		//给定一组镜头参数,对每个图像点调用calAlpha()和calImage()计算预测图像光度值
+		function model_lensed_images(p, x1, x2) {
+			// console.log("model_lensed_images");
+			let xc1, xc2, re, ql, phl;
+			xc1 = p[0];
+			xc2 = p[1];
+			re = p[2];
+			ql = p[3];
+			phl = p[4];
+
+			let alpha = calAlpha(x1,x2,xc1,xc2,re,ql,phl);
+
+			let y1 = x1 - alpha.x;
+			let y2 = x2 - alpha.y;
+
+			let yc1, yc2, sig2, qs, phs;
+			yc1 = p[5];
+			yc2 = p[6];
+			sig2 = p[7];
+			qs = p[8];
+			phs = p[9];
+
+			return calImage(y1, y2, yc1, yc2, sig2, qs, phs);
+		}
+
 		//计算单个镜头成神对图像（x，y）的弯曲效应
 		function calAlpha(xl,yl,xlc,ylc,re,ql,phl) {
-
+			// console.log('calAlpha');
 			if(ql <1.0){
 				phl = Math.PI * ((-phl+90) / 180);
 			}else{
@@ -354,6 +384,7 @@
 
 		//根据弯曲后的点(x-, αx, y-αy)计算该点在重构图像中的光度值。
 		function calImage(xs, ys, xsc, ysc, sig2, qs, phs) {
+			// console.log('calImage');
 			let r2, res, phirad;
 			// Loop over x and y. Store 1-D pixel index as i.
 			phirad = -phs/180*Math.PI;
@@ -363,31 +394,6 @@
 			res = Math.exp(-r2/(2.0*sig2*sig2*0.693));
 			return res; // Allow this function to be chainable
 		}
-
-		//给定一组镜头参数,对每个图像点调用calAlpha()和calImage()计算预测图像光度值
-		function model_lensed_images(p, x1, x2) {
-			let xc1, xc2, re, ql, phl;
-			xc1 = p[0];
-			xc2 = p[1];
-			re = p[2];
-			ql = p[3];
-			phl = p[4];
-
-			let alpha = calAlpha(x1,x2,xc1,xc2,re,ql,phl);
-
-			let y1 = x1 - alpha.x;
-			let y2 = x2 - alpha.y;
-
-			let yc1, yc2, sig2, qs, phs;
-			yc1 = p[5];
-			yc2 = p[6];
-			sig2 = p[7];
-			qs = p[8];
-			phs = p[9];
-
-			return calImage(y1, y2, yc1, yc2, sig2, qs, phs);
-		}
-
 
 		//计算标准差
 		function standardDeviation(values){
@@ -413,6 +419,7 @@
 		}
 		//考虑放缩因子，对图像downsampling后进行最小二乘拟合,加快计算速度
 		function chi2_rescale(p) {
+			// console.log("chi2_rescale");
 			let c = document.getElementById("myCanvas");
 			let ctx = c.getContext("2d");
 			ctx.drawImage(imgd, 0, 0);
@@ -428,13 +435,13 @@
 			const chi = new Array(red.length / fscale / fscale);
 			const testimg = new Array(red.length);
 			const redstd = standardDeviation(red);
-			for(let row = 0 ; row < imgd.width ; row+=fscale){
-				for(let col = 0 ; col < imgd.height ; col+=fscale){
+			for(let row = 0 ; row < imgd.height ; row+=fscale){
+				for(let col = 0 ; col < imgd.width ; col+=fscale){
 					let i,i2,x,y;
-					i = row*imgd.height+col;
+					i = row * imgd.width + col;
 					i2 = row/fscale*imgd.height/fscale+col/fscale;
 					x = col* lets.pixscale - lets.pixscale*lets.width/2;
-					y = row* lets.pixscale - lets.pixscale*lets.width/2;
+					y = row* lets.pixscale - lets.pixscale*lets.height/2;
 					testimg[i] = model_lensed_images(p, x, y);
 					chi[i2] = (red[i] - testimg[i])/redstd/redstd/(chi.length);
 				}
@@ -444,7 +451,7 @@
 
 
 		function show_res(p) {
-
+			// console.log('show_res');
 			let c = document.getElementById("myCanvas");
 			let ctx = c.getContext("2d");
 			ctx.drawImage(imgd, 0, 0);
@@ -460,11 +467,11 @@
 			let testimg = new Array(red.length);
 			let redstd = standardDeviation(red);
 			let i,x,y;
-			for (let row = 0; row < lets.width; row++) {
-				for (let col = 0; col < lets.height; col++) {
+			for (let row = 0; row < lets.height; row++) {
+				for (let col = 0; col < lets.width; col++) {
 					i = row * lets.width + col;
 					x = col * lets.pixscale - lets.pixscale*lets.width/2;
-					y = row * lets.pixscale - lets.pixscale*lets.width/2;
+					y = row * lets.pixscale - lets.pixscale*lets.height/2;
 					testimg[i] = model_lensed_images(p, x, y);
 					//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
 					chi[i] = (red[i] - testimg[i]) / redstd / redstd;
@@ -473,10 +480,10 @@
 			let res = optimize.vector.dot(chi, chi);
 			console.log('res:'+res);
 
-			for (let y = 0; y < imgd.width; ++y) {
-				for (let x = 0; x < imgd.height; ++x) {
-					let index = (y * imgd.width + x) * 4;
-					let index2 = (y * imgd.width + x);
+			for (let x = 0; x < imgd.height; ++x) {
+				for (let y = 0; y < imgd.width; ++y) {
+					let index = (x * imgd.width + y) * 4;   //4是image的4个通道r,g,b和透明度
+					let index2 = (x * imgd.width + y);
 
 					//data[index]   = Math.floor(red[index2]*255);    // red
 					//data[index]   = Math.floor(testimg[index2]*255);    // red
@@ -544,6 +551,7 @@
 
 
 		let timer = async(timeout) => {
+			console.log("Modeling");
 			let chiSquaredValues = [];
 			let it = 0,chival = 0,j = 0;
 			for(let i = 0; i< timeout; i++) {
@@ -566,6 +574,7 @@
 				phs = lets.model.components[0].ang;
 
 				p0 = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
+				console.log(p0);
 				let p = optimize.fmin(chi2_rescale, p0, {ftol: 1e-6, maxiter: 50});
 				let p1=p.x;
 
@@ -938,7 +947,7 @@ label {}
 		margin: 5px;
 		border: 1px solid #666666;
 		/*background-image: url("http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg");*/
-		background-image: url("./images/Figure_2.png");
+		/*background-image: url("./images/Figure_2.png");*/
 		background-size: 400px 400px;
 	}
 	.barTitle {

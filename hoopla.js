@@ -446,6 +446,7 @@
 	}
 	// 更新透镜模型并重新计算图像
 	Hoopla.prototype.update = function(e){
+		// console.log('update');
 		if (!e) { return; }
 		// Get the size of the existing source
 		let src = this.lens.source[0];
@@ -499,7 +500,7 @@
 			for (row = 0; row < this.lens.h; row++) {
 				pimage[row] = new Array(this.lens.w);
 				for (col = 0; col < this.lens.w; col++) {
-					i = row + col * this.lens.h;
+					i = row + (this.lens.w-col) * this.lens.h;
 					pimage[row][col] = this.lens.predictedimage[i];
 				}
 			}
@@ -508,6 +509,7 @@
 			outline = this.downsample(outline);
 			this.drawContours(this.predictionPaper, outline, {color: '#66ccff', lw: 1.1});
 		}
+		console.log(this.model.components);
 	}
 	// Downsample contours from a list of contours
 	Hoopla.prototype.downsample = function(contourList) {
