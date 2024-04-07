@@ -260,28 +260,42 @@
 			document.getElementById('modelUpload').onchange = function(e) {
 				let input = e.target;
 				let reader = new FileReader();
+				if(ms.tools.length===0){
+					console.log("1");
+					ms.addTool();
+				}
+				if(ms_src.tools.length===0){
+					console.log("2");
+					ms_src.addTool();
+				}
+
 				reader.onload = function(){
 					let textdata = reader.result;
 					let data = JSON.parse(textdata);
 					let components = data.components;
 					console.log(textdata);
-					let url = data.src;
 					let pixscale = data.pixscale;
 					console.log(data);
 					lets.loadModel(components);
-					if(ms.tools.length===0){
-						ms.addTool();
-					}
-					if(ms_src.tools.length===0){
-						ms_src.addTool();
-					}
 					lets.pixscale = pixscale;
 					lets.freezeSrcModel = true;
 					updateCanvas(components);
 					lets.update(lets.lens.ang2pix({x:components[0].x,y:components[0].y}));
-					let tag = document.getElementById('tag');
-					tag.innerHTML = "<span class=\"tooltiptext\">Freezed Mode is unactivated, click left button of the mouse to turn into interactive mode.</span>Freezed"
-					tag.style.backgroundColor = "lightblue";
+                    let xc1, xc2, re, ql, phl;
+                    xc1 = lets.model.components[1].x;
+                    xc2 = lets.model.components[1].y;
+                    re  = lets.model.components[1].theta_e;
+                    ql  = lets.model.components[1].ell;
+                    phl = lets.model.components[1].ang;
+                    let yc1, yc2, sig2, qs, phs;
+                    yc1 = lets.model.components[0].x;
+                    yc2 = lets.model.components[0].y;
+                    sig2= lets.model.components[0].size;
+                    qs  = lets.model.components[0].ell;
+                    phs = lets.model.components[0].ang;
+                    let p = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
+					show_res(p);
+                    lets.setFreezed();
 				};
 				let modelFile = input.files[0];
 				if(modelFile){
@@ -575,9 +589,18 @@
 
 				p0 = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
 				console.log(p0);
+
+				// let p2 = optimize.ParticleSwarmOptimization(chi2_rescale,p0, 11, {c1:0.05,c2:0.10,maxIterations:50});
+				// console.log(p2);
+				// let p1 = p2.bestPosition;
+				// show_res(p2.bestPosition);
+				// if(Math.abs(chival-p2.bestValue)<1e-8 && it<50){
+				// 	if(++j===2) break;
+				// }
+				// chival = p2.bestValue;
+
 				let p = optimize.fmin(chi2_rescale, p0, {ftol: 1e-6, maxiter: 50});
 				let p1=p.x;
-
 				it = p.res.iterations;
 				chival = p.res.fval;
 				chiSquaredValues.push(chival);
@@ -588,6 +611,7 @@
 				if(Math.abs(chival-p.res.fval)<1e-8 && it<50){
 					if(++j===2) break;
 				}
+
 				lets.model.components[1].x = p1[0];
 				lets.model.components[1].y = p1[1];
 				lets.model.components[1].theta_e = p1[2];
@@ -637,11 +661,6 @@
 
 			let timerCallback = async () => {
 				await timer(8); // 执行1次timer函数
-				// lets.model.components[1].y *= -1;
-				// lets.updateModel(lets.model.components);
-				// lets.update({x:lets.lens.ang2pix(lets.model.components[1].x),y:lets.lens.ang2pix(lets.model.components[1].y)});
-				// lets.freezeSrcModel = true;
-				// updateCanvas(lets.model.components);
 				console.log(lets);
 				tag2.style.display = 'none';
 			}
@@ -792,21 +811,9 @@
     </div>
 
 	<div class="container">
-	<footer>
-		<p class="greywords"><a
-			href="https://github.com/linan7788626/Hoopla">Hoopla</a>
-			is based on <a href="https://github.com/drphilmarshall/LensWrangler">
-			LensWrangler</a> by <a href="https://github.com/drphilmarshall">Phil Marshall</a>, <a href="https://github.com/kapadia">Amit Kapadia</a> and <a href="https://github.com/slowe">Stuart Lowe</a>,<br/>
-            but with modifications by <a href="https://github.com/linan7788626">Nan Li</a>. <br/>
-	        This page is published with <a href="http://pages.github.com">GitHub Pages</a>. <br/>
-		</p>
-	</footer>
 
 	</div>
 
-<!--	<canvas id="myCanvas" width="400" height="400" style="border:1px solid #d3d3d3;">-->
-<!--		Your browser does not support the HTML5 canvas tag.-->
-<!--	</canvas>-->
 	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="text/javascript" src="lib/marking/marking-surface.js"></script>
     <script type="text/javascript" src="lib/marking/tools/ellipse.js"></script>

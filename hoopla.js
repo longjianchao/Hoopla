@@ -287,20 +287,26 @@
 		});
 		addEvent(this.paper.canvas,"click",function(e){
 			_obj.freezeSrcModel = !_obj.freezeSrcModel;
-			let tag = document.getElementById('tag');
 			if(_obj.freezeSrcModel){
-				tag.innerHTML = "<span class=\"tooltiptext\">Freezed Mode is unactivated, click left button of the mouse to turn into interactive mode.</span>Freezed"
-				tag.style.backgroundColor = "lightblue";
+				_obj.setFreezed()
 			}else{
-				tag.innerHTML = "<span class=\"tooltiptext\">Interactive Mode is activated, click left button of the mouse to turn into freezed mode.</span>Interactive";
-				tag.style.backgroundColor = "orange";
+				_obj.setActived();
 			}
-
 		});
-
 		return this;
 	}
+	// 设置标签为Freezing
+	Hoopla.prototype.setFreezed = function(){
+		let tag = document.getElementById('tag');
+		tag.innerHTML = "<span class=\"tooltiptext\">Freezing Mode is unactivated, click left button of the mouse to turn into interactive mode.</span>Freezing"
+		tag.style.backgroundColor = "lightblue";
+	}
 
+	Hoopla.prototype.setActived = function(){
+		let tag = document.getElementById('tag');
+		tag.innerHTML = "<span class=\"tooltiptext\">Interactive Mode is activated, click left button of the mouse to turn into freezing mode.</span>Interactive";
+		tag.style.backgroundColor = "orange";
+	}
 
 	// 初始化透镜模型
 	Hoopla.prototype.init = function(inp,fnCallback){
@@ -378,6 +384,7 @@
 		}
 		if(typeof fnCallback=="function") fnCallback(this);
 		this.trigger("init");
+		this.setActived();
 		return this;
 	}
 
@@ -509,7 +516,6 @@
 			outline = this.downsample(outline);
 			this.drawContours(this.predictionPaper, outline, {color: '#66ccff', lw: 1.1});
 		}
-		console.log(this.model.components);
 	}
 	// Downsample contours from a list of contours
 	Hoopla.prototype.downsample = function(contourList) {
