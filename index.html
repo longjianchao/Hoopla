@@ -9,9 +9,10 @@
 	<script type="text/javascript" src="lib/conrec.js"></script>
 	<script type="text/javascript" src="lib/optimize.js"></script>
 	<script type="text/javascript" src="hoopla.js"></script>
+	<script type="text/javascript" src="eel.js"></script>
 
 	<script type="text/javascript">
-		var src = "images/Figure_1.png";
+		var src = "images/Figure_2.png";
 		var img_name = "Figure_2";
 		var imgd = new Image();
 		imgd.crossOrigin="anonymous";
@@ -31,7 +32,10 @@
 				pixscale: 0.025,
 				// src: "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg"
 			});
-
+			var bar = document.getElementsByClassName("bar");
+			for (let i=0; i<bar.length;i++){
+				bar[i].style.backgroundImage = "url(" + src + ")";
+			}
 			// Using Brian C's Marking Surface library!!!
 			ms = new MarkingSurface({
 				inputName: 'mass-model',
@@ -166,10 +170,13 @@
 				ms_src.on('marking-surface:change', debouncedUpdateModel);
 			}
 			img_src.src = src;
-			var bar = document.getElementsByClassName("bar");
-			for (let i=0; i<bar.length;i++){
-				bar[i].style.backgroundImage = "url(" + src + ")";
-			}
+			console.log(src);
+			// var bar = document.getElementsByClassName("bar");
+			// for (let i=0; i<bar.length;i++){
+			// 	bar[i].style.backgroundImage = "url(" + src + ")";
+			// }
+            console.log(lets.lens.ang2pix({x:0.0038,y:0.0078}))
+            console.log(lets.lens.pix2ang({x:200.5,y:200.5}))
 
 		}
 
@@ -449,13 +456,15 @@
 			const chi = new Array(red.length / fscale / fscale);
 			const testimg = new Array(red.length);
 			const redstd = standardDeviation(red);
+            // const redstd = 1.0;
 			for(let row = 0 ; row < imgd.height ; row+=fscale){
 				for(let col = 0 ; col < imgd.width ; col+=fscale){
 					let i,i2,x,y;
 					i = row * imgd.width + col;
 					i2 = row/fscale*imgd.height/fscale+col/fscale;
-					x = col* lets.pixscale - lets.pixscale*lets.width/2;
-					y = row* lets.pixscale - lets.pixscale*lets.height/2;
+					// i2 = (row*imgd.height/fscale+col)/fscale;
+					x = col* lets.pixscale - lets.pixscale*lets.width/2 + lets.pixscale/2;
+					y = -row* lets.pixscale + lets.pixscale*lets.height/2 + lets.pixscale/2;
 					testimg[i] = model_lensed_images(p, x, y);
 					chi[i2] = (red[i] - testimg[i])/redstd/redstd/(chi.length);
 				}
@@ -485,20 +494,19 @@
 				for (let col = 0; col < lets.width; col++) {
 					i = row * lets.width + col;
 					x = col * lets.pixscale - lets.pixscale*lets.width/2;
-					y = row * lets.pixscale - lets.pixscale*lets.height/2;
+					y = -row * lets.pixscale + lets.pixscale*lets.height/2;
 					testimg[i] = model_lensed_images(p, x, y);
 					//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
 					chi[i] = (red[i] - testimg[i]) / redstd / redstd;
 				}
 			}
 			let res = optimize.vector.dot(chi, chi);
-			console.log('res:'+res);
+			console.log('res:'+res/400/400);
 
 			for (let x = 0; x < imgd.height; ++x) {
 				for (let y = 0; y < imgd.width; ++y) {
 					let index = (x * imgd.width + y) * 4;   //4是image的4个通道r,g,b和透明度
 					let index2 = (x * imgd.width + y);
-
 					//data[index]   = Math.floor(red[index2]*255);    // red
 					//data[index]   = Math.floor(testimg[index2]*255);    // red
 					data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
@@ -663,9 +671,19 @@
 				await timer(8); // 执行1次timer函数
 				console.log(lets);
 				tag2.style.display = 'none';
-			}
+                console.log(lets.lens.ang2pix({x:lets.model.components[0].x,y:lets.model.components[0].y}))
+            }
 			timerCallback(); // 将迭代次数作为参数传递给timerCallback函数
 		}
+		function test() {
+			console.log('test python')
+			async function test() {
+				const res = await eel.my_add(10, 15)().then();
+				document.getElementById("demo").innerHTML = res;
+			}
+			test();
+		}
+
 	</script>
 
 <body>
@@ -771,6 +789,9 @@
 		<input class="pixscale" id="newPixelScale" type="number">
 		<button class="button" onclick="reset()" style="width: 200px;background-color: #666666;vertical-align: middle">
 			<span>Reset Pixel-Scale</span>
+		</button>
+		<button onclick="test()" style="width: 200px;background-color: #666666;vertical-align: middle">
+			<span>test</span>
 		</button>
 	</div>
 
@@ -953,8 +974,7 @@ label {}
 		float: left;
 		margin: 5px;
 		border: 1px solid #666666;
-		/*background-image: url("http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg");*/
-		/*background-image: url("./images/Figure_2.png");*/
+		/*background-image: url("./images\\Figure_1.png");*/
 		background-size: 400px 400px;
 	}
 	.barTitle {
