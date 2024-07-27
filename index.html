@@ -1,580 +1,294 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 
-	<title>Hoopla</title>
+<title>Hoopla</title>
 
-	<script type="text/javascript" src="lib/underscore.js"></script>
-	<script type="text/javascript" src="lib/eelens.js"></script>
-	<script type="text/javascript" src="lib/canvas.js"></script>
-	<script type="text/javascript" src="lib/conrec.js"></script>
-	<script type="text/javascript" src="lib/optimize.js"></script>
-	<script type="text/javascript" src="hoopla.js"></script>
+<script type="text/javascript" src="lib/underscore.js"></script>
+<script type="text/javascript" src="lib/eelens.js"></script>
+<script type="text/javascript" src="lib/canvas.js"></script>
+<script type="text/javascript" src="lib/conrec.js"></script>
+<script type="text/javascript" src="lib/optimize.js"></script>
+<script type="text/javascript" src="hoopla.js"></script>
+<script type="text/javascript" src="eel.js"></script>
 
-	<script type="text/javascript">
-		var src = "images/Figure_1.png";
-		var img_name = "Figure_2";
-		var imgd = new Image();
-		imgd.crossOrigin="anonymous";
-		imgd.src = src;
-		imgd.width = 400;
-		imgd.height = 400;
-		var lets,ms,ms_src,containerEl,containerEl_src,img,img_src;
+<script type="text/javascript">
+	var src = "images/Figure_2.png";
+	var img_name = "Figure_2";
+	var imgd = new Image();
+	imgd.crossOrigin="anonymous";
+	imgd.src = src;
+	imgd.width = 400;
+	imgd.height = 400;
+	var lets,ms,ms_src,containerEl,containerEl_src,img,img_src;
 
-		// 初始化工作，包括对象的生成及赋值，以及一些函数操作
-		function setup(){
-			// Create a hoopla object. The ID is that of the <div>
-			lets = new Hoopla({
-				id:'hoopla-srcmodel',
-				srcmodel: 'hoopla-srcmodel',
-				prediction: 'hoopla-prediction',
-				//pixscale: 0.0375
-				pixscale: 0.025,
-				// src: "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg"
-			});
-
-			// Using Brian C's Marking Surface library!!!
-			ms = new MarkingSurface({
-				inputName: 'mass-model',
-				tool: MarkingSurface.EllipseTool,
-			});
-
-			containerEl = document.getElementById("marking-container");
-			containerEl.appendChild(ms.el);
-
-			img = new Image();
-			img.onload = function() {
-				let width = img.width;
-				let height = img.height;
-
-				ms.addShape('image', {
-					'xlink:href': img.src,
-					width: width,
-					height: height
-				});
-				ms.svg.attr({
-					width: width,
-					height: height
-				});
-				ms.rescale(0, 0, width, height);
-				let scaleX = width / img.width;
-				let scaleY = height / img.height;
-
-				function getThetaE(d) {
-					let a = d.rx * lets.pixscale;
-					let b = d.ry * lets.pixscale;
-					return Math.sqrt(a * b);
-					//return Math.max(a , b);
-				}
-
-				function getAratio(d) {
-					let a = d.rx;
-					let b = d.ry;
-					return a / b;
-				}
-
-				function getAngle(d) {
-					return d.angle;
-				}
-
-				function getCoords(d) {
-					return lets.lens.pix2ang({x: scaleX * d.x, y: scaleY * d.y});
-				}
-
-				function updateModel() {
-					let data = JSON.parse(ms.getValue());
-					let components = data.map(function(d) {
-						let coords = getCoords(d);
-						return {
-							plane: "lens",
-							theta_e: getThetaE(d),
-							ell: getAratio(d),
-							ang: getAngle(d),
-							x: coords.x,
-							y: coords.y
-						}
-					});
-					lets.updateModel(components);
-				}
-				let debouncedUpdateModel = _.debounce(updateModel, 200);
-				ms.on('marking-surface:change', debouncedUpdateModel);
-			}
-			img.src = src;
-
-			// Source Models
-			ms_src = new MarkingSurface({
-				inputName: 'src-model',
-				tool: MarkingSurface.EllipseTool
-			});
-			containerEl_src = document.getElementById("marking-container-src");
-			containerEl_src.appendChild(ms_src.el);
-
-			img_src = new Image();
-			img_src.onload = function() {
-				let width = img_src.width;
-				let height = img_src.height;
-
-				ms_src.addShape('image', {
-					'xlink:href': img_src.src,
-					width: width,
-					height: height
-				});
-				ms_src.svg.attr({
-					width: width,
-					height: height
-				});
-				ms_src.rescale(0, 0, width, height);
-				let scaleX = width / img_src.width;
-				let scaleY = height / img_src.height;
-
-				function getSize(d) {
-					let a = d.rx * lets.pixscale;
-					let b = d.ry * lets.pixscale;
-					return Math.sqrt(a * b);
-					//return Math.max(a , b);
-				}
-
-				function getAratio(d) {
-					let a = d.rx;
-					let b = d.ry;
-					return a / b;
-				}
-
-				function getAngle(d) {
-					return d.angle;
-				}
-
-				function getCoords(d) {
-					return lets.lens.pix2ang({x: scaleX * d.x, y: scaleY * d.y});
-				}
-
-				function updateModel() {
-					let data = JSON.parse(ms_src.getValue());
-					let components = data.map(function(d) {
-						let coords = getCoords(d);
-						return {
-							plane: "source",
-							size: getSize(d),
-							ell: getAratio(d),
-							ang: getAngle(d),
-							x: coords.x,
-							y: coords.y
-						}
-					});
-					lets.updateModel(components);
-				}
-				let debouncedUpdateModel = _.debounce(updateModel, 200);
-				ms_src.on('marking-surface:change', debouncedUpdateModel);
-			}
-			img_src.src = src;
-			var bar = document.getElementsByClassName("bar");
-			for (let i=0; i<bar.length;i++){
-				bar[i].style.backgroundImage = "url(" + src + ")";
-			}
-
+	// 初始化工作，包括对象的生成及赋值，以及一些函数操作
+	function setup(){
+		// Create a hoopla object. The ID is that of the <div>
+		lets = new Hoopla({
+			id:'hoopla-srcmodel',
+			srcmodel: 'hoopla-srcmodel',
+			prediction: 'hoopla-prediction',
+			//pixscale: 0.0375
+			pixscale: 0.025,
+			// src: "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg"
+		});
+		var bar = document.getElementsByClassName("bar");
+		for (let i=0; i<bar.length;i++){
+			bar[i].style.backgroundImage = "url(" + src + ")";
 		}
-
-		window.onload = function(e){
-			setup();
-			document.getElementById('imageUpload').onclick = function(e) {
-				document.getElementById("imgURL").innerText="";
-				document.getElementById("pixel-scale").value="";
-				document.getElementById("image-width").value="";
-				document.getElementById("image-height").value="";
-				document.querySelector('.popup-form').classList.add('active');
-			};
-			document.getElementById("close-form-button").onclick = function(){
-				document.querySelector('.popup-form').classList.remove('active');
-			}
-			document.getElementById("image-url").onchange = function(){
-				let imageFile = this.files[0];
-				if(imageFile&&imageFile.type){
-					const fileType = imageFile.type;
-					if(fileType!=='image/jpeg'&&fileType!=='image/png'&&fileType!=='image/jps'){
-						window.alert('Only files in jpg or png format can be uploaded!');
-						return;
-					}
-				}else{
-					window.alert('Please select a valid file!');
-					return;
-				}
-				console.log(imageFile);
-				let url = window.URL.createObjectURL(imageFile);
-				img_name = imageFile.name;
-				document.getElementById("imgURL").innerText = url;
-			}
-			document.getElementById("confirm").onclick = function() {
-				let url = document.getElementById("imgURL").innerText;
-				let pixscale = document.getElementById("pixel-scale").value;
-				let width = document.getElementById("image-width").value;
-				let height = document.getElementById("image-height").value;
-				const regex = /^\d{0,2}(\.\d{0,6})?$/;
-				const regex2 = /^\d{1,5}$/;
-				if((url === ''||null) || (pixscale === ''||null)){
-					window.alert("Please input entire information of image!");
-					return;
-				}
-				if(regex2.test(width)){
-					lets.width = width;
-				}else{
-					window.alert('Please re-enter the width of the image correctly!');
-					return;
-				}
-				if(regex2.test(height)){
-					lets.height = height;
-				}else{
-					window.alert('Please re-enter the height of the image correctly!');
-					return;
-				}
-				if(regex.test(pixscale)){
-					lets.pixscale = pixscale;
-				}else{
-					window.alert('Please re-enter the pixel scale of the image correctly!');
-					return;
-				}
-				console.log(pixscale);
-
-				img.src = url;
-				img_src.src = url;
-				imgd.src = url;
-				ms.tools.pop();
-				ms_src.tools.pop();
-
-				lets.srcmodelPaper.clear();
-				lets.srcmodelPaper.src = url;
-				lets.predictionPaper.clear();
-				lets.predictionPaper.src = url;
-				lets.paper.src = url;
-				document.getElementById("hoopla-srcmodel").style.backgroundImage
-						= "url(" + url + ")";
-				document.getElementById("hoopla-prediction").style.backgroundImage
-						= "url(" + url + ")";
-				document.getElementById('newPixelScale').value = pixscale;
-				console.log(lets.model.components);
-				document.querySelector('.popup-form').classList.remove('active');
-			}
-
-			document.getElementById("saveModel").onclick = function fun() {
-				lets.saveModel(img_src.src);
-			};
-
-			document.getElementById('modelUpload').onchange = function(e) {
-				let input = e.target;
-				let reader = new FileReader();
-				if(ms.tools.length===0){
-					console.log("1");
-					ms.addTool();
-				}
-				if(ms_src.tools.length===0){
-					console.log("2");
-					ms_src.addTool();
-				}
-
-				reader.onload = function(){
-					let textdata = reader.result;
-					let data = JSON.parse(textdata);
-					let components = data.components;
-					console.log(textdata);
-					let pixscale = data.pixscale;
-					console.log(data);
-					lets.loadModel(components);
-					lets.pixscale = pixscale;
-					lets.freezeSrcModel = true;
-					updateCanvas(components);
-					lets.update(lets.lens.ang2pix({x:components[0].x,y:components[0].y}));
-                    let xc1, xc2, re, ql, phl;
-                    xc1 = lets.model.components[1].x;
-                    xc2 = lets.model.components[1].y;
-                    re  = lets.model.components[1].theta_e;
-                    ql  = lets.model.components[1].ell;
-                    phl = lets.model.components[1].ang;
-                    let yc1, yc2, sig2, qs, phs;
-                    yc1 = lets.model.components[0].x;
-                    yc2 = lets.model.components[0].y;
-                    sig2= lets.model.components[0].size;
-                    qs  = lets.model.components[0].ell;
-                    phs = lets.model.components[0].ang;
-                    let p = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
-					show_res(p);
-                    lets.setFreezed();
-				};
-				let modelFile = input.files[0];
-				if(modelFile){
-					if(modelFile.type !== 'application/json'){
-						input.value = '';
-						window.alert('Model file must be a json file.');
-						return;
-					}
-				}else {
-					window.alert('Please select a valid file.');
-					return;
-				}
-				reader.readAsText(input.files[0]);
-			};
-		}
-
-
-		// 重置pixel scale
-		function reset() {
-			let pixscale = document.getElementById('newPixelScale').value;
-			const regex = /^\d{0,2}(\.\d{0,6})?$/;
-			if(regex.test(pixscale)){
-				lets.pixscale = pixscale;
-				console.log(lets);
-			}else{
-				window.alert('Pixel-scale is not a legitimate input!');
-
-			}
-		}
-
-		//给定一组镜头参数,对每个图像点调用calAlpha()和calImage()计算预测图像光度值
-		function model_lensed_images(p, x1, x2) {
-			// console.log("model_lensed_images");
-			let xc1, xc2, re, ql, phl;
-			xc1 = p[0];
-			xc2 = p[1];
-			re = p[2];
-			ql = p[3];
-			phl = p[4];
-
-			let alpha = calAlpha(x1,x2,xc1,xc2,re,ql,phl);
-
-			let y1 = x1 - alpha.x;
-			let y2 = x2 - alpha.y;
-
-			let yc1, yc2, sig2, qs, phs;
-			yc1 = p[5];
-			yc2 = p[6];
-			sig2 = p[7];
-			qs = p[8];
-			phs = p[9];
-
-			return calImage(y1, y2, yc1, yc2, sig2, qs, phs);
-		}
-
-		//计算单个镜头成神对图像（x，y）的弯曲效应
-		function calAlpha(xl,yl,xlc,ylc,re,ql,phl) {
-			// console.log('calAlpha');
-			if(ql <1.0){
-				phl = Math.PI * ((-phl+90) / 180);
-			}else{
-				ql = 1.0/ql-0.0000000001;
-				phl = Math.PI * (-phl / 180);
-			}
-
-			const alpha = {x: 0.0, y: 0.0};
-			let x, y, cs, sn;
-			let sx_r, sy_r, psi, sq, pd1, pd2, fx1, fx2, qs, a1, a2;
-			const rc = 0.0;
-
-			cs = Math.cos(phl);
-			sn = Math.sin(phl);
-
-			x = xl - xlc;
-			y = yl - ylc;
-
-			sx_r = x * cs + y * sn;
-			sy_r = -x * sn + y * cs;
-
-			psi = Math.sqrt(ql*ql*(rc*rc+sx_r*sx_r)+sy_r*sy_r);
-
-			sq = Math.sqrt(1.0-ql*ql);
-			pd1 = psi + rc;
-			pd2 = psi + rc*ql*ql;
-			fx1 = sq * sx_r / pd1;
-			fx2 = sq * sy_r / pd2;
-			qs = Math.sqrt(ql);
-
-			a1 = qs / sq * Math.atan(fx1);
-			a2 = qs / sq * Math.atanh(fx2);
-
-			let dx = (a1 * cs - a2 * sn);
-			let dy = (a2 * cs + a1 * sn);
-
-			// Add lensing effects of just this component:
-			alpha.x = re*dx;
-			alpha.y = re*dy;
-			return alpha;
-		}
-
-		//根据弯曲后的点(x-, αx, y-αy)计算该点在重构图像中的光度值。
-		function calImage(xs, ys, xsc, ysc, sig2, qs, phs) {
-			// console.log('calImage');
-			let r2, res, phirad;
-			// Loop over x and y. Store 1-D pixel index as i.
-			phirad = -phs/180*Math.PI;
-			let xnew = (xs-xsc) * Math.cos(phirad) + (ys-ysc) * Math.sin(phirad)
-			let ynew = (ys-ysc) * Math.cos(phirad) - (xs-xsc) * Math.sin(phirad)
-			r2 = ( xnew*xnew/qs + ynew*ynew*qs );
-			res = Math.exp(-r2/(2.0*sig2*sig2*0.693));
-			return res; // Allow this function to be chainable
-		}
-
-		//计算标准差
-		function standardDeviation(values){
-			let avg = average(values);
-
-			let squareDiffs = values.map(function(value){
-				let diff = value - avg;
-				return diff * diff;
-			});
-
-			let avgSquareDiff = average(squareDiffs);
-
-			return Math.sqrt(avgSquareDiff);
-		}
-
-		//计算平均值
-		function average(data){
-			let sum = data.reduce(function(sum, value){
-				return sum + value;
-			}, 0);
-
-			return sum / data.length;
-		}
-		//考虑放缩因子，对图像downsampling后进行最小二乘拟合,加快计算速度
-		function chi2_rescale(p) {
-			// console.log("chi2_rescale");
-			let c = document.getElementById("myCanvas");
-			let ctx = c.getContext("2d");
-			ctx.drawImage(imgd, 0, 0);
-			let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
-			let data = dstdata.data;
-
-			let red = new Array(data.length/4);
-			for(let i = 0, n = red.length; i < n; i ++) {
-				red[i] = data[i*4]/255;
-			}
-
-			const fscale = 4;
-			const chi = new Array(red.length / fscale / fscale);
-			const testimg = new Array(red.length);
-			const redstd = standardDeviation(red);
-			for(let row = 0 ; row < imgd.height ; row+=fscale){
-				for(let col = 0 ; col < imgd.width ; col+=fscale){
-					let i,i2,x,y;
-					i = row * imgd.width + col;
-					i2 = row/fscale*imgd.height/fscale+col/fscale;
-					x = col* lets.pixscale - lets.pixscale*lets.width/2;
-					y = row* lets.pixscale - lets.pixscale*lets.height/2;
-					testimg[i] = model_lensed_images(p, x, y);
-					chi[i2] = (red[i] - testimg[i])/redstd/redstd/(chi.length);
-				}
-			}
-			return optimize.vector.dot(chi, chi);
-		}
-
-
-		function show_res(p) {
-			// console.log('show_res');
-			let c = document.getElementById("myCanvas");
-			let ctx = c.getContext("2d");
-			ctx.drawImage(imgd, 0, 0);
-			let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
-			let data = dstdata.data;
-
-			let red = new Array(data.length/4);
-			for(let i = 0, n = red.length; i < n; i ++) {
-				red[i] = data[i*4]/255;
-			}
-
-			let chi = new Array(red.length);
-			let testimg = new Array(red.length);
-			let redstd = standardDeviation(red);
-			let i,x,y;
-			for (let row = 0; row < lets.height; row++) {
-				for (let col = 0; col < lets.width; col++) {
-					i = row * lets.width + col;
-					x = col * lets.pixscale - lets.pixscale*lets.width/2;
-					y = row * lets.pixscale - lets.pixscale*lets.height/2;
-					testimg[i] = model_lensed_images(p, x, y);
-					//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
-					chi[i] = (red[i] - testimg[i]) / redstd / redstd;
-				}
-			}
-			let res = optimize.vector.dot(chi, chi);
-			console.log('res:'+res);
-
-			for (let x = 0; x < imgd.height; ++x) {
-				for (let y = 0; y < imgd.width; ++y) {
-					let index = (x * imgd.width + y) * 4;   //4是image的4个通道r,g,b和透明度
-					let index2 = (x * imgd.width + y);
-
-					//data[index]   = Math.floor(red[index2]*255);    // red
-					//data[index]   = Math.floor(testimg[index2]*255);    // red
-					data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
-					//data[index]   = 128;    // red
-					data[++index] = 0;    // green
-					data[++index] = 0;    // blue
-					data[++index] = 255;      // alpha
-				}
-			}
-
-			for (let i = 0; i < data.length; i++) {
-				dstdata.data[i] = data[i];
-			}
-			ctx.putImageData(dstdata, 0, 0);
-			return res;
-		}
-		let chartInstance = null // 声明一个全局变量来存储 Chart 实例
-		function drawChiSquareCurve(chiSquaredValues) {
-			let ctx = document.getElementById("Curve");
-			if (chartInstance) {
-				// 如果之前有 Chart 实例存在，则更新其数据和选项
-				chartInstance.data.labels = Array.from({ length: chiSquaredValues.length }, (_, i) => 50*(i + 1));
-				chartInstance.data.datasets[0].data = chiSquaredValues;
-				chartInstance.update();
-			} else {
-				// 如果之前没有 Chart 实例存在，则创建一个新的实例
-				chartInstance = new Chart(ctx, {
-					type: 'line',
-					data: {
-						labels: Array.from({length: chiSquaredValues.length}, (_, i) => i + 1),
-						datasets: [
-							{
-								label: '卡方值',
-								data: chiSquaredValues,
-								borderColor: 'blue',
-								backgroundColor: 'rgba(0, 0, 255, 0.1)',
-							},
-						],
-					},
-					options: {
-						responsive: true,
-						scales: {
-							x: {
-								title: {
-									display: true,
-									text: '迭代次数',
-								},
-							},
-							y: {
-								title: {
-									display: true,
-									text: '卡方值',
-								},
-							},
-						},
-					},
-				});
-			}
-		}
-
-		const sleep = (timeout= 1000)=>new Promise((resolve, reject)=>{
-			setTimeout(resolve, timeout);
+		// Using Brian C's Marking Surface library!!!
+		ms = new MarkingSurface({
+			inputName: 'mass-model',
+			tool: MarkingSurface.EllipseTool,
 		});
 
+		containerEl = document.getElementById("marking-container");
+		containerEl.appendChild(ms.el);
 
-		let timer = async(timeout) => {
-			console.log("Modeling");
-			let chiSquaredValues = [];
-			let it = 0,chival = 0,j = 0;
-			for(let i = 0; i< timeout; i++) {
-				let p0;
-				let xc1, xc2, re, ql, phl;
-				if (i === timeout-1 && it === 50){
-					console.log("建模结果有偏差，waiting...");
-					i/=2;
+		img = new Image();
+		img.onload = function() {
+			let width = img.width;
+			let height = img.height;
+
+			ms.addShape('image', {
+				'xlink:href': img.src,
+				width: width,
+				height: height
+			});
+			ms.svg.attr({
+				width: width,
+				height: height
+			});
+			ms.rescale(0, 0, width, height);
+			let scaleX = width / img.width;
+			let scaleY = height / img.height;
+
+			function getThetaE(d) {
+				let a = d.rx * lets.pixscale;
+				let b = d.ry * lets.pixscale;
+				return Math.sqrt(a * b);
+				//return Math.max(a , b);
+			}
+
+			function getAratio(d) {
+				let a = d.rx;
+				let b = d.ry;
+				return a / b;
+			}
+
+			function getAngle(d) {
+				return d.angle;
+			}
+
+			function getCoords(d) {
+				return lets.lens.pix2ang({x: scaleX * d.x, y: scaleY * d.y});
+			}
+
+			function updateModel() {
+				let data = JSON.parse(ms.getValue());
+				let components = data.map(function(d) {
+					let coords = getCoords(d);
+					return {
+						plane: "lens",
+						theta_e: getThetaE(d),
+						ell: getAratio(d),
+						ang: getAngle(d),
+						x: coords.x,
+						y: coords.y
+					}
+				});
+				lets.updateModel(components);
+			}
+			let debouncedUpdateModel = _.debounce(updateModel, 200);
+			ms.on('marking-surface:change', debouncedUpdateModel);
+		}
+		img.src = src;
+
+		// Source Models
+		ms_src = new MarkingSurface({
+			inputName: 'src-model',
+			tool: MarkingSurface.EllipseTool
+		});
+		containerEl_src = document.getElementById("marking-container-src");
+		containerEl_src.appendChild(ms_src.el);
+
+		img_src = new Image();
+		img_src.onload = function() {
+			let width = img_src.width;
+			let height = img_src.height;
+
+			ms_src.addShape('image', {
+				'xlink:href': img_src.src,
+				width: width,
+				height: height
+			});
+			ms_src.svg.attr({
+				width: width,
+				height: height
+			});
+			ms_src.rescale(0, 0, width, height);
+			let scaleX = width / img_src.width;
+			let scaleY = height / img_src.height;
+
+			function getSize(d) {
+				let a = d.rx * lets.pixscale;
+				let b = d.ry * lets.pixscale;
+				return Math.sqrt(a * b);
+				//return Math.max(a , b);
+			}
+
+			function getAratio(d) {
+				let a = d.rx;
+				let b = d.ry;
+				return a / b;
+			}
+
+			function getAngle(d) {
+				return d.angle;
+			}
+
+			function getCoords(d) {
+				return lets.lens.pix2ang({x: scaleX * d.x, y: scaleY * d.y});
+			}
+
+			function updateModel() {
+				let data = JSON.parse(ms_src.getValue());
+				let components = data.map(function(d) {
+					let coords = getCoords(d);
+					return {
+						plane: "source",
+						size: getSize(d),
+						ell: getAratio(d),
+						ang: getAngle(d),
+						x: coords.x,
+						y: coords.y
+					}
+				});
+				lets.updateModel(components);
+			}
+			let debouncedUpdateModel = _.debounce(updateModel, 200);
+			ms_src.on('marking-surface:change', debouncedUpdateModel);
+		}
+		img_src.src = src;
+		console.log(src);
+		// var bar = document.getElementsByClassName("bar");
+		// for (let i=0; i<bar.length;i++){
+		// 	bar[i].style.backgroundImage = "url(" + src + ")";
+		// }
+		console.log(lets.lens.ang2pix({x:0.0038,y:0.0078}))
+		console.log(lets.lens.pix2ang({x:200.5,y:200.5}))
+
+	}
+
+	window.onload = function(e){
+		setup();
+		document.getElementById('imageUpload').onclick = function(e) {
+			document.getElementById("imgURL").innerText="";
+			document.getElementById("pixel-scale").value="";
+			document.getElementById("image-width").value="";
+			document.getElementById("image-height").value="";
+			document.querySelector('.popup-form').classList.add('active');
+		};
+		document.getElementById("close-form-button").onclick = function(){
+			document.querySelector('.popup-form').classList.remove('active');
+		}
+		document.getElementById("image-url").onchange = function(){
+			let imageFile = this.files[0];
+			if(imageFile&&imageFile.type){
+				const fileType = imageFile.type;
+				if(fileType!=='image/jpeg'&&fileType!=='image/png'&&fileType!=='image/jps'){
+					window.alert('Only files in jpg or png format can be uploaded!');
+					return;
 				}
+			}else{
+				window.alert('Please select a valid file!');
+				return;
+			}
+			console.log(imageFile);
+			let url = window.URL.createObjectURL(imageFile);
+			img_name = imageFile.name;
+			document.getElementById("imgURL").innerText = url;
+		}
+		document.getElementById("confirm").onclick = function() {
+			let url = document.getElementById("imgURL").innerText;
+			let pixscale = document.getElementById("pixel-scale").value;
+			let width = document.getElementById("image-width").value;
+			let height = document.getElementById("image-height").value;
+			const regex = /^\d{0,2}(\.\d{0,6})?$/;
+			const regex2 = /^\d{1,5}$/;
+			if((url === ''||null) || (pixscale === ''||null)){
+				window.alert("Please input entire information of image!");
+				return;
+			}
+			if(regex2.test(width)){
+				lets.width = width;
+			}else{
+				window.alert('Please re-enter the width of the image correctly!');
+				return;
+			}
+			if(regex2.test(height)){
+				lets.height = height;
+			}else{
+				window.alert('Please re-enter the height of the image correctly!');
+				return;
+			}
+			if(regex.test(pixscale)){
+				lets.pixscale = pixscale;
+			}else{
+				window.alert('Please re-enter the pixel scale of the image correctly!');
+				return;
+			}
+			console.log(pixscale);
+
+			img.src = url;
+			img_src.src = url;
+			imgd.src = url;
+			ms.tools.pop();
+			ms_src.tools.pop();
+
+			lets.srcmodelPaper.clear();
+			lets.srcmodelPaper.src = url;
+			lets.predictionPaper.clear();
+			lets.predictionPaper.src = url;
+			lets.paper.src = url;
+			document.getElementById("hoopla-srcmodel").style.backgroundImage
+					= "url(" + url + ")";
+			document.getElementById("hoopla-prediction").style.backgroundImage
+					= "url(" + url + ")";
+			document.getElementById('newPixelScale').value = pixscale;
+			console.log(lets.model.components);
+			document.querySelector('.popup-form').classList.remove('active');
+		}
+
+		document.getElementById("saveModel").onclick = function fun() {
+			lets.saveModel(img_src.src);
+		};
+
+		document.getElementById('modelUpload').onchange = function(e) {
+			let input = e.target;
+			let reader = new FileReader();
+			if(ms.tools.length===0){
+				console.log("1");
+				ms.addTool();
+			}
+			if(ms_src.tools.length===0){
+				console.log("2");
+				ms_src.addTool();
+			}
+
+			reader.onload = function(){
+				let textdata = reader.result;
+				let data = JSON.parse(textdata);
+				let components = data.components;
+				console.log(textdata);
+				let pixscale = data.pixscale;
+				console.log(data);
+				lets.loadModel(components);
+				lets.pixscale = pixscale;
+				lets.freezeSrcModel = true;
+				updateCanvas(components);
+				lets.update(lets.lens.ang2pix({x:components[0].x,y:components[0].y}));
+				let xc1, xc2, re, ql, phl;
 				xc1 = lets.model.components[1].x;
 				xc2 = lets.model.components[1].y;
 				re  = lets.model.components[1].theta_e;
@@ -586,237 +300,544 @@
 				sig2= lets.model.components[0].size;
 				qs  = lets.model.components[0].ell;
 				phs = lets.model.components[0].ang;
-
-				p0 = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
-				console.log(p0);
-
-				// let p2 = optimize.ParticleSwarmOptimization(chi2_rescale,p0, 11, {c1:0.05,c2:0.10,maxIterations:50});
-				// console.log(p2);
-				// let p1 = p2.bestPosition;
-				// show_res(p2.bestPosition);
-				// if(Math.abs(chival-p2.bestValue)<1e-8 && it<50){
-				// 	if(++j===2) break;
-				// }
-				// chival = p2.bestValue;
-
-				let p = optimize.fmin(chi2_rescale, p0, {ftol: 1e-6, maxiter: 50});
-				let p1=p.x;
-				it = p.res.iterations;
-				chival = p.res.fval;
-				chiSquaredValues.push(chival);
-				// let p1 = optimize.newton(chi2_rescale, p0, {ftol: 1e-6, maxiter: 100});
-				console.log(p1);
-				show_res(p1);
-				drawChiSquareCurve(chiSquaredValues);
-				if(Math.abs(chival-p.res.fval)<1e-8 && it<50){
-					if(++j===2) break;
+				let p = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
+				show_res(p);
+				lets.setFreezed();
+			};
+			let modelFile = input.files[0];
+			if(modelFile){
+				if(modelFile.type !== 'application/json'){
+					input.value = '';
+					window.alert('Model file must be a json file.');
+					return;
 				}
-
-				lets.model.components[1].x = p1[0];
-				lets.model.components[1].y = p1[1];
-				lets.model.components[1].theta_e = p1[2];
-				lets.model.components[1].ell = p1[3];
-				lets.model.components[1].ang = p1[4];
-				lets.model.components[0].x = p1[5];
-				lets.model.components[0].y = p1[6];
-				lets.model.components[0].size = p1[7];
-				lets.model.components[0].ell = p1[8];
-				lets.model.components[0].ang = p1[9];
-				lets.loadModel(lets.model.components);
-				lets.update({x:lets.lens.ang2pix(p1[0]),y:lets.lens.ang2pix(p1[1])});
-				lets.freezeSrcModel = true;
-				updateCanvas(lets.model.components);
-				await sleep(1);
-			}
-		}
-		function updateCanvas(components) {
-			let ang = lets.lens.ang2pix({x: components[1].x, y: components[1].y});
-			ms.tools[0].mark.x = ang.x;
-			ms.tools[0].mark.y = ang.y;
-			ms.tools[0].mark.angle = components[1].ang ;
-			ms.tools[0].mark.ry = components[1].theta_e/(lets.lens.pixscale*Math.sqrt(components[1].ell));
-			ms.tools[0].mark.rx = ms.tools[0].mark.ry * components[1].ell;
-			ms.renderTools();
-
-			let ang2 = lets.lens.ang2pix({x: components[0].x, y: components[0].y});
-			ms_src.tools[0].mark.x = ang2.x;
-			ms_src.tools[0].mark.y = ang2.y;
-			ms_src.tools[0].mark.angle = components[0].ang;
-			ms_src.tools[0].mark.ry = components[0].size/(lets.lens.pixscale*Math.sqrt(components[0].ell ));
-			ms_src.tools[0].mark.rx = ms_src.tools[0].mark.ry *components[0].ell;
-			ms_src.renderTools();
-		}
-
-		function do_fit() {
-			if(ms.tools.length === 0){
-				window.alert('Please input Mass Model!');
+			}else {
+				window.alert('Please select a valid file.');
 				return;
 			}
-			if(ms_src.tools.length === 0){
-				window.alert('Please input Source Model!');
-				return;
-			}
-			let tag2 = document.getElementById('tag2');
-			tag2.style.display = 'block';
+			reader.readAsText(input.files[0]);
+		};
+	}
 
-			let timerCallback = async () => {
-				await timer(8); // 执行1次timer函数
-				console.log(lets);
-				tag2.style.display = 'none';
-			}
-			timerCallback(); // 将迭代次数作为参数传递给timerCallback函数
+
+	// 重置pixel scale
+	function reset() {
+		let pixscale = document.getElementById('newPixelScale').value;
+		const regex = /^\d{0,2}(\.\d{0,6})?$/;
+		if(regex.test(pixscale)){
+			lets.pixscale = pixscale;
+			console.log(lets);
+		}else{
+			window.alert('Pixel-scale is not a legitimate input!');
+
 		}
-	</script>
+	}
+
+	//给定一组镜头参数,对每个图像点调用calAlpha()和calImage()计算预测图像光度值
+	function model_lensed_images(p, x1, x2) {
+		// console.log("model_lensed_images");
+		let xc1, xc2, re, ql, phl;
+		xc1 = p[0];
+		xc2 = p[1];
+		re = p[2];
+		ql = p[3];
+		phl = p[4];
+
+		let alpha = calAlpha(x1,x2,xc1,xc2,re,ql,phl);
+
+		let y1 = x1 - alpha.x;
+		let y2 = x2 - alpha.y;
+
+		let yc1, yc2, sig2, qs, phs;
+		yc1 = p[5];
+		yc2 = p[6];
+		sig2 = p[7];
+		qs = p[8];
+		phs = p[9];
+
+		return calImage(y1, y2, yc1, yc2, sig2, qs, phs);
+	}
+
+	//计算单个镜头成神对图像（x，y）的弯曲效应
+	function calAlpha(xl,yl,xlc,ylc,re,ql,phl) {
+		// console.log('calAlpha');
+		if(ql <1.0){
+			phl = Math.PI * ((-phl+90) / 180);
+		}else{
+			ql = 1.0/ql-0.0000000001;
+			phl = Math.PI * (-phl / 180);
+		}
+
+		const alpha = {x: 0.0, y: 0.0};
+		let x, y, cs, sn;
+		let sx_r, sy_r, psi, sq, pd1, pd2, fx1, fx2, qs, a1, a2;
+		const rc = 0.0;
+
+		cs = Math.cos(phl);
+		sn = Math.sin(phl);
+
+		x = xl - xlc;
+		y = yl - ylc;
+
+		sx_r = x * cs + y * sn;
+		sy_r = -x * sn + y * cs;
+
+		psi = Math.sqrt(ql*ql*(rc*rc+sx_r*sx_r)+sy_r*sy_r);
+
+		sq = Math.sqrt(1.0-ql*ql);
+		pd1 = psi + rc;
+		pd2 = psi + rc*ql*ql;
+		fx1 = sq * sx_r / pd1;
+		fx2 = sq * sy_r / pd2;
+		qs = Math.sqrt(ql);
+
+		a1 = qs / sq * Math.atan(fx1);
+		a2 = qs / sq * Math.atanh(fx2);
+
+		let dx = (a1 * cs - a2 * sn);
+		let dy = (a2 * cs + a1 * sn);
+
+		// Add lensing effects of just this component:
+		alpha.x = re*dx;
+		alpha.y = re*dy;
+		return alpha;
+	}
+
+	//根据弯曲后的点(x-, αx, y-αy)计算该点在重构图像中的光度值。
+	function calImage(xs, ys, xsc, ysc, sig2, qs, phs) {
+		// console.log('calImage');
+		let r2, res, phirad;
+		// Loop over x and y. Store 1-D pixel index as i.
+		phirad = -phs/180*Math.PI;
+		let xnew = (xs-xsc) * Math.cos(phirad) + (ys-ysc) * Math.sin(phirad)
+		let ynew = (ys-ysc) * Math.cos(phirad) - (xs-xsc) * Math.sin(phirad)
+		r2 = ( xnew*xnew/qs + ynew*ynew*qs );
+		res = Math.exp(-r2/(2.0*sig2*sig2*0.693));
+		return res; // Allow this function to be chainable
+	}
+
+	//计算标准差
+	function standardDeviation(values){
+		let avg = average(values);
+
+		let squareDiffs = values.map(function(value){
+			let diff = value - avg;
+			return diff * diff;
+		});
+
+		let avgSquareDiff = average(squareDiffs);
+
+		return Math.sqrt(avgSquareDiff);
+	}
+
+	//计算平均值
+	function average(data){
+		let sum = data.reduce(function(sum, value){
+			return sum + value;
+		}, 0);
+
+		return sum / data.length;
+	}
+	//考虑放缩因子，对图像downsampling后进行最小二乘拟合,加快计算速度
+	function chi2_rescale(p) {
+		// console.log("chi2_rescale");
+		let c = document.getElementById("myCanvas");
+		let ctx = c.getContext("2d");
+		ctx.drawImage(imgd, 0, 0);
+		let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
+		let data = dstdata.data;
+
+		let red = new Array(data.length/4);
+		for(let i = 0, n = red.length; i < n; i ++) {
+			red[i] = data[i*4]/255;
+		}
+
+		const fscale = 4;
+		const chi = new Array(red.length / fscale / fscale);
+		const testimg = new Array(red.length);
+		const redstd = standardDeviation(red);
+		// const redstd = 1.0;
+		for(let row = 0 ; row < imgd.height ; row+=fscale){
+			for(let col = 0 ; col < imgd.width ; col+=fscale){
+				let i,i2,x,y;
+				i = row * imgd.width + col;
+				i2 = row/fscale*imgd.height/fscale+col/fscale;
+				// i2 = (row*imgd.height/fscale+col)/fscale;
+				x = col* lets.pixscale - lets.pixscale*lets.width/2 + lets.pixscale/2;
+				y = -row* lets.pixscale + lets.pixscale*lets.height/2 + lets.pixscale/2;
+				testimg[i] = model_lensed_images(p, x, y);
+				chi[i2] = (red[i] - testimg[i])/redstd/redstd/(chi.length);
+			}
+		}
+		return optimize.vector.dot(chi, chi);
+	}
+
+
+	function show_res(p) {
+		// console.log('show_res');
+		let c = document.getElementById("myCanvas");
+		let ctx = c.getContext("2d");
+		ctx.drawImage(imgd, 0, 0);
+		let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
+		let data = dstdata.data;
+
+		let red = new Array(data.length/4);
+		for(let i = 0, n = red.length; i < n; i ++) {
+			red[i] = data[i*4]/255;
+		}
+
+		let chi = new Array(red.length);
+		let testimg = new Array(red.length);
+		let redstd = standardDeviation(red);
+		let i,x,y;
+		for (let row = 0; row < lets.height; row++) {
+			for (let col = 0; col < lets.width; col++) {
+				i = row * lets.width + col;
+				x = col * lets.pixscale - lets.pixscale*lets.width/2;
+				y = -row * lets.pixscale + lets.pixscale*lets.height/2;
+				testimg[i] = model_lensed_images(p, x, y);
+				//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
+				chi[i] = (red[i] - testimg[i]) / redstd / redstd;
+			}
+		}
+		let res = optimize.vector.dot(chi, chi);
+		console.log('res:'+res/400/400);
+
+		for (let x = 0; x < imgd.height; ++x) {
+			for (let y = 0; y < imgd.width; ++y) {
+				let index = (x * imgd.width + y) * 4;   //4是image的4个通道r,g,b和透明度
+				let index2 = (x * imgd.width + y);
+				//data[index]   = Math.floor(red[index2]*255);    // red
+				//data[index]   = Math.floor(testimg[index2]*255);    // red
+				data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
+				//data[index]   = 128;    // red
+				data[++index] = 0;    // green
+				data[++index] = 0;    // blue
+				data[++index] = 255;      // alpha
+			}
+		}
+
+		for (let i = 0; i < data.length; i++) {
+			dstdata.data[i] = data[i];
+		}
+		ctx.putImageData(dstdata, 0, 0);
+		return res;
+	}
+	let chartInstance = null // 声明一个全局变量来存储 Chart 实例
+	function drawChiSquareCurve(chiSquaredValues) {
+		let ctx = document.getElementById("Curve");
+		if (chartInstance) {
+			// 如果之前有 Chart 实例存在，则更新其数据和选项
+			chartInstance.data.labels = Array.from({ length: chiSquaredValues.length }, (_, i) => 50*(i + 1));
+			chartInstance.data.datasets[0].data = chiSquaredValues;
+			chartInstance.update();
+		} else {
+			// 如果之前没有 Chart 实例存在，则创建一个新的实例
+			chartInstance = new Chart(ctx, {
+				type: 'line',
+				data: {
+					labels: Array.from({length: chiSquaredValues.length}, (_, i) => i + 1),
+					datasets: [
+						{
+							label: '卡方值',
+							data: chiSquaredValues,
+							borderColor: 'blue',
+							backgroundColor: 'rgba(0, 0, 255, 0.1)',
+						},
+					],
+				},
+				options: {
+					responsive: true,
+					scales: {
+						x: {
+							title: {
+								display: true,
+								text: '迭代次数',
+							},
+						},
+						y: {
+							title: {
+								display: true,
+								text: '卡方值',
+							},
+						},
+					},
+				},
+			});
+		}
+	}
+
+	const sleep = (timeout= 1000)=>new Promise((resolve, reject)=>{
+		setTimeout(resolve, timeout);
+	});
+
+
+	let timer = async(timeout) => {
+		console.log("Modeling");
+		let chiSquaredValues = [];
+		let it = 0,chival = 0,j = 0;
+		for(let i = 0; i< timeout; i++) {
+			let p0;
+			let xc1, xc2, re, ql, phl;
+			if (i === timeout-1 && it === 50){
+				console.log("建模结果有偏差，waiting...");
+				i/=2;
+			}
+			xc1 = lets.model.components[1].x;
+			xc2 = lets.model.components[1].y;
+			re  = lets.model.components[1].theta_e;
+			ql  = lets.model.components[1].ell;
+			phl = lets.model.components[1].ang;
+			let yc1, yc2, sig2, qs, phs;
+			yc1 = lets.model.components[0].x;
+			yc2 = lets.model.components[0].y;
+			sig2= lets.model.components[0].size;
+			qs  = lets.model.components[0].ell;
+			phs = lets.model.components[0].ang;
+
+			p0 = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
+			console.log(p0);
+
+			// let p2 = optimize.ParticleSwarmOptimization(chi2_rescale,p0, 11, {c1:0.05,c2:0.10,maxIterations:50});
+			// console.log(p2);
+			// let p1 = p2.bestPosition;
+			// show_res(p2.bestPosition);
+			// if(Math.abs(chival-p2.bestValue)<1e-8 && it<50){
+			// 	if(++j===2) break;
+			// }
+			// chival = p2.bestValue;
+
+			let p = optimize.fmin(chi2_rescale, p0, {ftol: 1e-6, maxiter: 50});
+			let p1=p.x;
+			it = p.res.iterations;
+			chival = p.res.fval;
+			chiSquaredValues.push(chival);
+			// let p1 = optimize.newton(chi2_rescale, p0, {ftol: 1e-6, maxiter: 100});
+			console.log(p1);
+			show_res(p1);
+			drawChiSquareCurve(chiSquaredValues);
+			if(Math.abs(chival-p.res.fval)<1e-8 && it<50){
+				if(++j===2) break;
+			}
+
+			lets.model.components[1].x = p1[0];
+			lets.model.components[1].y = p1[1];
+			lets.model.components[1].theta_e = p1[2];
+			lets.model.components[1].ell = p1[3];
+			lets.model.components[1].ang = p1[4];
+			lets.model.components[0].x = p1[5];
+			lets.model.components[0].y = p1[6];
+			lets.model.components[0].size = p1[7];
+			lets.model.components[0].ell = p1[8];
+			lets.model.components[0].ang = p1[9];
+			lets.loadModel(lets.model.components);
+			lets.update({x:lets.lens.ang2pix(p1[0]),y:lets.lens.ang2pix(p1[1])});
+			lets.freezeSrcModel = true;
+			updateCanvas(lets.model.components);
+			await sleep(1);
+		}
+	}
+	function updateCanvas(components) {
+		let ang = lets.lens.ang2pix({x: components[1].x, y: components[1].y});
+		ms.tools[0].mark.x = ang.x;
+		ms.tools[0].mark.y = ang.y;
+		ms.tools[0].mark.angle = components[1].ang ;
+		ms.tools[0].mark.ry = components[1].theta_e/(lets.lens.pixscale*Math.sqrt(components[1].ell));
+		ms.tools[0].mark.rx = ms.tools[0].mark.ry * components[1].ell;
+		ms.renderTools();
+
+		let ang2 = lets.lens.ang2pix({x: components[0].x, y: components[0].y});
+		ms_src.tools[0].mark.x = ang2.x;
+		ms_src.tools[0].mark.y = ang2.y;
+		ms_src.tools[0].mark.angle = components[0].ang;
+		ms_src.tools[0].mark.ry = components[0].size/(lets.lens.pixscale*Math.sqrt(components[0].ell ));
+		ms_src.tools[0].mark.rx = ms_src.tools[0].mark.ry *components[0].ell;
+		ms_src.renderTools();
+	}
+
+	function do_fit() {
+		if(ms.tools.length === 0){
+			window.alert('Please input Mass Model!');
+			return;
+		}
+		if(ms_src.tools.length === 0){
+			window.alert('Please input Source Model!');
+			return;
+		}
+		let tag2 = document.getElementById('tag2');
+		tag2.style.display = 'block';
+
+		let timerCallback = async () => {
+			await timer(8); // 执行1次timer函数
+			console.log(lets);
+			tag2.style.display = 'none';
+			console.log(lets.lens.ang2pix({x:lets.model.components[0].x,y:lets.model.components[0].y}))
+		}
+		timerCallback(); // 将迭代次数作为参数传递给timerCallback函数
+	}
+	function test() {
+		console.log('test python')
+		async function test() {
+			const res = await eel.my_add(10, 15)().then();
+			document.getElementById("demo").innerHTML = res;
+		}
+		test();
+	}
+
+</script>
 
 <body>
-	<div>
-		<header class="inner">
-			<h1>Hoopla</h1>
-			<h4><a href="https://github.com/linan7788626/hoopla">Lens
-					Modeling in Javascript</a> with Elliptical Lenses and Sources</h4>
-		</header>
-	</div>
+<div>
+	<header class="inner">
+		<h1>Hoopla</h1>
+		<h4><a href="https://github.com/linan7788626/hoopla">Lens
+			Modeling in Javascript</a> with Elliptical Lenses and Sources</h4>
+	</header>
+</div>
 
 
-	<table>
-		<tr class="container">
-			<td>
-				<div id="masscaption" class="barTitle">
-					<p style="margin-top: 10px;margin-left: -8px;">Mass Model</p>
-				</div>
-			</td>
-			<td>
-				<div id="srccaption" class="barTitle">
-					<p style="margin-top: 10px;margin-left: -8px;">Source Model</p>
-				</div>
-			</td>
-		</tr>
-		<tr class="container">
-			<td>
-				<div id="marking-container" class="bar"></div>
-			</td>
-			<td>
-				<div id="marking-container-src" class="bar" style="color: #666666;"></div>
-			</td>
-		</tr>
-		<tr class="container2">
-			<td>
-				<div id="masscaption" class="barTitle">
-					<p style="margin-top: 10px;margin-left: -8px;">Source Plane</p>
-				</div>
-			</td>
-			<td>
-				<div id="srccaption" class="barTitle">
-					<p style="margin-top: 10px;margin-left: -8px;">Image Plane</p>
-				</div>
-			</td>
+<table>
+	<tr class="container">
+		<td>
+			<div id="masscaption" class="barTitle">
+				<p style="margin-top: 10px;margin-left: -8px;">Mass Model</p>
+			</div>
+		</td>
+		<td>
+			<div id="srccaption" class="barTitle">
+				<p style="margin-top: 10px;margin-left: -8px;">Source Model</p>
+			</div>
+		</td>
+	</tr>
+	<tr class="container">
+		<td>
+			<div id="marking-container" class="bar"></div>
+		</td>
+		<td>
+			<div id="marking-container-src" class="bar" style="color: #666666;"></div>
+		</td>
+	</tr>
+	<tr class="container2">
+		<td>
+			<div id="masscaption" class="barTitle">
+				<p style="margin-top: 10px;margin-left: -8px;">Source Plane</p>
+			</div>
+		</td>
+		<td>
+			<div id="srccaption" class="barTitle">
+				<p style="margin-top: 10px;margin-left: -8px;">Image Plane</p>
+			</div>
+		</td>
 
-		</tr>
+	</tr>
 
-		<tr class="container2">
-			<td><div id="hoopla-srcmodel" class="bar">
-				<p id="tag" class="tooltip" style="display: block">
-					<span class="tooltiptext">Interactive Mode is activated, click left button of the mouse to turn into Freezed mode.</span>
-					Interactive
-				</p>
-			</div></td>
-			<td>
-				<div id="hoopla-prediction" class="bar">
-					<p id="tag2" style="background-color: #8ee58a;display: none;left: 730px">Running...</p>
-				</div>
-			</td>
+	<tr class="container2">
+		<td><div id="hoopla-srcmodel" class="bar">
+			<p id="tag" class="tooltip" style="display: block">
+				<span class="tooltiptext">Interactive Mode is activated, click left button of the mouse to turn into Freezed mode.</span>
+				Interactive
+			</p>
+		</div></td>
+		<td>
+			<div id="hoopla-prediction" class="bar">
+				<p id="tag2" style="background-color: #8ee58a;display: none;left: 730px">Running...</p>
+			</div>
+		</td>
 
-		</tr>
-		<tr>
-			<td>
-				<div id="masscaption" class="barTitle">
-					<p style="margin-top: 10px;margin-left: -8px;">Residual Map</p>
-				</div>
-			</td>
-			<td>
-				<div id="masscaption" class="barTitle">
-					<p style="margin-top: 10px;margin-left: -8px;">Chi-Square Curve</p>
-				</div>
-			</td>
-		</tr>
-		<tr>
-			<td>
-				<canvas id="myCanvas"  width="400" height="400" style="border:1px solid #d3d3d3;float: left;margin: 5px;"></canvas>
-			</td>
-			<td>
-				<canvas id="Curve"  width="400" height="400" style="background-color: whitesmoke;border:1px solid #d3d3d3;float: left;margin: 5px;"></canvas>
-			</td>
-		</tr>
-	</table>
+	</tr>
+	<tr>
+		<td>
+			<div id="masscaption" class="barTitle">
+				<p style="margin-top: 10px;margin-left: -8px;">Residual Map</p>
+			</div>
+		</td>
+		<td>
+			<div id="masscaption" class="barTitle">
+				<p style="margin-top: 10px;margin-left: -8px;">Chi-Square Curve</p>
+			</div>
+		</td>
+	</tr>
+	<tr>
+		<td>
+			<canvas id="myCanvas"  width="400" height="400" style="border:1px solid #d3d3d3;float: left;margin: 5px;"></canvas>
+		</td>
+		<td>
+			<canvas id="Curve"  width="400" height="400" style="background-color: whitesmoke;border:1px solid #d3d3d3;float: left;margin: 5px;"></canvas>
+		</td>
+	</tr>
+</table>
 
-	<div class="container">
-		<button class="button" id="saveModel"
-				style="vertical-align:middle;width:193px;background-color:#666666"><span>Save Models</span>
-		</button>
-		<button class="Uploadbtn"  style="vertical-align:middle;width:193px;background-color:#666666">
-			<input class="input-upload" type="file" id="modelUpload"/>
-			<span>Load Models</span>
-		</button>
+<div class="container">
+	<button class="button" id="saveModel"
+			style="vertical-align:middle;width:193px;background-color:#666666"><span>Save Models</span>
+	</button>
+	<button class="Uploadbtn"  style="vertical-align:middle;width:193px;background-color:#666666">
+		<input class="input-upload" type="file" id="modelUpload"/>
+		<span>Load Models</span>
+	</button>
 
-		<button class="Uploadbtn"  style="vertical-align:middle;width:193px;background-color:#666666">
-			<input class="input-upload" type="button" id="imageUpload"/>
-			<span>Upload Images</span>
-		</button>
-		<button class="button" id="optimization" onclick="do_fit()"
-				style="vertical-align:middle;width:193px"><span>Optimization</span>
-		</button>
-	</div>
-	<div class="container" style="height: 50px;">
-		<span>Current pixel-scale: </span>
-		<input class="pixscale" id="newPixelScale" type="number">
-		<button class="button" onclick="reset()" style="width: 200px;background-color: #666666;vertical-align: middle">
-			<span>Reset Pixel-Scale</span>
-		</button>
-	</div>
+	<button class="Uploadbtn"  style="vertical-align:middle;width:193px;background-color:#666666">
+		<input class="input-upload" type="button" id="imageUpload"/>
+		<span>Upload Images</span>
+	</button>
+	<button class="button" id="optimization" onclick="do_fit()"
+			style="vertical-align:middle;width:193px"><span>Optimization</span>
+	</button>
+</div>
+<div class="container" style="height: 50px;">
+	<span>Current pixel-scale: </span>
+	<input class="pixscale" id="newPixelScale" type="number">
+	<button class="button" onclick="reset()" style="width: 200px;background-color: #666666;vertical-align: middle">
+		<span>Reset Pixel-Scale</span>
+	</button>
+	<button onclick="test()" style="width: 200px;background-color: #666666;vertical-align: middle">
+		<span>test</span>
+	</button>
+</div>
 
-    <div class="popup-form">
-        <h2 style="color: black;text-align: center">Image Settings</h2>
-        <form onsubmit="return false;">
-            <div class="form-item1">
-                <label for="image-url" style="margin-right: 80px;">Image URL:</label>
-                <button class="Uploadbtn" id="img-upload"  style="width:200px;background-color:#1fc0db">
-                    <input class="input-upload" type="file"  id="image-url"/>
-                    <span>Select Image</span>
-                </button>
-                <br/>
-                <span id="imgURL" content="" style="width: 100%;height: 30px;color: black"></span>
-            </div>
-            <br />
-            <div class="form-item">
-                <label for="image-height">Image Height (px):</label>
-                <input type="number" id="image-height" placeholder="Enter the height of the image in pixels">
-            </div>
-            <br/>
-            <div class="form-item">
-                <label for="image-width">Image Width (px):</label>
-                <input type="number" id="image-width"  placeholder="Enter the width of the image in pixels">
-            </div>
-            <br/>
-            <div class="form-item">
-                <label for="pixel-scale">Pixel Scale (px):</label>
-                <input type="text" id="pixel-scale" placeholder="Enter the pixel size of the image">
-            </div>
-            <br/>
-            <div class="form-item">
-                <button type="submit" id="confirm" >Confirm</button>
-                <button type="button" id="close-form-button" >Close</button>
-            </div>
+<div class="popup-form">
+	<h2 style="color: black;text-align: center">Image Settings</h2>
+	<form onsubmit="return false;">
+		<div class="form-item1">
+			<label for="image-url" style="margin-right: 80px;">Image URL:</label>
+			<button class="Uploadbtn" id="img-upload"  style="width:200px;background-color:#1fc0db">
+				<input class="input-upload" type="file"  id="image-url"/>
+				<span>Select Image</span>
+			</button>
+			<br/>
+			<span id="imgURL" content="" style="width: 100%;height: 30px;color: black"></span>
+		</div>
+		<br />
+		<div class="form-item">
+			<label for="image-height">Image Height (px):</label>
+			<input type="number" id="image-height" placeholder="Enter the height of the image in pixels">
+		</div>
+		<br/>
+		<div class="form-item">
+			<label for="image-width">Image Width (px):</label>
+			<input type="number" id="image-width"  placeholder="Enter the width of the image in pixels">
+		</div>
+		<br/>
+		<div class="form-item">
+			<label for="pixel-scale">Pixel Scale (px):</label>
+			<input type="text" id="pixel-scale" placeholder="Enter the pixel size of the image">
+		</div>
+		<br/>
+		<div class="form-item">
+			<button type="submit" id="confirm" >Confirm</button>
+			<button type="button" id="close-form-button" >Close</button>
+		</div>
 
-        </form>
-    </div>
+	</form>
+</div>
 
-	<div class="container">
+<div class="container">
 
-	</div>
+</div>
 
-	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script type="text/javascript" src="lib/marking/marking-surface.js"></script>
-    <script type="text/javascript" src="lib/marking/tools/ellipse.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script type="text/javascript" src="lib/marking/marking-surface.js"></script>
+<script type="text/javascript" src="lib/marking/tools/ellipse.js"></script>
 </body>
 
 
@@ -867,36 +888,36 @@
 		color: white;
 	}
 
-    .popup-form {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 500px;
-        padding: 20px;
-        background-color: #fff;
-        border: 1px solid #c1a3a3;
-        box-shadow: 0 3px 6px 0 rgba(0, 0, 0, 0.16);
-        display: none;
-        border-radius: 5px;
-    }
-    .form-item{
-        height: 50px;
-    }
-    .form-item1{
-        height: 80px;
-    }
-    .popup-form.active {
-        display: block;
-    }
-    .popup-form label{
-        font-size: medium;
-        font-family: Arial,serif;
-        color: black;
-        width: 200px;
-        margin-bottom: 10px;
-        vertical-align: middle;
-    }
+	.popup-form {
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: 500px;
+		padding: 20px;
+		background-color: #fff;
+		border: 1px solid #c1a3a3;
+		box-shadow: 0 3px 6px 0 rgba(0, 0, 0, 0.16);
+		display: none;
+		border-radius: 5px;
+	}
+	.form-item{
+		height: 50px;
+	}
+	.form-item1{
+		height: 80px;
+	}
+	.popup-form.active {
+		display: block;
+	}
+	.popup-form label{
+		font-size: medium;
+		font-family: Arial,serif;
+		color: black;
+		width: 200px;
+		margin-bottom: 10px;
+		vertical-align: middle;
+	}
 	.pixscale{
 		width: 120px;
 		height: 20px;
@@ -904,28 +925,28 @@
 		border-radius: 5px;
 	}
 
-label {}
-    .popup-form input {
-        width: 300px;
-        padding: 10px;
-        margin-bottom: 10px;
-        border: 1px solid #ccc;
-        float: right;
-    }
+	label {}
+	.popup-form input {
+		width: 300px;
+		padding: 10px;
+		margin-bottom: 10px;
+		border: 1px solid #ccc;
+		float: right;
+	}
 
-    .popup-form button {
-        padding: 10px 20px;
-        margin-right: 10px;
-        border: 1px solid #ccc;
-        background-color: #fff;
-        cursor: pointer;
-        border-radius: 7px;
-        color: white;
-    }
+	.popup-form button {
+		padding: 10px 20px;
+		margin-right: 10px;
+		border: 1px solid #ccc;
+		background-color: #fff;
+		cursor: pointer;
+		border-radius: 7px;
+		color: white;
+	}
 
-    .popup-form button:hover {
-        background-color: #f5f5f5;
-    }
+	.popup-form button:hover {
+		background-color: #f5f5f5;
+	}
 
 	#masscaption,#srcincaption {
 		padding-top:5px;
@@ -953,8 +974,7 @@ label {}
 		float: left;
 		margin: 5px;
 		border: 1px solid #666666;
-		/*background-image: url("http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg");*/
-		/*background-image: url("./images/Figure_2.png");*/
+		/*background-image: url("./images\\Figure_1.png");*/
 		background-size: 400px 400px;
 	}
 	.barTitle {
