@@ -13,7 +13,7 @@
 
 <script type="text/javascript">
 	var src = "images/Figure_3.png";
-	var img_name = "Figure_2";
+	var img_name = "Figure_3";
 	var imgd = new Image();
 	imgd.crossOrigin="anonymous";
 	imgd.src = src;
@@ -233,12 +233,12 @@
 				return;
 			}
 			if(regex.test(pixscale)){
-				lets.pixscale = pixscale;
+				lets.model.pixscale = pixscale;
 			}else{
 				window.alert('Please re-enter the pixel scale of the image correctly!');
 				return;
 			}
-			console.log(pixscale);
+			console.log(lets.model.pixscale);
 
 			img.src = url;
 			img_src.src = url;
@@ -251,12 +251,13 @@
 			lets.predictionPaper.clear();
 			lets.predictionPaper.src = url;
 			lets.paper.src = url;
+
 			document.getElementById("hoopla-srcmodel").style.backgroundImage
 					= "url(" + url + ")";
 			document.getElementById("hoopla-prediction").style.backgroundImage
 					= "url(" + url + ")";
 			document.getElementById('newPixelScale').value = pixscale;
-			console.log(lets.model.components);
+			console.log(lets.model);
 			document.querySelector('.popup-form').classList.remove('active');
 		}
 
@@ -284,7 +285,8 @@
 				let pixscale = data.pixscale;
 				console.log(data);
 				lets.loadModel(components);
-				lets.pixscale = pixscale;
+				console.log(lets.model)
+				lets.model.pixscale = pixscale;
 				lets.freezeSrcModel = true;
 				updateCanvas(components);
 				lets.update(lets.lens.ang2pix({x:components[0].x,y:components[0].y}));
@@ -343,8 +345,9 @@
 		ql = p[3];
 		phl = p[4];
 
+		// 计算得到这个点对应的偏折角
 		let alpha = calAlpha(x1,x2,xc1,xc2,re,ql,phl);
-
+		// 计算源星系像的角位置
 		let y1 = x1 - alpha.x;
 		let y2 = x2 - alpha.y;
 
@@ -358,7 +361,7 @@
 		return calImage(y1, y2, yc1, yc2, sig2, qs, phs);
 	}
 
-	//计算单个镜头成神对图像（x，y）的弯曲效应
+	//计算单个镜头成像对图像（x，y）的弯曲效应
 	function calAlpha(xl,yl,xlc,ylc,re,ql,phl) {
 		// console.log('calAlpha');
 		if(ql <1.0){
@@ -403,15 +406,17 @@
 		return alpha;
 	}
 
-	//根据弯曲后的点(x-, αx, y-αy)计算该点在重构图像中的光度值。
+	//根据弯曲后的点(x- αx, y-αy)计算该点在重构图像中的光度值。
 	function calImage(xs, ys, xsc, ysc, sig2, qs, phs) {
 		// console.log('calImage');
 		let r2, res, phirad;
 		// Loop over x and y. Store 1-D pixel index as i.
 		phirad = -phs/180*Math.PI;
+		// 重新进行坐标变换，得到了像素代表的坐标
 		let xnew = (xs-xsc) * Math.cos(phirad) + (ys-ysc) * Math.sin(phirad)
 		let ynew = (ys-ysc) * Math.cos(phirad) - (xs-xsc) * Math.sin(phirad)
 		r2 = ( xnew*xnew/qs + ynew*ynew*qs );
+		// 计算得到区域亮度因子
 		res = Math.exp(-r2/(2.0*sig2*sig2*0.693));
 		return res; // Allow this function to be chainable
 	}
@@ -446,12 +451,12 @@
 		ctx.drawImage(imgd, 0, 0);
 		let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
 		let data = dstdata.data;
-
+		//图像存储方式为RGBA，一个像素就是由（R,G,B,A）来存储的，将图像映射到红色通道上，所以长度为原数据长度的1/4
 		let red = new Array(data.length/4);
 		for(let i = 0, n = red.length; i < n; i ++) {
 			red[i] = data[i*4]/255;
 		}
-
+		//重缩放因子，可以提高采样效率，但数值过大可能会导致图像失真
 		const fscale = 4;
 		const chi = new Array(red.length / fscale / fscale);
 		const testimg = new Array(red.length);
@@ -461,10 +466,12 @@
 			for(let col = 0 ; col < imgd.width ; col+=fscale){
 				let i,i2,x,y;
 				i = row * imgd.width + col;
-				i2 = row/fscale*imgd.height/fscale+col/fscale;
+				i2 = row/fscale*imgd.width/fscale+col/fscale;
 				// i2 = (row*imgd.height/fscale+col)/fscale;
 				x = col* lets.pixscale - lets.pixscale*lets.width/2 + lets.pixscale/2;
-				y = -row* lets.pixscale + lets.pixscale*lets.height/2 + lets.pixscale/2;
+				// x = (col - lets.width/2 + 0.5) * lets.pixscale;
+				y = -row* lets.pixscale + lets.pixscale*lets.height/2 - lets.pixscale/2;
+				// y = (lets.height - row - 0.5) * lets.pixscale;
 				testimg[i] = model_lensed_images(p, x, y);
 				chi[i2] = (red[i] - testimg[i])/redstd/redstd/(chi.length);
 			}
@@ -493,24 +500,23 @@
 		for (let row = 0; row < lets.height; row++) {
 			for (let col = 0; col < lets.width; col++) {
 				i = row * lets.width + col;
-				x = col * lets.pixscale - lets.pixscale*lets.width/2;
-				y = -row * lets.pixscale + lets.pixscale*lets.height/2;
+				x = col * lets.pixscale - lets.pixscale*lets.width/2 ;
+				y = -row * lets.pixscale + lets.pixscale*lets.height/2 ;
 				testimg[i] = model_lensed_images(p, x, y);
 				//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
 				chi[i] = (red[i] - testimg[i]) / redstd / redstd;
 			}
 		}
 		let res = optimize.vector.dot(chi, chi);
-		console.log('res:'+res/400/400);
+		console.log('res:'+res/red.length);
 
 		for (let x = 0; x < imgd.height; ++x) {
 			for (let y = 0; y < imgd.width; ++y) {
 				let index = (x * imgd.width + y) * 4;   //4是image的4个通道r,g,b和透明度
 				let index2 = (x * imgd.width + y);
-				//data[index]   = Math.floor(red[index2]*255);    // red
-				//data[index]   = Math.floor(testimg[index2]*255);    // red
-				data[index]   = Math.floor(Math.abs(testimg[index2]-red[index2])*255);    // red
-				//data[index]   = 128;    // red
+				// data[index]   = Math.floor(red[index2]*255);    // red
+				// data[index]   = Math.floor(testimg[index2]*255);    // red
+				data[index]   = Math.round(Math.abs(testimg[index2]-red[index2])*255);    // red
 				data[++index] = 0;    // green
 				data[++index] = 0;    // blue
 				data[++index] = 255;      // alpha
@@ -583,12 +589,14 @@
 				console.log("建模结果有偏差，waiting...");
 				i/=2;
 			}
+			let yc1, yc2, sig2, qs, phs;
+
 			xc1 = lets.model.components[1].x;
 			xc2 = lets.model.components[1].y;
 			re  = lets.model.components[1].theta_e;
 			ql  = lets.model.components[1].ell;
 			phl = lets.model.components[1].ang;
-			let yc1, yc2, sig2, qs, phs;
+
 			yc1 = lets.model.components[0].x;
 			yc2 = lets.model.components[0].y;
 			sig2= lets.model.components[0].size;
@@ -596,16 +604,20 @@
 			phs = lets.model.components[0].ang;
 
 			p0 = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
-			console.log(p0);
+			// console.log(p0);
 
-			// let p2 = optimize.ParticleSwarmOptimization(chi2_rescale,p0, 11, {c1:0.05,c2:0.10,maxIterations:50});
-			// console.log(p2);
+			// let p2 = optimize.ParticleSwarmOptimization(chi2_rescale,p0, 20, {
+			// 	c1:2.0, c2:2.0, maxIterations:500
+			// });
 			// let p1 = p2.bestPosition;
-			// show_res(p2.bestPosition);
+			// chival = p2.bestValue;
+			// chiSquaredValues.push(chival);
+			// show_res(p1);
+			// console.log(p1);
+			// drawChiSquareCurve(chiSquaredValues);
 			// if(Math.abs(chival-p2.bestValue)<1e-8 && it<50){
 			// 	if(++j===2) break;
 			// }
-			// chival = p2.bestValue;
 
 			let p = optimize.fmin(chi2_rescale, p0, {ftol: 1e-6, maxiter: 50});
 			let p1=p.x;
@@ -656,10 +668,10 @@
 	}
 
 	function do_fit() {
-		if(ms.tools.length === 0){
-			window.alert('Please input Mass Model!');
-			return;
-		}
+		// if(ms.tools.length === 0){
+		// 	window.alert('Please input Mass Model!');
+		// 	return;
+		// }
 		if(ms_src.tools.length === 0){
 			window.alert('Please input Source Model!');
 			return;
@@ -669,9 +681,9 @@
 
 		let timerCallback = async () => {
 			await timer(8); // 执行1次timer函数
-			console.log(lets);
+			console.log(lets.model);
 			tag2.style.display = 'none';
-			console.log(lets.lens.ang2pix({x:lets.model.components[0].x,y:lets.model.components[0].y}))
+			lets.setFreezed();
 		}
 		timerCallback(); // 将迭代次数作为参数传递给timerCallback函数
 	}
@@ -844,7 +856,10 @@
 <style type="text/css">
 	body {
 		font-family: serif,Helvetica,Arial,sans-serif;
-		background-color: black;
+		/*background-color: black;*/
+		background-image: url("images/bgi.jpg");
+		background-repeat: repeat-y;
+		background-size: contain;
 		color: #ffffff;
 	}
 

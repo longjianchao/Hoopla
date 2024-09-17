@@ -85,6 +85,7 @@
 	Hoopla.prototype.loadModel = function(components) {
 		console.log('loadModel');
 		this.model.components = components;
+		console.log(this.model.components);
     	this.init();
 	}
 
@@ -490,7 +491,7 @@
 			for(row = 0 ; row < this.lens.h ; row++){
 				timage[row] = new Array(this.lens.w);
 				for(col = 0 ; col < this.lens.w ; col++){
-					i = row + col*this.lens.h;
+					i = row + 1 + (col+1)*this.lens.h ;    // pixscale的计算中有一个像素的偏差，在这里将像素向右下角移一位
 					timage[row][col] = this.lens.trueimage[i];
 				}
 			}
@@ -507,7 +508,7 @@
 			for (row = 0; row < this.lens.h; row++) {
 				pimage[row] = new Array(this.lens.w);
 				for (col = 0; col < this.lens.w; col++) {
-					i = row + (this.lens.w-col) * this.lens.h;
+					i = row + col * this.lens.h;
 					pimage[row][col] = this.lens.predictedimage[i];
 				}
 			}
