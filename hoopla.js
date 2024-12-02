@@ -455,6 +455,7 @@
 	// 更新透镜模型并重新计算图像
 	Hoopla.prototype.update = function(e){
 		// console.log('update');
+		// console.log(e);
 		if (!e) { return; }
 		// Get the size of the existing source
 		let src = this.lens.source[0];

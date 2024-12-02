@@ -10,17 +10,56 @@
 <script type="text/javascript" src="lib/optimize.js"></script>
 <script type="text/javascript" src="hoopla.js"></script>
 <script type="text/javascript" src="eel.js"></script>
-
+<script src="https://cdn.jsdelivr.net/pyodide/v0.22.1/full/pyodide.js"></script>
 <script type="text/javascript">
-	var src = "images/Figure_3.png";
-	var img_name = "Figure_3";
+	var src = "images/Figure_7_2.png";
+	var img_name = "Figure_7_2.png";
 	var imgd = new Image();
 	imgd.crossOrigin="anonymous";
 	imgd.src = src;
 	imgd.width = 400;
 	imgd.height = 400;
 	var lets,ms,ms_src,containerEl,containerEl_src,img,img_src;
+	// 在全局作用域声明
+	let pyodide = null;
+	// 初始化函数
+	async function initPyodide() {
+		try {
+			console.log("开始初始化Pyodide...");
+			pyodide = await loadPyodide();
+			console.log("Pyodide基础环境加载完成");
 
+			// 分别加载numpy和scipy，并添加错误处理
+			try {
+				console.log("开始加载numpy...");
+				await pyodide.loadPackage('numpy');
+				console.log("numpy加载完成");
+
+				console.log("开始加载scipy...");
+				await pyodide.loadPackage('scipy');
+				console.log("scipy加载完成");
+
+				// 验证包是否正确加载
+				await pyodide.runPythonAsync(`
+						import numpy as np
+						print("NumPy已成功导入，版本:", np.__version__)
+						import scipy
+						print("SciPy已成功导入，版本:", scipy.__version__)
+						from scipy import optimize
+						print("optimize模块已成功导入")
+					`);
+
+				console.log("所有Python包加载完成");
+				return true;
+			} catch (packageError) {
+				console.error("Python包加载失败:", packageError);
+				throw new Error("Python包加载失败: " + packageError.message);
+			}
+		} catch (error) {
+			console.error("Pyodide初始化失败:", error);
+			return false;
+		}
+	}
 	// 初始化工作，包括对象的生成及赋值，以及一些函数操作
 	function setup(){
 		// Create a hoopla object. The ID is that of the <div>
@@ -171,36 +210,31 @@
 		}
 		img_src.src = src;
 		console.log(src);
-		// var bar = document.getElementsByClassName("bar");
-		// for (let i=0; i<bar.length;i++){
-		// 	bar[i].style.backgroundImage = "url(" + src + ")";
-		// }
-		console.log(lets.lens.ang2pix({x:0.0381,y:0.0124}))
-		console.log(lets.lens.pix2ang({x:200.5,y:200.5}))
 
 	}
 
-	window.onload = function(e){
+	window.onload = async function (e) {
+		await initPyodide();  // 已经存在这行
 		setup();
-		document.getElementById('imageUpload').onclick = function(e) {
-			document.getElementById("imgURL").innerText="";
-			document.getElementById("pixel-scale").value="";
-			document.getElementById("image-width").value="";
-			document.getElementById("image-height").value="";
+		document.getElementById('imageUpload').onclick = function (e) {
+			document.getElementById("imgURL").innerText = "";
+			document.getElementById("pixel-scale").value = "";
+			document.getElementById("image-width").value = "";
+			document.getElementById("image-height").value = "";
 			document.querySelector('.popup-form').classList.add('active');
 		};
-		document.getElementById("close-form-button").onclick = function(){
+		document.getElementById("close-form-button").onclick = function () {
 			document.querySelector('.popup-form').classList.remove('active');
 		}
-		document.getElementById("image-url").onchange = function(){
+		document.getElementById("image-url").onchange = function () {
 			let imageFile = this.files[0];
-			if(imageFile&&imageFile.type){
+			if (imageFile && imageFile.type) {
 				const fileType = imageFile.type;
-				if(fileType!=='image/jpeg'&&fileType!=='image/png'&&fileType!=='image/jps'){
+				if (fileType !== 'image/jpeg' && fileType !== 'image/png' && fileType !== 'image/jps') {
 					window.alert('Only files in jpg or png format can be uploaded!');
 					return;
 				}
-			}else{
+			} else {
 				window.alert('Please select a valid file!');
 				return;
 			}
@@ -209,32 +243,32 @@
 			img_name = imageFile.name;
 			document.getElementById("imgURL").innerText = url;
 		}
-		document.getElementById("confirm").onclick = function() {
+		document.getElementById("confirm").onclick = function () {
 			let url = document.getElementById("imgURL").innerText;
 			let pixscale = document.getElementById("pixel-scale").value;
 			let width = document.getElementById("image-width").value;
 			let height = document.getElementById("image-height").value;
 			const regex = /^\d{0,2}(\.\d{0,6})?$/;
 			const regex2 = /^\d{1,5}$/;
-			if((url === ''||null) || (pixscale === ''||null)){
+			if ((url === '' || null) || (pixscale === '' || null)) {
 				window.alert("Please input entire information of image!");
 				return;
 			}
-			if(regex2.test(width)){
+			if (regex2.test(width)) {
 				lets.width = width;
-			}else{
+			} else {
 				window.alert('Please re-enter the width of the image correctly!');
 				return;
 			}
-			if(regex2.test(height)){
+			if (regex2.test(height)) {
 				lets.height = height;
-			}else{
+			} else {
 				window.alert('Please re-enter the height of the image correctly!');
 				return;
 			}
-			if(regex.test(pixscale)){
+			if (regex.test(pixscale)) {
 				lets.model.pixscale = pixscale;
-			}else{
+			} else {
 				window.alert('Please re-enter the pixel scale of the image correctly!');
 				return;
 			}
@@ -265,19 +299,11 @@
 			lets.saveModel(img_src.src);
 		};
 
-		document.getElementById('modelUpload').onchange = function(e) {
+		document.getElementById('modelUpload').onchange = function (e) {
 			let input = e.target;
 			let reader = new FileReader();
-			if(ms.tools.length===0){
-				console.log("1");
-				ms.addTool();
-			}
-			if(ms_src.tools.length===0){
-				console.log("2");
-				ms_src.addTool();
-			}
 
-			reader.onload = function(){
+			reader.onload = function () {
 				let textdata = reader.result;
 				let data = JSON.parse(textdata);
 				let components = data.components;
@@ -285,35 +311,35 @@
 				let pixscale = data.pixscale;
 				console.log(data);
 				lets.loadModel(components);
-				console.log(lets.model)
-				lets.model.pixscale = pixscale;
+				lets.pixscale = pixscale;
 				lets.freezeSrcModel = true;
 				updateCanvas(components);
-				lets.update(lets.lens.ang2pix({x:components[0].x,y:components[0].y}));
+				lets.update(lets.lens.ang2pix({x: components[0].x, y: components[0].y}));
 				let xc1, xc2, re, ql, phl;
 				xc1 = lets.model.components[1].x;
 				xc2 = lets.model.components[1].y;
-				re  = lets.model.components[1].theta_e;
-				ql  = lets.model.components[1].ell;
+				re = lets.model.components[1].theta_e;
+				ql = lets.model.components[1].ell;
 				phl = lets.model.components[1].ang;
 				let yc1, yc2, sig2, qs, phs;
 				yc1 = lets.model.components[0].x;
 				yc2 = lets.model.components[0].y;
-				sig2= lets.model.components[0].size;
-				qs  = lets.model.components[0].ell;
+				sig2 = lets.model.components[0].size;
+				qs = lets.model.components[0].ell;
 				phs = lets.model.components[0].ang;
-				let p = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
+				let p = [xc1, xc2, re, ql, phl, yc1, yc2, sig2, qs, phs];
 				show_res(p);
+				chartInstance = null;
 				lets.setFreezed();
 			};
 			let modelFile = input.files[0];
-			if(modelFile){
-				if(modelFile.type !== 'application/json'){
+			if (modelFile) {
+				if (modelFile.type !== 'application/json') {
 					input.value = '';
 					window.alert('Model file must be a json file.');
 					return;
 				}
-			}else {
+			} else {
 				window.alert('Please select a valid file.');
 				return;
 			}
@@ -529,28 +555,29 @@
 		ctx.putImageData(dstdata, 0, 0);
 		return res;
 	}
-	let chartInstance = null // 声明一个全局变量来存储 Chart 实例
+	var chartInstance = null // 声明一个全局变量来存储 Chart 实例
+	// 修改绘制曲线函数，使其更适合显示优化过程
 	function drawChiSquareCurve(chiSquaredValues) {
 		let ctx = document.getElementById("Curve");
+
 		if (chartInstance) {
-			// 如果之前有 Chart 实例存在，则更新其数据和选项
-			chartInstance.data.labels = Array.from({ length: chiSquaredValues.length }, (_, i) => 50*(i + 1));
+			// 更新现有图表
+			chartInstance.data.labels = Array.from({ length: chiSquaredValues.length }, (_, i) => i + 1);
 			chartInstance.data.datasets[0].data = chiSquaredValues;
 			chartInstance.update();
 		} else {
-			// 如果之前没有 Chart 实例存在，则创建一个新的实例
+			// 创建新图表
 			chartInstance = new Chart(ctx, {
 				type: 'line',
 				data: {
-					labels: Array.from({length: chiSquaredValues.length}, (_, i) => i + 1),
-					datasets: [
-						{
-							label: '卡方值',
-							data: chiSquaredValues,
-							borderColor: 'blue',
-							backgroundColor: 'rgba(0, 0, 255, 0.1)',
-						},
-					],
+					labels: Array.from({ length: chiSquaredValues.length }, (_, i) => i + 1),
+					datasets: [{
+						label: '目标函数值',
+						data: chiSquaredValues,
+						borderColor: 'rgb(75, 192, 192)',
+						tension: 0.1,
+						fill: false
+					}]
 				},
 				options: {
 					responsive: true,
@@ -558,80 +585,135 @@
 						x: {
 							title: {
 								display: true,
-								text: '迭代次数',
-							},
+								text: '迭代次数'
+							}
 						},
 						y: {
 							title: {
 								display: true,
-								text: '卡方值',
+								text: '目标函数值'
 							},
-						},
+							// 使用对数刻度可能更好地显示函数值的变化
+							type: 'logarithmic'
+						}
 					},
-				},
+					plugins: {
+						title: {
+							display: true,
+							text: '优化过程中的目标函数值变化'
+						},
+						legend: {
+							position: 'top',
+						}
+					}
+				}
 			});
 		}
 	}
 
-	const sleep = (timeout= 1000)=>new Promise((resolve, reject)=>{
-		setTimeout(resolve, timeout);
-	});
 
-
-	let timer = async(timeout) => {
+	let timer = async() => {
 		console.log("Modeling");
 		let chiSquaredValues = [];
-		let it = 0,chival = 0,j = 0;
-		for(let i = 0; i< timeout; i++) {
-			let p0;
-			let xc1, xc2, re, ql, phl;
-			if (i === timeout-1 && it === 50){
-				console.log("建模结果有偏差，waiting...");
-				i/=2;
+
+		try {
+			let p0 = [
+				lets.model.components[1].x,
+				lets.model.components[1].y,
+				lets.model.components[1].theta_e,
+				lets.model.components[1].ell,
+				lets.model.components[1].ang,
+				lets.model.components[0].x,
+				lets.model.components[0].y,
+				lets.model.components[0].size,
+				lets.model.components[0].ell,
+				lets.model.components[0].ang
+			];
+
+			// 定义一个包装函数来处理数据类型转换
+			const objectiveWrapper = (params) => {
+				// 确保输入是普通的JavaScript数组
+				const jsParams = Array.from(params);
+				const result = chi2_rescale(jsParams);
+				// console.log("计算结果:", result, "参数:", jsParams);
+				return result;
+			};
+
+			// 将包装函数暴露给Python
+			pyodide.globals.set("objective_js", objectiveWrapper);
+
+			// 执行优化
+			let result = await pyodide.runPythonAsync(`
+					import numpy as np
+					from scipy import optimize
+					# 存储优化过程中的函数值
+					optimization_history = []
+					def objective(x):
+						try:
+							x_list = x.tolist() if hasattr(x, 'tolist') else list(x)
+							val = float(objective_js(x_list))
+							optimization_history.append(val)
+							return val
+						except Exception as e:
+							print(f"目标函数错误: {str(e)}")
+							raise
+
+					def run_optimization():
+						# 设置初始参数
+						initial_params = np.array(${JSON.stringify(p0)})
+						print(f"初始参数: {initial_params}")
+
+						try:
+							# 执行优化
+							result = optimize.minimize(
+								objective,
+								initial_params,
+								method='Nelder-Mead',
+								options={
+									'maxiter': 3000,
+									'ftol': 1e-6,
+									'xtol': 1e-6,
+									'disp': True
+								}
+							)
+
+							print(f"优化完成: {result.message}")
+							print(f"最终参数: {result.x}")
+							print(f"最终函数值: {result.fun}")
+
+							# 创建并返回结果字典
+							return {
+								'x': result.x.tolist(),
+								'fun': float(result.fun),
+								'iterations': int(result.nit),
+								'success': bool(result.success),
+								'message': str(result.message),
+								'history': optimization_history
+							}
+
+						except Exception as e:
+							print(f"优化过程错误: {str(e)}")
+							raise
+
+					# 执行函数并返回结果
+					run_optimization()
+				`);
+
+			// 处理结果
+			// 将Map转换为普通对象
+			result = Object.fromEntries(result.toJs());
+			console.log("优化结果:", result);
+
+			if (!result.success) {
+				console.warn("优化未成功收敛:", result.message);
 			}
-			let yc1, yc2, sig2, qs, phs;
 
-			xc1 = lets.model.components[1].x;
-			xc2 = lets.model.components[1].y;
-			re  = lets.model.components[1].theta_e;
-			ql  = lets.model.components[1].ell;
-			phl = lets.model.components[1].ang;
-
-			yc1 = lets.model.components[0].x;
-			yc2 = lets.model.components[0].y;
-			sig2= lets.model.components[0].size;
-			qs  = lets.model.components[0].ell;
-			phs = lets.model.components[0].ang;
-
-			p0 = [xc1,xc2,re,ql,phl,yc1,yc2,sig2,qs,phs];
-			// console.log(p0);
-
-			// let p2 = optimize.ParticleSwarmOptimization(chi2_rescale,p0, 20, {
-			// 	c1:2.0, c2:2.0, maxIterations:500
-			// });
-			// let p1 = p2.bestPosition;
-			// chival = p2.bestValue;
-			// chiSquaredValues.push(chival);
-			// show_res(p1);
-			// console.log(p1);
-			// drawChiSquareCurve(chiSquaredValues);
-			// if(Math.abs(chival-p2.bestValue)<1e-8 && it<50){
-			// 	if(++j===2) break;
-			// }
-
-			let p = optimize.fmin(chi2_rescale, p0, {ftol: 1e-6, maxiter: 50});
-			let p1=p.x;
-			it = p.res.iterations;
-			chival = p.res.fval;
-			chiSquaredValues.push(chival);
-			// let p1 = optimize.newton(chi2_rescale, p0, {ftol: 1e-6, maxiter: 100});
-			console.log(p1);
-			show_res(p1);
+			const p1 = result.x;
+			chiSquaredValues = result.history;
+			// console.log(chiSquaredValues);
 			drawChiSquareCurve(chiSquaredValues);
-			if(Math.abs(chival-p.res.fval)<1e-8 && it<50){
-				if(++j===2) break;
-			}
-
+			show_res(p1);
+			// 更新模型参数
 			lets.model.components[1].x = p1[0];
 			lets.model.components[1].y = p1[1];
 			lets.model.components[1].theta_e = p1[2];
@@ -642,13 +724,19 @@
 			lets.model.components[0].size = p1[7];
 			lets.model.components[0].ell = p1[8];
 			lets.model.components[0].ang = p1[9];
+			// lets.update(lets.lens.ang2pix({x: components[0].x, y: components[0].y}));
 			lets.loadModel(lets.model.components);
-			lets.update({x:lets.lens.ang2pix(p1[0]),y:lets.lens.ang2pix(p1[1])});
-			lets.freezeSrcModel = true;
+			lets.update(lets.lens.ang2pix({x:p1[5], y:p1[6]}));
+			lets.setFreezed();
 			updateCanvas(lets.model.components);
-			await sleep(1);
+		} catch (error) {
+			console.error("优化过程出错:", error);
+		} finally {
+			// 清理全局变量
+			pyodide.globals.delete("objective_js");
 		}
 	}
+
 	function updateCanvas(components) {
 		let ang = lets.lens.ang2pix({x: components[1].x, y: components[1].y});
 		ms.tools[0].mark.x = ang.x;
@@ -667,11 +755,16 @@
 		ms_src.renderTools();
 	}
 
-	function do_fit() {
-		// if(ms.tools.length === 0){
-		// 	window.alert('Please input Mass Model!');
-		// 	return;
-		// }
+	async function do_fit() {
+		// 检查Pyodide是否已初始化
+		if (!pyodide) {
+			console.log("Pyodide未初始化，尝试重新初始化...");
+			const pyodideReady = await initPyodide();
+			if (!pyodideReady) {
+				window.alert('优化器初始化失败，请刷新页面重试！');
+				return;
+			}
+		}
 		if(ms_src.tools.length === 0){
 			window.alert('Please input Source Model!');
 			return;
