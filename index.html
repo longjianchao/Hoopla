@@ -9,7 +9,6 @@
 <script type="text/javascript" src="lib/conrec.js"></script>
 <script type="text/javascript" src="lib/optimize.js"></script>
 <script type="text/javascript" src="hoopla.js"></script>
-<script type="text/javascript" src="eel.js"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.22.1/full/pyodide.js"></script>
 <script type="text/javascript">
 	var src = "images/Figure_7_2.png";
@@ -31,20 +30,23 @@
 
 			// 分别加载numpy和scipy，并添加错误处理
 			try {
-				console.log("开始加载numpy...");
 				await pyodide.loadPackage('numpy');
 				console.log("numpy加载完成");
-
-				console.log("开始加载scipy...");
 				await pyodide.loadPackage('scipy');
 				console.log("scipy加载完成");
-
+				// await pyodide.loadPackage('numpyro');
+				// console.log("numpyro加载完成")
 				// 验证包是否正确加载
 				await pyodide.runPythonAsync(`
+						import sys
+						# 打印当前使用的 Python 版本
+						print("当前使用的 Python 解释器版本:", sys.version)
 						import numpy as np
 						print("NumPy已成功导入，版本:", np.__version__)
 						import scipy
 						print("SciPy已成功导入，版本:", scipy.__version__)
+						#import emcee
+						#print("emcee已成功导入，版本:"", emcee.__version__)
 						from scipy import optimize
 						print("optimize模块已成功导入")
 					`);
@@ -674,7 +676,7 @@
 									initial_params,
 									method='Nelder-Mead',
 									options={
-										'maxiter': 300,
+										'maxiter': 200,
 										'ftol': 1e-6,
 										'xtol': 1e-6,
 										'disp': True
@@ -790,6 +792,188 @@
 		timerCallback(); // 将迭代次数作为参数传递给timerCallback函数
 	}
 
+	async function mcmc() {
+		try {
+			let chiSquaredValues = [];
+			let p0 = [
+				lets.model.components[1].x,
+				lets.model.components[1].y,
+				lets.model.components[1].theta_e,
+				lets.model.components[1].ell,
+				lets.model.components[1].ang,
+				lets.model.components[0].x,
+				lets.model.components[0].y,
+				lets.model.components[0].size,
+				lets.model.components[0].ell,
+				lets.model.components[0].ang
+			];
+
+			// 定义一个包装函数来处理数据类型转换
+			const objectiveWrapper = (params) => {
+				// 确保输入是普通的JavaScript数组
+				const jsParams = Array.from(params);
+				const result = chi2_rescale(jsParams);
+				// console.log("计算结果:", result, "参数:", jsParams);
+				return result;
+			};
+
+			// 将包装函数暴露给Python
+			pyodide.globals.set("objective_js", objectiveWrapper);
+
+			// 执行优化
+			let result = await pyodide.runPythonAsync(`
+					import numpy as np
+					import emcee  # 引入emcee包
+					# 存储优化过程中的函数值
+					optimization_history = []
+					def objective(x):
+						try:
+							x_list = x.tolist() if hasattr(x, 'tolist') else list(x)
+							val = float(objective_js(x_list))
+							optimization_history.append(val)
+							return val
+						except Exception as e:
+							print(f"目标函数错误: {str(e)}")
+							raise
+
+					def run_optimization():
+						# 设置初始参数
+						initial_params = np.array(${JSON.stringify(p0)})
+						print(f"初始参数: {initial_params}")
+
+						# 定义MCMC采样的数量和步长
+						nwalkers = 50
+						nsteps = 1000
+
+						# 初始化步态
+						p0 = [initial_params + 1e-4 * np.random.randn(len(initial_params)) for _ in range(nwalkers)]
+
+						# 创建emcee的采样器
+						sampler = emcee.EnsembleSampler(nwalkers, len(initial_params), objective)
+
+						# 运行MCMC
+						sampler.run_mcmc(p0, nsteps)
+
+						# 获取结果
+						samples = sampler.get_chain(flat=True)
+						all_samples = []
+						all_samples.push(samples)  # 存储所有参数的样本
+						best_fit = np.mean(samples, axis=0)
+
+						print(f"优化完成: 最佳参数: {best_fit}")
+
+						# 创建并返回结果字典
+						return {
+							'x': best_fit.tolist(),
+							'fun': float(objective(best_fit)),
+							'iterations': nsteps,
+							'success': True,
+							'message': 'MCMC优化完成',
+							'history': optimization_history,
+							'all_samples': all_samples
+						}
+
+					# 执行函数并返回结果
+					run_optimization()
+				`);
+
+			// 处理结果
+			// 将Map转换为普通对象
+			result = Object.fromEntries(result.toJs());
+			console.log("优化结果:", result);
+
+			if (!result.success) {
+				console.warn("优化未成功收敛:", result.message);
+			}
+			let p1 = result.x;
+			chiSquaredValues = chiSquaredValues.concat(result.history);
+			drawChiSquareCurve(chiSquaredValues);
+			show_res(p1);
+			// 更新模型参数
+			lets.model.components[1].x = p1[0];
+			lets.model.components[1].y = p1[1];
+			lets.model.components[1].theta_e = p1[2];
+			lets.model.components[1].ell = p1[3];
+			lets.model.components[1].ang = p1[4];
+			lets.model.components[0].x = p1[5];
+			lets.model.components[0].y = p1[6];
+			lets.model.components[0].size = p1[7];
+			lets.model.components[0].ell = p1[8];
+			lets.model.components[0].ang = p1[9];
+
+			lets.loadModel(lets.model.components);
+			const angle = lets.lens.ang2pix({x: lets.model.components[0].x, y: lets.model.components[0].y})
+			lets.update(angle);
+			lets.freezeSrcModel = true;
+			updateCanvas(lets.model.components);
+			let all_samples = result.all_samples;
+			// 在优化完成后调用绘图函数
+			drawAnglePlot(all_samples);
+		} catch (error) {
+			console.error("优化过程出错:", error);
+		} finally {
+			// 清理全局变量
+			pyodide.globals.delete("objective_js");
+		}
+
+	}
+		// 绘制角图
+	function drawAnglePlot(samples) {
+		let ctx = document.getElementById("connerChart").getContext("2d");
+		let numParams = samples[0].length;  // 参数数量
+		let datasets = [];
+
+		// 为每个参数创建数据集
+		for (let i = 0; i < numParams; i++) {
+			datasets.push({
+				label: `参数 ${i + 1}`,
+				data: samples.map(sample => sample[i]),
+				borderColor: `hsl(${(i / numParams) * 360}, 100%, 50%)`,  // 使用不同颜色
+				tension: 0.1,
+				fill: false
+			});
+		}
+
+		let data = {
+			labels: Array.from({ length: samples.length }, (_, i) => i + 1),
+			datasets: datasets
+		};
+
+		let config = {
+			type: 'line',
+			data: data,
+			options: {
+				responsive: true,
+				scales: {
+					x: {
+						title: {
+							display: true,
+							text: '迭代次数'
+						}
+					},
+					y: {
+						title: {
+							display: true,
+							text: '参数值'
+						}
+					}
+				},
+				plugins: {
+					title: {
+						display: true,
+						text: 'MCMC过程中的参数变化'
+					},
+					legend: {
+						position: 'top',
+					}
+				}
+			}
+		};
+		new Chart(ctx, config);
+	}
+
+
+
 
 </script>
 
@@ -863,6 +1047,11 @@
 				<p style="margin-top: 10px;margin-left: -8px;">Chi-Square Curve</p>
 			</div>
 		</td>
+		<td>
+			<div id="masscaption" class="barTitle">
+				<p style="margin-top: 10px;margin-left: -8px;">Conner Plot</p>
+			</div>
+		</td>
 	</tr>
 	<tr>
 		<td>
@@ -871,10 +1060,13 @@
 		<td>
 			<canvas id="Curve"  width="400" height="400" style="background-color: whitesmoke;border:1px solid #d3d3d3;float: left;margin: 5px;"></canvas>
 		</td>
+		<td>
+			<canvas id="connerChart" width="400" height="400" style="border:1px solid #d3d3d3;float: left;margin: 5px;"></canvas>
+		</td>
 	</tr>
 </table>
 
-<div class="container">
+<div class="container" style="width: 1200px">
 	<button class="button" id="saveModel"
 			style="vertical-align:middle;width:193px;background-color:#666666"><span>Save Models</span>
 	</button>
@@ -889,6 +1081,9 @@
 	</button>
 	<button class="button" id="optimization" onclick="do_fit()"
 			style="vertical-align:middle;width:193px"><span>Optimization</span>
+	</button>
+	<button class="button" id="mcmcOptimization" onclick="mcmc()"
+			style="vertical-align:middle;width:193px"><span>MCMC</span>
 	</button>
 </div>
 <div class="container" style="height: 50px;">
