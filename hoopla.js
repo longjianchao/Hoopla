@@ -82,6 +82,12 @@
 		this.init();
 	}
 
+	Hoopla.prototype.resetLens = function(width, height, pixscale) {
+		this.lens.w = width;
+		this.lens.h = height;
+		this.lens.pixscale = pixscale;
+	}
+
 	Hoopla.prototype.loadModel = function(components) {
 		console.log('loadModel');
 		this.model.components = components;
@@ -455,19 +461,22 @@
 	// 更新透镜模型并重新计算图像
 	Hoopla.prototype.update = function(e){
 		// console.log('update');
-		// console.log(e);
 		if (!e) { return; }
+		// console.log(e);
 		// Get the size of the existing source
 		let src = this.lens.source[0];
 		// Remove existing sources
 		this.lens.removeAll('source');
 		// Set the lens source to the current cursor position, transforming pixel coords to angular coords:
-		let coords = this.lens.pix2ang({x:e.x, y:e.y});
+		// 这里直接调用lens.pix2ang()会出现问题，导致coords里面的内容全为0
+		// const coords = this.lens.pix2ang({x:e.x, y:e.y});
+		let coords = {x: (e.x - this.width/2)*this.pixscale , y: (this.height/2 - e.y)*this.pixscale};
 		// Update the source x,y positions
 		src.x = coords.x;
 		src.y = coords.y;
 		this.model.components[0].x = coords.x;
 		this.model.components[0].y = coords.y;
+		// console.log(src);
 		// Add the source back
 		this.lens.add(src);
 		// Paste original image

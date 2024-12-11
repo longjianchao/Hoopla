@@ -27,34 +27,15 @@
 			console.log("开始初始化Pyodide...");
 			pyodide = await loadPyodide();
 			console.log("Pyodide基础环境加载完成");
-
 			// 分别加载numpy和scipy，并添加错误处理
 			try {
 				await pyodide.loadPackage('numpy');
 				console.log("numpy加载完成");
 				await pyodide.loadPackage('scipy');
 				console.log("scipy加载完成");
-				// await pyodide.loadPackage('numpyro');
-				// console.log("numpyro加载完成")
-				// 验证包是否正确加载
-				await pyodide.runPythonAsync(`
-						import sys
-						# 打印当前使用的 Python 版本
-						print("当前使用的 Python 解释器版本:", sys.version)
-						import numpy as np
-						print("NumPy已成功导入，版本:", np.__version__)
-						import scipy
-						print("SciPy已成功导入，版本:", scipy.__version__)
-						#import emcee
-						#print("emcee已成功导入，版本:"", emcee.__version__)
-						from scipy import optimize
-						print("optimize模块已成功导入")
-					`);
-
 				console.log("所有Python包加载完成");
 				return true;
 			} catch (packageError) {
-				console.error("Python包加载失败:", packageError);
 				throw new Error("Python包加载失败: " + packageError.message);
 			}
 		} catch (error) {
@@ -69,9 +50,7 @@
 			id:'hoopla-srcmodel',
 			srcmodel: 'hoopla-srcmodel',
 			prediction: 'hoopla-prediction',
-			//pixscale: 0.0375
 			pixscale: 0.025,
-			// src: "http://raw.githubusercontent.com/linan7788626/linan7788626.github.io/master/images/ering.jpg"
 		});
 		var bar = document.getElementsByClassName("bar");
 		for (let i=0; i<bar.length;i++){
@@ -212,17 +191,14 @@
 		}
 		img_src.src = src;
 		console.log(src);
-
 	}
 
 	window.onload = async function (e) {
-		await initPyodide();  // 已经存在这行
+		await initPyodide();  // 先将pyoide启动
 		setup();
 		document.getElementById('imageUpload').onclick = function (e) {
 			document.getElementById("imgURL").innerText = "";
 			document.getElementById("pixel-scale").value = "";
-			document.getElementById("image-width").value = "";
-			document.getElementById("image-height").value = "";
 			document.querySelector('.popup-form').classList.add('active');
 		};
 		document.getElementById("close-form-button").onclick = function () {
@@ -232,7 +208,7 @@
 			let imageFile = this.files[0];
 			if (imageFile && imageFile.type) {
 				const fileType = imageFile.type;
-				if (fileType !== 'image/jpeg' && fileType !== 'image/png' && fileType !== 'image/jps') {
+				if (fileType !== 'image/jpeg' && fileType !== 'image/png' && fileType !== 'image/jpg') {
 					window.alert('Only files in jpg or png format can be uploaded!');
 					return;
 				}
@@ -247,25 +223,50 @@
 		}
 		document.getElementById("confirm").onclick = function () {
 			let url = document.getElementById("imgURL").innerText;
+			let img0 = new Image();
+            img0.onload = function() {
+                let width = img0.width;
+                let height = img0.height;
+                console.log("图片宽度:", width, "高度:", height);
+                lets.width = width;
+                lets.height = height;
+				img.src = url;
+				img_src.src = url;
+				imgd.src = url; imgd.width = img0.width; imgd.height = img0.height;
+				lets.srcmodelPaper.clear();
+				lets.srcmodelPaper.src = url;
+				lets.srcmodelPaper.width = width;
+				lets.srcmodelPaper.height = height;
+				lets.predictionPaper.clear();
+				lets.predictionPaper.src = url;
+				lets.predictionPaper.width = width;
+				lets.predictionPaper.height = height;
+				lets.paper.src = url;
+				lets.paper.width = width;
+				lets.paper.height = height;
+				lets.resetLens(width, height,pixscale);
+                let bar = document.getElementsByClassName("bar");
+                let barTitle = document.getElementsByClassName("barTitle");
+				let canvas = document.querySelectorAll('canvas');
+                for (let i = 0; i < bar.length; i++){
+					bar[i].style.backgroundImage = "url(" + url + ")";
+                    bar[i].style.height = height + "px";
+                    bar[i].style.width = width + "px";
+                }
+                for (let i = 0; i < canvas.length; i++){
+					canvas[i].height = height;
+					canvas[i].width = width;
+				}
+                for (let i = 0; i < canvas.length; i++){
+					barTitle[i].style.width = width + "px";
+				}
+            }
+            img0.src = url;
+
 			let pixscale = document.getElementById("pixel-scale").value;
-			let width = document.getElementById("image-width").value;
-			let height = document.getElementById("image-height").value;
 			const regex = /^\d{0,2}(\.\d{0,6})?$/;
-			const regex2 = /^\d{1,5}$/;
 			if ((url === '' || null) || (pixscale === '' || null)) {
 				window.alert("Please input entire information of image!");
-				return;
-			}
-			if (regex2.test(width)) {
-				lets.width = width;
-			} else {
-				window.alert('Please re-enter the width of the image correctly!');
-				return;
-			}
-			if (regex2.test(height)) {
-				lets.height = height;
-			} else {
-				window.alert('Please re-enter the height of the image correctly!');
 				return;
 			}
 			if (regex.test(pixscale)) {
@@ -274,27 +275,19 @@
 				window.alert('Please re-enter the pixel scale of the image correctly!');
 				return;
 			}
-			console.log(lets.model.pixscale);
 
-			img.src = url;
-			img_src.src = url;
-			imgd.src = url;
 			ms.tools.pop();
 			ms_src.tools.pop();
-
-			lets.srcmodelPaper.clear();
-			lets.srcmodelPaper.src = url;
-			lets.predictionPaper.clear();
-			lets.predictionPaper.src = url;
-			lets.paper.src = url;
-
-			document.getElementById("hoopla-srcmodel").style.backgroundImage
-					= "url(" + url + ")";
-			document.getElementById("hoopla-prediction").style.backgroundImage
-					= "url(" + url + ")";
 			document.getElementById('newPixelScale').value = pixscale;
 			console.log(lets.model);
 			document.querySelector('.popup-form').classList.remove('active');
+			// 清理卡方曲线图
+			if (chartInstance) {
+				chartInstance.destroy(); // 销毁现有图表实例
+				chartInstance = null; // 将实例设置为null
+			}
+			// 重新绘制图表或其他逻辑
+			drawChiSquareCurve([]); // 传入空数组以清空图表
 		}
 
 		document.getElementById("saveModel").onclick = function fun() {
@@ -304,7 +297,6 @@
 		document.getElementById('modelUpload').onchange = function (e) {
 			let input = e.target;
 			let reader = new FileReader();
-
 			reader.onload = function () {
 				let textdata = reader.result;
 				let data = JSON.parse(textdata);
@@ -316,8 +308,9 @@
 				lets.pixscale = pixscale;
 				lets.freezeSrcModel = true;
 				updateCanvas(components);
-				const angle = lets.lens.ang2pix({x: components[0].x, y: components[0].y})
+				const angle = lets.lens.ang2pix({x: components[0].x, y: components[0].y});
 				lets.update(angle);
+
 				let xc1, xc2, re, ql, phl;
 				xc1 = lets.model.components[1].x;
 				xc2 = lets.model.components[1].y;
@@ -332,7 +325,13 @@
 				phs = lets.model.components[0].ang;
 				let p = [xc1, xc2, re, ql, phl, yc1, yc2, sig2, qs, phs];
 				show_res(p);
-				chartInstance = null;
+                // 清理卡方曲线图
+                if (chartInstance) {
+                    chartInstance.destroy(); // 销毁现有图表实例
+                    chartInstance = null; // 将实例设置为null
+                }
+                // 重新绘制图表或其他逻辑
+                drawChiSquareCurve([]); // 传入空数组以清空图表
 				lets.setFreezed();
 			};
 			let modelFile = input.files[0];
@@ -360,7 +359,6 @@
 			console.log(lets);
 		}else{
 			window.alert('Pixel-scale is not a legitimate input!');
-
 		}
 	}
 
@@ -428,7 +426,6 @@
 
 		let dx = (a1 * cs - a2 * sn);
 		let dy = (a2 * cs + a1 * sn);
-
 		// Add lensing effects of just this component:
 		alpha.x = re*dx;
 		alpha.y = re*dy;
@@ -453,14 +450,11 @@
 	//计算标准差
 	function standardDeviation(values){
 		let avg = average(values);
-
 		let squareDiffs = values.map(function(value){
 			let diff = value - avg;
 			return diff * diff;
 		});
-
 		let avgSquareDiff = average(squareDiffs);
-
 		return Math.sqrt(avgSquareDiff);
 	}
 
@@ -469,13 +463,13 @@
 		let sum = data.reduce(function(sum, value){
 			return sum + value;
 		}, 0);
-
 		return sum / data.length;
 	}
 	//考虑放缩因子，对图像downsampling后进行最小二乘拟合,加快计算速度
 	function chi2_rescale(p) {
-		// console.log("chi2_rescale");
+		// console.log(imgd.width,imgd.height);
 		let c = document.getElementById("myCanvas");
+		c.willReadFrequently = true;
 		let ctx = c.getContext("2d");
 		ctx.drawImage(imgd, 0, 0);
 		let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
@@ -496,7 +490,6 @@
 				let i,i2,x,y;
 				i = row * imgd.width + col;
 				i2 = row/fscale*imgd.width/fscale+col/fscale;
-				// i2 = (row*imgd.height/fscale+col)/fscale;
 				x = col* lets.pixscale - lets.pixscale*lets.width/2 + lets.pixscale/2;
 				// x = (col - lets.width/2 + 0.5) * lets.pixscale;
 				y = -row* lets.pixscale + lets.pixscale*lets.height/2 - lets.pixscale/2;
@@ -508,9 +501,7 @@
 		return optimize.vector.dot(chi, chi);
 	}
 
-
 	function show_res(p) {
-		// console.log('show_res');
 		let c = document.getElementById("myCanvas");
 		let ctx = c.getContext("2d");
 		ctx.drawImage(imgd, 0, 0);
@@ -617,7 +608,6 @@
 		}
 	}
 
-
 	let timer = async(timeout) => {
 		console.log("Modeling");
 		let chiSquaredValues = [];
@@ -640,9 +630,8 @@
 				const objectiveWrapper = (params) => {
 					// 确保输入是普通的JavaScript数组
 					const jsParams = Array.from(params);
-					const result = chi2_rescale(jsParams);
-					// console.log("计算结果:", result, "参数:", jsParams);
-					return result;
+                    // console.log("计算结果:", result, "参数:", jsParams);
+					return chi2_rescale(jsParams);
 				};
 
 				// 将包装函数暴露给Python
@@ -677,8 +666,6 @@
 									method='Nelder-Mead',
 									options={
 										'maxiter': 200,
-										'ftol': 1e-6,
-										'xtol': 1e-6,
 										'disp': True
 									}
 								)
@@ -704,9 +691,7 @@
 						# 执行函数并返回结果
 						run_optimization()
 					`);
-
-				// 处理结果
-				// 将Map转换为普通对象
+				// 处理结果 将Map转换为普通对象
 				result = Object.fromEntries(result.toJs());
 				console.log("优化结果:", result);
 
@@ -731,12 +716,12 @@
 				lets.model.components[0].size = p1[7];
 				lets.model.components[0].ell = p1[8];
 				lets.model.components[0].ang = p1[9];
-
 				lets.loadModel(lets.model.components);
-				const angle = lets.lens.ang2pix({x: lets.model.components[0].x, y: lets.model.components[0].y})
+				const angle = lets.lens.ang2pix({x: lets.model.components[0].x, y: lets.model.components[0].y});
 				lets.update(angle);
 				lets.freezeSrcModel = true;
 				updateCanvas(lets.model.components);
+				console.log(lets)
 
 			} catch (error) {
 				console.error("优化过程出错:", error);
@@ -792,188 +777,6 @@
 		timerCallback(); // 将迭代次数作为参数传递给timerCallback函数
 	}
 
-	async function mcmc() {
-		try {
-			let chiSquaredValues = [];
-			let p0 = [
-				lets.model.components[1].x,
-				lets.model.components[1].y,
-				lets.model.components[1].theta_e,
-				lets.model.components[1].ell,
-				lets.model.components[1].ang,
-				lets.model.components[0].x,
-				lets.model.components[0].y,
-				lets.model.components[0].size,
-				lets.model.components[0].ell,
-				lets.model.components[0].ang
-			];
-
-			// 定义一个包装函数来处理数据类型转换
-			const objectiveWrapper = (params) => {
-				// 确保输入是普通的JavaScript数组
-				const jsParams = Array.from(params);
-				const result = chi2_rescale(jsParams);
-				// console.log("计算结果:", result, "参数:", jsParams);
-				return result;
-			};
-
-			// 将包装函数暴露给Python
-			pyodide.globals.set("objective_js", objectiveWrapper);
-
-			// 执行优化
-			let result = await pyodide.runPythonAsync(`
-					import numpy as np
-					import emcee  # 引入emcee包
-					# 存储优化过程中的函数值
-					optimization_history = []
-					def objective(x):
-						try:
-							x_list = x.tolist() if hasattr(x, 'tolist') else list(x)
-							val = float(objective_js(x_list))
-							optimization_history.append(val)
-							return val
-						except Exception as e:
-							print(f"目标函数错误: {str(e)}")
-							raise
-
-					def run_optimization():
-						# 设置初始参数
-						initial_params = np.array(${JSON.stringify(p0)})
-						print(f"初始参数: {initial_params}")
-
-						# 定义MCMC采样的数量和步长
-						nwalkers = 50
-						nsteps = 1000
-
-						# 初始化步态
-						p0 = [initial_params + 1e-4 * np.random.randn(len(initial_params)) for _ in range(nwalkers)]
-
-						# 创建emcee的采样器
-						sampler = emcee.EnsembleSampler(nwalkers, len(initial_params), objective)
-
-						# 运行MCMC
-						sampler.run_mcmc(p0, nsteps)
-
-						# 获取结果
-						samples = sampler.get_chain(flat=True)
-						all_samples = []
-						all_samples.push(samples)  # 存储所有参数的样本
-						best_fit = np.mean(samples, axis=0)
-
-						print(f"优化完成: 最佳参数: {best_fit}")
-
-						# 创建并返回结果字典
-						return {
-							'x': best_fit.tolist(),
-							'fun': float(objective(best_fit)),
-							'iterations': nsteps,
-							'success': True,
-							'message': 'MCMC优化完成',
-							'history': optimization_history,
-							'all_samples': all_samples
-						}
-
-					# 执行函数并返回结果
-					run_optimization()
-				`);
-
-			// 处理结果
-			// 将Map转换为普通对象
-			result = Object.fromEntries(result.toJs());
-			console.log("优化结果:", result);
-
-			if (!result.success) {
-				console.warn("优化未成功收敛:", result.message);
-			}
-			let p1 = result.x;
-			chiSquaredValues = chiSquaredValues.concat(result.history);
-			drawChiSquareCurve(chiSquaredValues);
-			show_res(p1);
-			// 更新模型参数
-			lets.model.components[1].x = p1[0];
-			lets.model.components[1].y = p1[1];
-			lets.model.components[1].theta_e = p1[2];
-			lets.model.components[1].ell = p1[3];
-			lets.model.components[1].ang = p1[4];
-			lets.model.components[0].x = p1[5];
-			lets.model.components[0].y = p1[6];
-			lets.model.components[0].size = p1[7];
-			lets.model.components[0].ell = p1[8];
-			lets.model.components[0].ang = p1[9];
-
-			lets.loadModel(lets.model.components);
-			const angle = lets.lens.ang2pix({x: lets.model.components[0].x, y: lets.model.components[0].y})
-			lets.update(angle);
-			lets.freezeSrcModel = true;
-			updateCanvas(lets.model.components);
-			let all_samples = result.all_samples;
-			// 在优化完成后调用绘图函数
-			drawAnglePlot(all_samples);
-		} catch (error) {
-			console.error("优化过程出错:", error);
-		} finally {
-			// 清理全局变量
-			pyodide.globals.delete("objective_js");
-		}
-
-	}
-		// 绘制角图
-	function drawAnglePlot(samples) {
-		let ctx = document.getElementById("connerChart").getContext("2d");
-		let numParams = samples[0].length;  // 参数数量
-		let datasets = [];
-
-		// 为每个参数创建数据集
-		for (let i = 0; i < numParams; i++) {
-			datasets.push({
-				label: `参数 ${i + 1}`,
-				data: samples.map(sample => sample[i]),
-				borderColor: `hsl(${(i / numParams) * 360}, 100%, 50%)`,  // 使用不同颜色
-				tension: 0.1,
-				fill: false
-			});
-		}
-
-		let data = {
-			labels: Array.from({ length: samples.length }, (_, i) => i + 1),
-			datasets: datasets
-		};
-
-		let config = {
-			type: 'line',
-			data: data,
-			options: {
-				responsive: true,
-				scales: {
-					x: {
-						title: {
-							display: true,
-							text: '迭代次数'
-						}
-					},
-					y: {
-						title: {
-							display: true,
-							text: '参数值'
-						}
-					}
-				},
-				plugins: {
-					title: {
-						display: true,
-						text: 'MCMC过程中的参数变化'
-					},
-					legend: {
-						position: 'top',
-					}
-				}
-			}
-		};
-		new Chart(ctx, config);
-	}
-
-
-
 
 </script>
 
@@ -981,24 +784,29 @@
 <div>
 	<header class="inner">
 		<h1>Hoopla</h1>
-		<h4><a href="https://github.com/linan7788626/hoopla">Lens
+		<h4><a href="https://gitee.com/long-jianchao/Hoopla-Preprocessing_input_pics">Lens
 			Modeling in Javascript</a> with Elliptical Lenses and Sources</h4>
 	</header>
 </div>
 
-
 <table>
 	<tr class="container">
 		<td>
-			<div id="masscaption" class="barTitle">
+			<div  class="barTitle">
 				<p style="margin-top: 10px;margin-left: -8px;">Mass Model</p>
 			</div>
 		</td>
 		<td>
-			<div id="srccaption" class="barTitle">
+			<div  class="barTitle">
 				<p style="margin-top: 10px;margin-left: -8px;">Source Model</p>
 			</div>
 		</td>
+        <td>
+            <div  class="barTitle">
+                <p style="margin-top: 10px;margin-left: -8px;">Chi-Square Curve</p>
+            </div>
+        </td>
+
 	</tr>
 	<tr class="container">
 		<td>
@@ -1007,63 +815,47 @@
 		<td>
 			<div id="marking-container-src" class="bar" style="color: #666666;"></div>
 		</td>
+        <td>
+            <canvas id="Curve"  width="400" height="400" style="background-color: whitesmoke;border:1px solid #d3d3d3;float: left;margin: 5px;"></canvas>
+        </td>
 	</tr>
-	<tr class="container2">
+	<tr class="container">
 		<td>
-			<div id="masscaption" class="barTitle">
+			<div  class="barTitle">
 				<p style="margin-top: 10px;margin-left: -8px;">Source Plane</p>
 			</div>
 		</td>
 		<td>
-			<div id="srccaption" class="barTitle">
+			<div  class="barTitle">
 				<p style="margin-top: 10px;margin-left: -8px;">Image Plane</p>
 			</div>
 		</td>
-
+        <td>
+            <div  class="barTitle">
+                <p style="margin-top: 10px;margin-left: -8px;">Residual Map</p>
+            </div>
+        </td>
 	</tr>
 
-	<tr class="container2">
-		<td><div id="hoopla-srcmodel" class="bar">
-			<p id="tag" class="tooltip" style="display: block">
-				<span class="tooltiptext">Interactive Mode is activated, click left button of the mouse to turn into Freezed mode.</span>
-				Interactive
-			</p>
-		</div></td>
+	<tr class="container">
+		<td>
+			<div id="hoopla-srcmodel" class="bar">
+				<p id="tag" class="tooltip" style="display: block">
+					<span class="tooltiptext">Interactive Mode is activated, click left button of the mouse to turn into Freezed mode.</span>
+					Interactive
+				</p>
+			</div>
+		</td>
 		<td>
 			<div id="hoopla-prediction" class="bar">
-				<p id="tag2" style="background-color: #8ee58a;display: none;left: 730px">Running...</p>
+				<p id="tag2" style="background-color: #8ee58a;display: none;">Running...</p>
 			</div>
 		</td>
+        <td>
+            <canvas id="myCanvas"  width="400" height="400" style="border:1px solid #d3d3d3;float: left;margin: 5px;"></canvas>
+        </td>
+	</tr>
 
-	</tr>
-	<tr>
-		<td>
-			<div id="masscaption" class="barTitle">
-				<p style="margin-top: 10px;margin-left: -8px;">Residual Map</p>
-			</div>
-		</td>
-		<td>
-			<div id="masscaption" class="barTitle">
-				<p style="margin-top: 10px;margin-left: -8px;">Chi-Square Curve</p>
-			</div>
-		</td>
-		<td>
-			<div id="masscaption" class="barTitle">
-				<p style="margin-top: 10px;margin-left: -8px;">Conner Plot</p>
-			</div>
-		</td>
-	</tr>
-	<tr>
-		<td>
-			<canvas id="myCanvas"  width="400" height="400" style="border:1px solid #d3d3d3;float: left;margin: 5px;"></canvas>
-		</td>
-		<td>
-			<canvas id="Curve"  width="400" height="400" style="background-color: whitesmoke;border:1px solid #d3d3d3;float: left;margin: 5px;"></canvas>
-		</td>
-		<td>
-			<canvas id="connerChart" width="400" height="400" style="border:1px solid #d3d3d3;float: left;margin: 5px;"></canvas>
-		</td>
-	</tr>
 </table>
 
 <div class="container" style="width: 1200px">
@@ -1106,16 +898,7 @@
 			<br/>
 			<span id="imgURL" content="" style="width: 100%;height: 30px;color: black"></span>
 		</div>
-		<br />
-		<div class="form-item">
-			<label for="image-height">Image Height (px):</label>
-			<input type="number" id="image-height" placeholder="Enter the height of the image in pixels">
-		</div>
-		<br/>
-		<div class="form-item">
-			<label for="image-width">Image Width (px):</label>
-			<input type="number" id="image-width"  placeholder="Enter the width of the image in pixels">
-		</div>
+
 		<br/>
 		<div class="form-item">
 			<label for="pixel-scale">Pixel Scale (px):</label>
@@ -1143,8 +926,8 @@
 <style type="text/css">
 	body {
 		font-family: serif,Helvetica,Arial,sans-serif;
-		/*background-color: black;*/
-		background-image: url("images/bgi.jpg");
+		background-color: black;
+		/*background-image: url("images/bgi.jpg");*/
 		background-repeat: repeat-y;
 		background-size: contain;
 		color: #ffffff;
@@ -1165,7 +948,7 @@
 		font-size: medium;
 		color: black;
 		position: absolute;
-		left: 320px;
+		right: 10px;
 		padding: 5px;
 		border-radius: 5px;
 		transition: opacity 0.3s ease-in-out;
@@ -1250,34 +1033,14 @@
 		background-color: #f5f5f5;
 	}
 
-	#masscaption,#srcincaption {
-		padding-top:5px;
-		border: 1px solid #666666;
-		background-color: #666666;
-		width: 380px;
-		color: #ffffff;
-		padding-left: 20px;
-		margin-bottom: 10px;
-	}
-
-	#srccaption, #predcaption {
-		padding-top:5px;
-		border: 1px solid #666666;
-		background-color: #666666;
-		width: 380px;
-		color: #ffffff;
-		padding-left: 20px;
-		margin-bottom: 10px;
-	}
-
 	.bar {
 		width: 400px;
 		height: 400px;
 		float: left;
 		margin: 5px;
 		border: 1px solid #666666;
-		/*background-image: url("./images\\Figure_1.png");*/
-		background-size: 400px 400px;
+		position: relative;
+		/*background-size: 400px 400px;*/
 	}
 	.barTitle {
 		font-family: Arial,serif;
@@ -1289,14 +1052,11 @@
 		height: 20px;
 		float: left;
 		margin: 5px;
-		/*margin-bottom: -5px;*/
+		padding-top:5px;
 		border: 1px solid #666666;
 		background-color:#666666;
 	}
 
-	.greywords {
-		color: #666666;
-	}
 
 
 	.button {
@@ -1368,16 +1128,6 @@
 		width:100%;
 	}
 
-	#textbox1 {
-		border: 0px #666666;
-		border-radius: 2px;
-		font-size: 18px;
-		margin: 5px;
-		margin-bottom: 0px;
-		padding: 10px;
-		width: 620px;
-		height: 20px;
-	}
 
 	.tooltip {
 		position: relative;
