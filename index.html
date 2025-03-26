@@ -11,8 +11,8 @@
 <script type="text/javascript" src="hoopla.js"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.22.1/full/pyodide.js"></script>
 <script type="text/javascript">
-	var src = "images/Figure_7_2.png";
-	var img_name = "Figure_7_2.png";
+	var src = "images/Figure_13.png";
+	var img_name = "Figure_13.png";
 	var imgd = new Image();
 	imgd.crossOrigin="anonymous";
 	imgd.src = src;
@@ -257,7 +257,7 @@
 					canvas[i].height = height;
 					canvas[i].width = width;
 				}
-                for (let i = 0; i < canvas.length; i++){
+                for (let i = 0; i < barTitle.length; i++){
 					barTitle[i].style.width = width + "px";
 				}
             }
@@ -364,7 +364,6 @@
 
 	//给定一组镜头参数,对每个图像点调用calAlpha()和calImage()计算预测图像光度值
 	function model_lensed_images(p, x1, x2) {
-		// console.log("model_lensed_images");
 		let xc1, xc2, re, ql, phl;
 		xc1 = p[0];
 		xc2 = p[1];
@@ -392,10 +391,10 @@
 	function calAlpha(xl,yl,xlc,ylc,re,ql,phl) {
 		// console.log('calAlpha');
 		if(ql <1.0){
-			phl = Math.PI * ((-phl+90) / 180);
+			phl = Math.PI * ((phl) / 180);
 		}else{
 			ql = 1.0/ql-0.0000000001;
-			phl = Math.PI * (-phl / 180);
+			phl = Math.PI * (phl / 180);
 		}
 
 		const alpha = {x: 0.0, y: 0.0};
@@ -437,7 +436,7 @@
 		// console.log('calImage');
 		let r2, res, phirad;
 		// Loop over x and y. Store 1-D pixel index as i.
-		phirad = -phs/180*Math.PI;
+		phirad = phs/180*Math.PI;
 		// 重新进行坐标变换，得到了像素代表的坐标
 		let xnew = (xs-xsc) * Math.cos(phirad) + (ys-ysc) * Math.sin(phirad)
 		let ynew = (ys-ysc) * Math.cos(phirad) - (xs-xsc) * Math.sin(phirad)
@@ -774,7 +773,7 @@
 			tag2.style.display = 'none';
 			lets.setFreezed();
 		}
-		timerCallback(); // 将迭代次数作为参数传递给timerCallback函数
+		await timerCallback(); // 将迭代次数作为参数传递给timerCallback函数
 	}
 
 
@@ -806,7 +805,6 @@
                 <p style="margin-top: 10px;margin-left: -8px;">Chi-Square Curve</p>
             </div>
         </td>
-
 	</tr>
 	<tr class="container">
 		<td>

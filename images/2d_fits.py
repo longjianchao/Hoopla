@@ -76,7 +76,7 @@ def save_improved_pars(filename1, par_array, filename2):
         json.dump(data, outfile, indent=4)
 
 
-def twoD_Gaussian((x, y), amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+def twoD_Gaussian(x, y, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     xo = float(xo)
     yo = float(yo)
     a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
@@ -147,7 +147,7 @@ def lensing_signals_sie(x1, x2, xc1, xc2, q, rc, re, pha):
 
     return alpha1, alpha2 #, kappa, shear1, shear2, mu
 
-def create_images((x1,x2),xc1,xc2,re,ql,pha,yc1,yc2,sigs,qs,phs):
+def create_images(x1,x2,xc1,xc2,re,ql,pha,yc1,yc2,sigs,qs,phs):
     sig1 = sigs/qs*0.693
     sig2 = sigs*qs*0.693
     al1, al2 = lensing_signals_sie(x1, x2, xc1, xc2, ql, 0.0, re, pha)
@@ -175,8 +175,8 @@ if __name__ == '__main__':
     x2 = np.linspace(-bsz/2.0, bsz/2.0-dsx, nnn)+dsx/2.0
     x1, x2 = np.meshgrid(x1, x2)
 
-    fname = "./ering.jpg"
-    data = loadin_images(fname)
+    filename = "C:/Users/81417/Desktop/毕设/Hoopla-Preprocessing_input_pics/images/ering.jpg"
+    data = loadin_images(filename)
 
     fname_json = sys.argv[1]
     initial_guess = load_guessed_pars(fname_json)
