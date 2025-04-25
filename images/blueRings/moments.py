@@ -85,6 +85,6 @@ if __name__ == '__main__':
     ca/=(ca[0]**2+ca[1]**2)
 
     theta=numpy.arccos(ca[0]*va[0]+ca[1]*va[1])
-    print theta
+    print(theta)
 
 

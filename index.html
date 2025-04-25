@@ -11,8 +11,8 @@
 <script type="text/javascript" src="hoopla.js"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.22.1/full/pyodide.js"></script>
 <script type="text/javascript">
-	var src = "images/Figure_13.png";
-	var img_name = "Figure_13.png";
+	var src = "images/Figure_17.png";
+	var img_name = "Figure_17.png";
 	var imgd = new Image();
 	imgd.crossOrigin="anonymous";
 	imgd.src = src;
@@ -175,17 +175,47 @@
 				let data = JSON.parse(ms_src.getValue());
 				let components = data.map(function(d) {
 					let coords = getCoords(d);
-					return {
-						plane: "source",
-						size: getSize(d),
-						ell: getAratio(d),
-						ang: getAngle(d),
-						x: coords.x,
-						y: coords.y
+					// return {
+					// 	plane: "source",
+					// 	size: getSize(d),
+					// 	ell: getAratio(d),
+					// 	ang: getAngle(d),
+					// 	x: coords.x,
+					// 	y: coords.y,
+					// }
+					return generateMGE(
+						coords.x,
+						coords.y,
+						getAratio(d),
+						getAngle(d),
+						getSize(d),
+						6  // 你想要的高斯分量数量
+					);
+					function generateMGE(x, y, ell, angle, size, ngauss = 6) {
+						let gaussians = [];
+						let sigma_min = size * 0.3;
+						let sigma_max = size * 2.0;
+
+						for (let i = 0; i < ngauss; i++) {
+							let sigma = sigma_min * Math.pow(sigma_max / sigma_min, i / (ngauss - 1));
+							let I = size / ngauss * Math.exp(-sigma); // 简化的亮度分配（可根据 profile 调整）
+							gaussians.push({ sigma, I, ell, angle });
+						}
+						return {
+							type: "mge",
+							plane: "source",
+							x: x,
+							y: y,
+							ell: ell,
+							ang: angle,
+							size: size,
+							gaussians: gaussians
+						};
 					}
 				});
 				lets.updateModel(components);
 			}
+
 			let debouncedUpdateModel = _.debounce(updateModel, 200);
 			ms_src.on('marking-surface:change', debouncedUpdateModel);
 		}
@@ -194,7 +224,11 @@
 	}
 
 	window.onload = async function (e) {
-		await initPyodide();  // 先将pyoide启动
+		try {
+			await initPyodide();  // 先将pyoide启动
+		}catch (e) {
+			console.log("pyoide启动失败，错误:",e);
+		}
 		setup();
 		document.getElementById('imageUpload').onclick = function (e) {
 			document.getElementById("imgURL").innerText = "";
@@ -526,7 +560,12 @@
 				chi[i] = (red[i] - testimg[i]) / redstd / redstd;
 			}
 		}
+
 		let res = optimize.vector.dot(chi, chi);
+		if(isNaN(res)) {
+			console.log('Error: NaN result');
+
+		}
 		console.log('res:'+res/red.length);
 
 		for (let x = 0; x < imgd.height; ++x) {
@@ -773,7 +812,11 @@
 			tag2.style.display = 'none';
 			lets.setFreezed();
 		}
-		await timerCallback(); // 将迭代次数作为参数传递给timerCallback函数
+		try {
+			await timerCallback(); // 将迭代次数作为参数传递给timerCallback函数
+		} catch (error){
+			console.log("An error occurred:", error);
+		}
 	}
 
 

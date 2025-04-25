@@ -97,6 +97,7 @@
 
 	Hoopla.prototype.updateModel = function(components) {
 		console.log('updateModel');
+		console.log(components);
 		if (components.length === 0) {
 			if (this.model.components.length === 0) {
 				let source = this.model.source;
