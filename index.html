@@ -11,8 +11,8 @@
 <script type="text/javascript" src="hoopla.js"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.22.1/full/pyodide.js"></script>
 <script type="text/javascript">
-	var src = "images/Figure_17.png";
-	var img_name = "Figure_17.png";
+	var src = "images/Figure_26.png";
+	var img_name = "Figure_26.png";
 	var imgd = new Image();
 	imgd.crossOrigin="anonymous";
 	imgd.src = src;
@@ -87,7 +87,6 @@
 				let a = d.rx * lets.pixscale;
 				let b = d.ry * lets.pixscale;
 				return Math.sqrt(a * b);
-				//return Math.max(a , b);
 			}
 
 			function getAratio(d) {
@@ -154,7 +153,6 @@
 				let a = d.rx * lets.pixscale;
 				let b = d.ry * lets.pixscale;
 				return Math.sqrt(a * b);
-				//return Math.max(a , b);
 			}
 
 			function getAratio(d) {
@@ -175,42 +173,15 @@
 				let data = JSON.parse(ms_src.getValue());
 				let components = data.map(function(d) {
 					let coords = getCoords(d);
-					// return {
-					// 	plane: "source",
-					// 	size: getSize(d),
-					// 	ell: getAratio(d),
-					// 	ang: getAngle(d),
-					// 	x: coords.x,
-					// 	y: coords.y,
-					// }
-					return generateMGE(
-						coords.x,
-						coords.y,
-						getAratio(d),
-						getAngle(d),
-						getSize(d),
-						6  // 你想要的高斯分量数量
-					);
-					function generateMGE(x, y, ell, angle, size, ngauss = 6) {
-						let gaussians = [];
-						let sigma_min = size * 0.3;
-						let sigma_max = size * 2.0;
-
-						for (let i = 0; i < ngauss; i++) {
-							let sigma = sigma_min * Math.pow(sigma_max / sigma_min, i / (ngauss - 1));
-							let I = size / ngauss * Math.exp(-sigma); // 简化的亮度分配（可根据 profile 调整）
-							gaussians.push({ sigma, I, ell, angle });
-						}
-						return {
-							type: "mge",
-							plane: "source",
-							x: x,
-							y: y,
-							ell: ell,
-							ang: angle,
-							size: size,
-							gaussians: gaussians
-						};
+					return {
+						plane: "source",
+						size: getSize(d),
+						ell: getAratio(d),
+						ang: getAngle(d),
+						x: coords.x,
+						y: coords.y,
+						n_sersic: 1.0,
+						// Ie: 1.0,
 					}
 				});
 				lets.updateModel(components);
@@ -304,12 +275,13 @@
 				return;
 			}
 			if (regex.test(pixscale)) {
+				lets.pixscale = pixscale;
 				lets.model.pixscale = pixscale;
 			} else {
 				window.alert('Please re-enter the pixel scale of the image correctly!');
 				return;
 			}
-
+			console.log(lets);
 			ms.tools.pop();
 			ms_src.tools.pop();
 			document.getElementById('newPixelScale').value = pixscale;
@@ -351,13 +323,14 @@
 				re = lets.model.components[1].theta_e;
 				ql = lets.model.components[1].ell;
 				phl = lets.model.components[1].ang;
-				let yc1, yc2, sig2, qs, phs;
+				let yc1, yc2, sig2, qs, phs, n;
 				yc1 = lets.model.components[0].x;
 				yc2 = lets.model.components[0].y;
 				sig2 = lets.model.components[0].size;
 				qs = lets.model.components[0].ell;
 				phs = lets.model.components[0].ang;
-				let p = [xc1, xc2, re, ql, phl, yc1, yc2, sig2, qs, phs];
+				n = lets.model.components[0].n_sersic;
+				let p = [xc1, xc2, re, ql, phl, yc1, yc2, sig2, qs, phs,n];
 				show_res(p);
                 // 清理卡方曲线图
                 if (chartInstance) {
@@ -411,14 +384,15 @@
 		let y1 = x1 - alpha.x;
 		let y2 = x2 - alpha.y;
 
-		let yc1, yc2, sig2, qs, phs;
+		let yc1, yc2, size, qs, phs, n, Ie;
 		yc1 = p[5];
 		yc2 = p[6];
-		sig2 = p[7];
+		size = p[7];
 		qs = p[8];
 		phs = p[9];
-
-		return calImage(y1, y2, yc1, yc2, sig2, qs, phs);
+		n = p[10];
+		Ie = p[11];
+		return calImage(y1, y2, yc1, yc2, size, qs, phs, n, Ie);
 	}
 
 	//计算单个镜头成像对图像（x，y）的弯曲效应
@@ -446,7 +420,6 @@
 		sy_r = -x * sn + y * cs;
 
 		psi = Math.sqrt(ql*ql*(rc*rc+sx_r*sx_r)+sy_r*sy_r);
-
 		sq = Math.sqrt(1.0-ql*ql);
 		pd1 = psi + rc;
 		pd2 = psi + rc*ql*ql;
@@ -466,18 +439,28 @@
 	}
 
 	//根据弯曲后的点(x- αx, y-αy)计算该点在重构图像中的光度值。
-	function calImage(xs, ys, xsc, ysc, sig2, qs, phs) {
+	function calImage(xs, ys, xsc, ysc, size, qs, phs, n = 1.0) {
 		// console.log('calImage');
 		let r2, res, phirad;
+		// const n = 1.0;
+		let b_n = 1.9992 * n - 0.3271;
+		const Re = size;
+		// let Ie = 1.0 / (2 * Math.PI * Re**2 * n * Math.exp(b_n) / b_n**(2*n));  // 保证总光度一致
 		// Loop over x and y. Store 1-D pixel index as i.
 		phirad = phs/180*Math.PI;
 		// 重新进行坐标变换，得到了像素代表的坐标
 		let xnew = (xs-xsc) * Math.cos(phirad) + (ys-ysc) * Math.sin(phirad)
 		let ynew = (ys-ysc) * Math.cos(phirad) - (xs-xsc) * Math.sin(phirad)
-		r2 = ( xnew*xnew/qs + ynew*ynew*qs );
+		// Gaussian方法
+		// r2 = ( xnew*xnew/qs + ynew*ynew*qs );
 		// 计算得到区域亮度因子
-		res = Math.exp(-r2/(2.0*sig2*sig2*0.693));
-		return res; // Allow this function to be chainable
+		// let sig2 = size ** 2 * 0.693;
+		// res = Math.exp(-r2/(2.0 * sig2));
+		let r_ell = Math.sqrt((xnew * xnew) / qs + (ynew * ynew) * qs);
+		// 归一化并代入 Sersic profile（n = 1）
+		let rnorm = r_ell / Re;
+		res = Math.exp(-b_n * (rnorm**(1/n)));  //这里做了sersic函数的归一化处理
+		return res; 
 	}
 
 	//计算标准差
@@ -509,28 +492,34 @@
 		let data = dstdata.data;
 		//图像存储方式为RGBA，一个像素就是由（R,G,B,A）来存储的，将图像映射到红色通道上，所以长度为原数据长度的1/4
 		let red = new Array(data.length/4);
-		for(let i = 0, n = red.length; i < n; i ++) {
-			red[i] = data[i*4]/255;
+		for (let i = 0, n = red.length; i < n; i ++){
+			red[i] = data[i]/255;
+		}
+		let gray = new Float32Array(imgd.width * imgd.height );
+		for(let i = 0, n = gray.length; i < n; i ++) {
+			const r = data[i * 4];
+			const g = data[i * 4 + 1];
+			const b = data[i * 4 + 2];
+			gray[i] = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
 		}
 		//重缩放因子，可以提高采样效率，但数值过大可能会导致图像失真
 		const fscale = 4;
-		const chi = new Array(red.length / fscale / fscale);
-		const testimg = new Array(red.length);
-		const redstd = standardDeviation(red);
-		// const redstd = 1.0;
+		const chi = new Array(gray.length / fscale / fscale);
+		const testimg = new Array(gray.length);
+		const redstd = standardDeviation(gray);
+
 		for(let row = 0 ; row < imgd.height ; row+=fscale){
 			for(let col = 0 ; col < imgd.width ; col+=fscale){
 				let i,i2,x,y;
 				i = row * imgd.width + col;
 				i2 = row/fscale*imgd.width/fscale+col/fscale;
 				x = col* lets.pixscale - lets.pixscale*lets.width/2 + lets.pixscale/2;
-				// x = (col - lets.width/2 + 0.5) * lets.pixscale;
 				y = -row* lets.pixscale + lets.pixscale*lets.height/2 - lets.pixscale/2;
-				// y = (lets.height - row - 0.5) * lets.pixscale;
 				testimg[i] = model_lensed_images(p, x, y);
-				chi[i2] = (red[i] - testimg[i])/redstd/redstd/(chi.length);
+				chi[i2] = (gray[i] - testimg[i])/redstd/redstd/(chi.length);
 			}
 		}
+		// console.log(maxval);
 		return optimize.vector.dot(chi, chi);
 	}
 
@@ -541,40 +530,49 @@
 		let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
 		let data = dstdata.data;
 
-		let red = new Array(data.length/4);
-		for(let i = 0, n = red.length; i < n; i ++) {
-			red[i] = data[i*4]/255;
+		// let red = new Array(data.length/4);
+		let grayMaxval = 0;
+		let gray = new Float32Array(imgd.width * imgd.height );
+		for(let i = 0, n = gray.length; i < n; i ++) {
+			const r = data[i * 4];
+			const g = data[i * 4 + 1];
+			const b = data[i * 4 + 2];
+			gray[i] = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+			if(grayMaxval<gray[i]) grayMaxval = gray[i];
 		}
+		console.log(grayMaxval);
 
-		let chi = new Array(red.length);
-		let testimg = new Array(red.length);
-		let redstd = standardDeviation(red);
+		let chi = new Array(gray.length);
+		let testimg = new Array(gray.length);
+		let redstd = standardDeviation(gray);
 		let i,x,y;
+		let maxValue = 0;
 		for (let row = 0; row < lets.height; row++) {
 			for (let col = 0; col < lets.width; col++) {
 				i = row * lets.width + col;
 				x = col * lets.pixscale - lets.pixscale*lets.width/2 ;
 				y = -row * lets.pixscale + lets.pixscale*lets.height/2 ;
 				testimg[i] = model_lensed_images(p, x, y);
-				//chi[i] = (red[i] - testimg[i])*red[i]*red[i];
-				chi[i] = (red[i] - testimg[i]) / redstd / redstd;
+				if(maxValue<testimg[i]) maxValue = testimg[i];
+				chi[i] = (gray[i] - testimg[i]) / redstd / redstd;
 			}
 		}
-
+		// console.log(testimg);
+		console.log("max value = ",maxValue);
 		let res = optimize.vector.dot(chi, chi);
 		if(isNaN(res)) {
 			console.log('Error: NaN result');
 
 		}
-		console.log('res:'+res/red.length);
+		console.log('res:'+res/gray.length);
 
 		for (let x = 0; x < imgd.height; ++x) {
 			for (let y = 0; y < imgd.width; ++y) {
 				let index = (x * imgd.width + y) * 4;   //4是image的4个通道r,g,b和透明度
 				let index2 = (x * imgd.width + y);
-				// data[index]   = Math.floor(red[index2]*255);    // red
-				// data[index]   = Math.floor(testimg[index2]*255);    // red
-				data[index]   = Math.round(Math.abs(testimg[index2]-red[index2])*255);    // red
+				testimg[index2] /= maxValue;
+				// data[index]   = Math.round(testimg[index2]*255);    // red
+				data[index]   = Math.round(Math.abs(testimg[index2]-gray[index2])*255);    // red
 				data[++index] = 0;    // green
 				data[++index] = 0;    // blue
 				data[++index] = 255;      // alpha
@@ -661,15 +659,38 @@
 					lets.model.components[0].y,
 					lets.model.components[0].size,
 					lets.model.components[0].ell,
-					lets.model.components[0].ang
+					lets.model.components[0].ang,
+					lets.model.components[0].n_sersic,
+					// lets.model.components[0].Ie,
 				];
-
+				console.log(p0);
 				// 定义一个包装函数来处理数据类型转换
 				const objectiveWrapper = (params) => {
 					// 确保输入是普通的JavaScript数组
 					const jsParams = Array.from(params);
-                    // console.log("计算结果:", result, "参数:", jsParams);
+
+					let fullParams = [
+						0,//lets.model.components[1].x,
+						0,//lets.model.components[1].y,
+						0.0001,//lets.model.components[1].theta_e,
+						1,//lets.model.components[1].ell,
+						0,//lets.model.components[1].ang,
+						// lets.model.components[0].x,
+						jsParams[0], //source.x
+						// lets.model.components[0].y,
+						jsParams[1], // source.y
+						jsParams[2], // size
+						// lets.model.components[0].ell,
+						jsParams[3], //ell
+						// lets.model.components[0].ang,
+						jsParams[4], //ang
+						// lets.model.components[0].n_sersic,
+						jsParams[5],
+						// jsParams[6],
+					];
+
 					return chi2_rescale(jsParams);
+					// return chi2_rescale(fullParams);
 				};
 
 				// 将包装函数暴露给Python
@@ -742,8 +763,36 @@
 				let p1 = result.x;
 				chiSquaredValues = chiSquaredValues.concat(result.history);
 				drawChiSquareCurve(chiSquaredValues);
+				let fullParams = [
+					0,//lets.model.components[1].x,
+					0,//lets.model.components[1].y,
+					0.0001,//lets.model.components[1].theta_e,
+					1,//lets.model.components[1].ell,
+					0,//lets.model.components[1].ang,
+					// lets.model.components[0].x,
+					p1[0], //x
+					// lets.model.components[0].y,
+					p1[1], //y
+					p1[2], // size
+					// lets.model.components[0].ell,
+					p1[3], //ell
+					// lets.model.components[0].ang,
+					p1[4],
+					// lets.model.components[0].n_sersic
+					p1[5],
+					// p1[6],
+				];
+				// show_res(fullParams);
 				show_res(p1);
 				// 更新模型参数
+				// lets.model.components[0].x = p1[0];
+				// lets.model.components[0].y = p1[1];
+				// lets.model.components[0].size = p1[2];
+				// lets.model.components[0].ell = p1[3];
+				// lets.model.components[0].ang = p1[4];
+				// lets.model.components[0].n_sersic = p1[5];
+				// lets.model.components[0].Ie = p1[6];
+
 				lets.model.components[1].x = p1[0];
 				lets.model.components[1].y = p1[1];
 				lets.model.components[1].theta_e = p1[2];
@@ -754,13 +803,14 @@
 				lets.model.components[0].size = p1[7];
 				lets.model.components[0].ell = p1[8];
 				lets.model.components[0].ang = p1[9];
+				lets.model.components[0].n_sersic = p1[10];
+				// lets.model.components[0].Ie = p1[11];
 				lets.loadModel(lets.model.components);
 				const angle = lets.lens.ang2pix({x: lets.model.components[0].x, y: lets.model.components[0].y});
 				lets.update(angle);
 				lets.freezeSrcModel = true;
 				updateCanvas(lets.model.components);
-				console.log(lets)
-
+				console.log(lets.model.components);
 			} catch (error) {
 				console.error("优化过程出错:", error);
 			} finally {
@@ -784,7 +834,7 @@
 		ms_src.tools[0].mark.x = ang2.x;
 		ms_src.tools[0].mark.y = ang2.y;
 		ms_src.tools[0].mark.angle = components[0].ang;
-		ms_src.tools[0].mark.ry = components[0].size/(lets.lens.pixscale*Math.sqrt(components[0].ell ));
+		ms_src.tools[0].mark.ry = components[0].size/(lets.lens.pixscale*Math.sqrt(components[0].ell));
 		ms_src.tools[0].mark.rx = ms_src.tools[0].mark.ry *components[0].ell;
 		ms_src.renderTools();
 	}
@@ -808,7 +858,7 @@
 
 		let timerCallback = async () => {
 			await timer(6); // 执行1次timer函数
-			console.log(lets.model);
+			// console.log(lets.model);
 			tag2.style.display = 'none';
 			lets.setFreezed();
 		}
@@ -818,7 +868,6 @@
 			console.log("An error occurred:", error);
 		}
 	}
-
 
 </script>
 
@@ -915,9 +964,7 @@
 	<button class="button" id="optimization" onclick="do_fit()"
 			style="vertical-align:middle;width:193px"><span>Optimization</span>
 	</button>
-	<button class="button" id="mcmcOptimization" onclick="mcmc()"
-			style="vertical-align:middle;width:193px"><span>MCMC</span>
-	</button>
+
 </div>
 <div class="container" style="height: 50px;">
 	<span>Current pixel-scale: </span>

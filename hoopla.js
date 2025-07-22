@@ -57,16 +57,7 @@
 		this.model = {
 			name: 'Example',
 			src:" http://lenszoo.files.wordpress.com/2013/12/asw0009cjs-zoomed.jpg",
-			PSFwidth: 1.2,
 			pixscale: this.pixscale,
-			source: {
-				plane: "source",
-				size:  0.7,
-				x: 100.0,
-				y:  100.0,
-				ell: 0.7,
-				ang: 32
-			},
 			components: [
 				{
 					plane: "source",
@@ -97,7 +88,6 @@
 
 	Hoopla.prototype.updateModel = function(components) {
 		console.log('updateModel');
-		console.log(components);
 		if (components.length === 0) {
 			if (this.model.components.length === 0) {
 				let source = this.model.source;
@@ -477,7 +467,9 @@
 		src.y = coords.y;
 		this.model.components[0].x = coords.x;
 		this.model.components[0].y = coords.y;
+		src.n = this.model.components[0].n_sersic;
 		// console.log(src);
+
 		// Add the source back
 		this.lens.add(src);
 		// Paste original image
