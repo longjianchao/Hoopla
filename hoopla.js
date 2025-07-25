@@ -56,7 +56,7 @@
 		// this.models = [];
 		this.model = {
 			name: 'Example',
-			src:" http://lenszoo.files.wordpress.com/2013/12/asw0009cjs-zoomed.jpg",
+			src:"",
 			pixscale: this.pixscale,
 			components: [
 				{

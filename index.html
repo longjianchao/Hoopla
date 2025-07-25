@@ -10,6 +10,11 @@
 <script type="text/javascript" src="lib/optimize.js"></script>
 <script type="text/javascript" src="hoopla.js"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.22.1/full/pyodide.js"></script>
+<script type="text/javascript" src="lib/hdf5.js"></script>
+<script type="text/javascript" src="lib/fits.js"></script>
+<!-- <script src="https://cdn.jsdelivr.net/npm/fitsjs@0.6.6/lib/fits.min.js"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net/npm/jsfive@0.3.7/dist/hdf5.js"></script> -->
+
 <script type="text/javascript">
 	var src = "images/Figure_26.png";
 	var img_name = "Figure_26.png";
@@ -30,9 +35,9 @@
 			// 分别加载numpy和scipy，并添加错误处理
 			try {
 				await pyodide.loadPackage('numpy');
-				console.log("numpy加载完成");
+				// console.log("numpy加载完成");
 				await pyodide.loadPackage('scipy');
-				console.log("scipy加载完成");
+				// console.log("scipy加载完成");
 				console.log("所有Python包加载完成");
 				return true;
 			} catch (packageError) {
@@ -43,6 +48,7 @@
 			return false;
 		}
 	}
+	
 	// 初始化工作，包括对象的生成及赋值，以及一些函数操作
 	function setup(){
 		// Create a hoopla object. The ID is that of the <div>
@@ -209,32 +215,86 @@
 		document.getElementById("close-form-button").onclick = function () {
 			document.querySelector('.popup-form').classList.remove('active');
 		}
-		document.getElementById("image-url").onchange = function () {
+
+		document.getElementById("image-url").onchange = async function () {
 			let imageFile = this.files[0];
-			if (imageFile && imageFile.type) {
-				const fileType = imageFile.type;
-				if (fileType !== 'image/jpeg' && fileType !== 'image/png' && fileType !== 'image/jpg') {
-					window.alert('Only files in jpg or png format can be uploaded!');
-					return;
-				}
-			} else {
-				window.alert('Please select a valid file!');
+			if (!imageFile || (!imageFile.name.endsWith('.h5')&&!imageFile.name.match(/\.(fits|fit|fts)$/i))) {
+				window.alert('Only HDF5 (.h5) or Fits(.fits) files are allowed!');
 				return;
 			}
-			console.log(imageFile);
+			window._uploadedH5File = imageFile; // 保存到全局
+			
 			let url = window.URL.createObjectURL(imageFile);
 			img_name = imageFile.name;
 			document.getElementById("imgURL").innerText = url;
+			
+		};
+		function getImage(imageData, width, height){
+			let canvas = document.createElement('canvas');
+			canvas.width = width;
+			canvas.height = height;
+			let ctx = canvas.getContext('2d');
+			let imgData = ctx.createImageData(width, height);
+			for (let i = 0; i < height; i++) {
+				for (let j = 0; j < width; j++) {
+					let val = imageData[i * width + j]; // 1D数组
+					let idx = (i * width + j) * 4;
+					imgData.data[idx] = val*255; // R
+					imgData.data[idx + 1] = 0; // G
+					imgData.data[idx + 2] = 0; // B
+					imgData.data[idx + 3] = 255; // A
+				}
+			}
+			// console.log(imgData);
+			ctx.putImageData(imgData, 0, 0);
+			url = canvas.toDataURL();
+			return url;
+			
 		}
 		document.getElementById("confirm").onclick = function () {
 			let url = document.getElementById("imgURL").innerText;
+			let imageFile = window._uploadedH5File;
+			if (!imageFile) {
+				window.alert('Please select a valid file!');
+				return;
+			}
+			let shape, imageData, height, width;
+			let reader = new FileReader();
+			if(imageFile.name.endsWith('.h5')){
+				reader.onloadend = function(evt) { 
+					let barr = evt.target.result;
+					let f = new hdf5.File(barr, imageFile.name);
+					let dataset = f.get('image');
+					imageData = dataset.value;
+					shape = dataset.shape;
+					height = shape[0];
+					width = shape[1];
+					url = getImage(imageData,width,height);
+					img0.src = url;
+				}
+				reader.readAsArrayBuffer(imageFile);
+			}else if(imageFile.name.match(/\.(fits|fit|fts)$/i)){	
+				new astro.FITS(imageFile, function(fits) {
+				const hdu = fits.getHDU();
+				const header = hdu.header;
+				const dataUnit = hdu.data;
+				imageData = dataUnit.getFrame();
+				width = header.get('NAXIS1');
+				height = header.get('NAXIS2');
+				dataUnit.getFrame(0, function(imageData) {
+					url = getImage(imageData,width,height);
+					img0.src = url;
+				});
+				});
+			}
+			
 			let img0 = new Image();
-            img0.onload = function() {
-                let width = img0.width;
-                let height = img0.height;
-                console.log("图片宽度:", width, "高度:", height);
-                lets.width = width;
-                lets.height = height;
+			img0.onload = function() {
+				let width = img0.width;
+				let height = img0.height;
+				console.log("图片宽度:", width, "高度:", height);
+				lets.width = width;
+				lets.height = height;
 				img.src = url;
 				img_src.src = url;
 				imgd.src = url; imgd.width = img0.width; imgd.height = img0.height;
@@ -250,23 +310,22 @@
 				lets.paper.width = width;
 				lets.paper.height = height;
 				lets.resetLens(width, height,pixscale);
-                let bar = document.getElementsByClassName("bar");
-                let barTitle = document.getElementsByClassName("barTitle");
+				let bar = document.getElementsByClassName("bar");
+				let barTitle = document.getElementsByClassName("barTitle");
 				let canvas = document.querySelectorAll('canvas');
-                for (let i = 0; i < bar.length; i++){
+				for (let i = 0; i < bar.length; i++){
 					bar[i].style.backgroundImage = "url(" + url + ")";
-                    bar[i].style.height = height + "px";
-                    bar[i].style.width = width + "px";
-                }
-                for (let i = 0; i < canvas.length; i++){
+					bar[i].style.height = height + "px";
+					bar[i].style.width = width + "px";
+				}
+				for (let i = 0; i < canvas.length; i++){
 					canvas[i].height = height;
 					canvas[i].width = width;
 				}
-                for (let i = 0; i < barTitle.length; i++){
+				for (let i = 0; i < barTitle.length; i++){
 					barTitle[i].style.width = width + "px";
 				}
-            }
-            img0.src = url;
+			}
 
 			let pixscale = document.getElementById("pixel-scale").value;
 			const regex = /^\d{0,2}(\.\d{0,6})?$/;
@@ -493,20 +552,20 @@
 		//图像存储方式为RGBA，一个像素就是由（R,G,B,A）来存储的，将图像映射到红色通道上，所以长度为原数据长度的1/4
 		let red = new Array(data.length/4);
 		for (let i = 0, n = red.length; i < n; i ++){
-			red[i] = data[i]/255;
+			red[i] = data[i*4]/255;
 		}
-		let gray = new Float32Array(imgd.width * imgd.height );
-		for(let i = 0, n = gray.length; i < n; i ++) {
-			const r = data[i * 4];
-			const g = data[i * 4 + 1];
-			const b = data[i * 4 + 2];
-			gray[i] = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
-		}
+		// let gray = new Float32Array(imgd.width * imgd.height );
+		// for(let i = 0, n = gray.length; i < n; i ++) {
+		// 	const r = data[i * 4];
+		// 	const g = data[i * 4 + 1];
+		// 	const b = data[i * 4 + 2];
+		// 	gray[i] = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+		// }
 		//重缩放因子，可以提高采样效率，但数值过大可能会导致图像失真
 		const fscale = 4;
-		const chi = new Array(gray.length / fscale / fscale);
-		const testimg = new Array(gray.length);
-		const redstd = standardDeviation(gray);
+		const chi = new Array(red.length / fscale / fscale);
+		const testimg = new Array(red.length);
+		const redstd = standardDeviation(red);
 
 		for(let row = 0 ; row < imgd.height ; row+=fscale){
 			for(let col = 0 ; col < imgd.width ; col+=fscale){
@@ -516,7 +575,7 @@
 				x = col* lets.pixscale - lets.pixscale*lets.width/2 + lets.pixscale/2;
 				y = -row* lets.pixscale + lets.pixscale*lets.height/2 - lets.pixscale/2;
 				testimg[i] = model_lensed_images(p, x, y);
-				chi[i2] = (gray[i] - testimg[i])/redstd/redstd/(chi.length);
+				chi[i2] = (red[i] - testimg[i])/redstd/redstd/(chi.length);
 			}
 		}
 		// console.log(maxval);
@@ -530,21 +589,27 @@
 		let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
 		let data = dstdata.data;
 
-		// let red = new Array(data.length/4);
-		let grayMaxval = 0;
-		let gray = new Float32Array(imgd.width * imgd.height );
-		for(let i = 0, n = gray.length; i < n; i ++) {
-			const r = data[i * 4];
-			const g = data[i * 4 + 1];
-			const b = data[i * 4 + 2];
-			gray[i] = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
-			if(grayMaxval<gray[i]) grayMaxval = gray[i];
+		let red = new Array(data.length/4);
+		let maxRed = 0;
+		for (let i = 0, n = red.length; i < n; i ++){
+			red[i] = data[i*4]/255;
+			if(maxRed<red[i]) maxRed=red[i];
 		}
-		console.log(grayMaxval);
+		console.log("像素最大值：",maxRed);
+		// let grayMaxval = 0;
+		// let gray = new Float32Array(imgd.width * imgd.height );
+		// for(let i = 0, n = gray.length; i < n; i ++) {
+		// 	const r = data[i * 4];
+		// 	const g = data[i * 4 + 1];
+		// 	const b = data[i * 4 + 2];
+		// 	gray[i] = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+		// 	if(grayMaxval<gray[i]) grayMaxval = gray[i];
+		// }
+		// console.log(grayMaxval);
 
-		let chi = new Array(gray.length);
-		let testimg = new Array(gray.length);
-		let redstd = standardDeviation(gray);
+		let chi = new Array(red.length);
+		let testimg = new Array(red.length);
+		let redstd = standardDeviation(red);
 		let i,x,y;
 		let maxValue = 0;
 		for (let row = 0; row < lets.height; row++) {
@@ -554,7 +619,7 @@
 				y = -row * lets.pixscale + lets.pixscale*lets.height/2 ;
 				testimg[i] = model_lensed_images(p, x, y);
 				if(maxValue<testimg[i]) maxValue = testimg[i];
-				chi[i] = (gray[i] - testimg[i]) / redstd / redstd;
+				chi[i] = (red[i] - testimg[i]) / redstd / redstd;
 			}
 		}
 		// console.log(testimg);
@@ -562,9 +627,8 @@
 		let res = optimize.vector.dot(chi, chi);
 		if(isNaN(res)) {
 			console.log('Error: NaN result');
-
 		}
-		console.log('res:'+res/gray.length);
+		console.log('res:'+res/red.length);
 
 		for (let x = 0; x < imgd.height; ++x) {
 			for (let y = 0; y < imgd.width; ++y) {
@@ -572,7 +636,7 @@
 				let index2 = (x * imgd.width + y);
 				testimg[index2] /= maxValue;
 				// data[index]   = Math.round(testimg[index2]*255);    // red
-				data[index]   = Math.round(Math.abs(testimg[index2]-gray[index2])*255);    // red
+				data[index]   = Math.round(Math.abs(testimg[index2]-red[index2])*255);    // red
 				data[++index] = 0;    // green
 				data[++index] = 0;    // blue
 				data[++index] = 255;      // alpha
@@ -711,7 +775,10 @@
 							except Exception as e:
 								print(f"目标函数错误: {str(e)}")
 								raise
-
+						bounds = [
+								(-5, 5), (-5, 5), (0, 10), (0.0, 100), (-360, 360),  # 透镜参数
+								(-5, 5), (-5, 5), (0, 5.0), (0.0, 100), (-360, 360),(0.3, 6.0)    # 源参数
+						]
 						def run_optimization():
 							# 设置初始参数
 							initial_params = np.array(${JSON.stringify(p0)})
@@ -726,7 +793,8 @@
 									options={
 										'maxiter': 200,
 										'disp': True
-									}
+									},
+									bounds=bounds
 								)
 
 								print(f"优化完成: {result.message}")
@@ -980,7 +1048,7 @@
 		<div class="form-item1">
 			<label for="image-url" style="margin-right: 80px;">Image URL:</label>
 			<button class="Uploadbtn" id="img-upload"  style="width:200px;background-color:#1fc0db">
-				<input class="input-upload" type="file"  id="image-url"/>
+				<input class="input-upload" type="file"  id="image-url" />
 				<span>Select Image</span>
 			</button>
 			<br/>
