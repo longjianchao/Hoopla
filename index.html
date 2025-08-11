@@ -229,24 +229,29 @@
 			document.getElementById("imgURL").innerText = url;
 			
 		};
-		function getImage(imageData, width, height){
+		function getImage(imageData, width, height, convert){
 			let canvas = document.createElement('canvas');
 			canvas.width = width;
 			canvas.height = height;
 			let ctx = canvas.getContext('2d');
-			let imgData = ctx.createImageData(width, height);
+			let canvasData = ctx.createImageData(width, height);
 			for (let i = 0; i < height; i++) {
+				let flipped_i = height - 1 - i;  // 从底部开始读取
 				for (let j = 0; j < width; j++) {
 					let val = imageData[i * width + j]; // 1D数组
+					if(convert){
+						val = imageData[flipped_i * width + j];
+					}
+					// let val = imageData[flipped_i * width + j]; //使用fits文件时需要翻转
 					let idx = (i * width + j) * 4;
-					imgData.data[idx] = val*255; // R
-					imgData.data[idx + 1] = 0; // G
-					imgData.data[idx + 2] = 0; // B
-					imgData.data[idx + 3] = 255; // A
+					canvasData.data[idx] = val*255; // R
+					canvasData.data[idx + 1] = 0; // G
+					canvasData.data[idx + 2] = 0; // B
+					canvasData.data[idx + 3] = 255; // A
 				}
 			}
 			// console.log(imgData);
-			ctx.putImageData(imgData, 0, 0);
+			ctx.putImageData(canvasData, 0, 0);
 			url = canvas.toDataURL();
 			return url;
 			
@@ -269,7 +274,8 @@
 					shape = dataset.shape;
 					height = shape[0];
 					width = shape[1];
-					url = getImage(imageData,width,height);
+					convert = false;
+					url = getImage(imageData,width,height,convert);
 					img0.src = url;
 				}
 				reader.readAsArrayBuffer(imageFile);
@@ -281,8 +287,9 @@
 				imageData = dataUnit.getFrame();
 				width = header.get('NAXIS1');
 				height = header.get('NAXIS2');
+				convert = true;
 				dataUnit.getFrame(0, function(imageData) {
-					url = getImage(imageData,width,height);
+					url = getImage(imageData,width,height,convert);
 					img0.src = url;
 				});
 				});
@@ -366,7 +373,7 @@
 				let textdata = reader.result;
 				let data = JSON.parse(textdata);
 				let components = data.components;
-				console.log(textdata);
+				// console.log(textdata);
 				let pixscale = data.pixscale;
 				console.log(data);
 				lets.loadModel(components);

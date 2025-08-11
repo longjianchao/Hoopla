@@ -401,6 +401,9 @@
 
 		// this.model.name = imgSrc.split('/')[imgSrc.split('/').length-1].split('.')[0];
 		this.model.name = img_name + "_"+ this.getFormat(new Date());
+		if(imgSrc.length>256){
+			imgSrc = imgSrc.substring(0,256);
+		}
 		this.model.src = imgSrc;
 		this.model.pixscale = this.pixscale;
 		delete this.model.source;
