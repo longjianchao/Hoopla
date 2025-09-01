@@ -249,18 +249,14 @@
 
 		// Keep a copy of the image in a clipboard named <mode>
 		canvas.copyToClipboard(mode,imgData);
-
 		if(mode === "image"){
 			// Blur the image? Try without!
 			imgData = canvas.blur(imgData, lens.w, lens.h);
 		}
-
 		// Draw the image to the <canvas> in the DOM
 		canvas.overlay(imgData);
-
 		return this;
 	}
-
 
 
 	// We need to set up.
@@ -357,6 +353,11 @@
 
 		this.srcmodelPaper.clear();
 		this.predictionPaper.clear();
+
+		// 重新绘制掩码轮廓
+		if (typeof drawMaskOutline === 'function') {
+			drawMaskOutline();
+		}
 
 		// Take a copy of the blank <canvas>
 		this.paper.copyToClipboard();
@@ -478,7 +479,7 @@
 		// Paste original image
 		this.paper.pasteFromClipboard();
 		this.predictionPaper.clear();
-
+		// console.log(this.paper);
 		if (this.showcrit) {
 			this.srcmodelPaper.clear();
 			let critcurve = this.downsample(this.critcurve);
@@ -523,6 +524,10 @@
 			outline = this.downsample(outline);
 			this.drawContours(this.predictionPaper, outline, {color: '#66ccff', lw: 1.1});
 		}
+		// 重新绘制mask轮廓
+		if (typeof this.drawMaskOutline === 'function') {
+			this.drawMaskOutline();
+		}
 	}
 	// Downsample contours from a list of contours
 	Hoopla.prototype.downsample = function(contourList) {
@@ -550,6 +555,29 @@
 			let _obj = this;
 			this.img = new Image();
 			this.img.onload = function(){
+				// 清除mask
+				const maskRadiusInput = document.getElementById('maskRadius');
+				if (maskRadiusInput) {
+					maskRadiusInput.value = '0'; // 重置半径为0
+				}
+				
+				// 移除所有mask轮廓元素
+				const containerIds = ['marking-container', 'marking-container-src'];
+				containerIds.forEach(id => {
+					const container = document.getElementById(id);
+					if (container) {
+						const oldMask = container.querySelector('.mask-outline');
+						if (oldMask) {
+							container.removeChild(oldMask);
+						}
+					}
+				});
+				
+				// 确保maskRadius值为0后，调用applyMask来更新掩码状态
+				if (typeof _obj.applyMask === 'function') {
+					_obj.applyMask();
+				}
+				
 				_obj.update();
 				// Call any callback functions
 				if(typeof fnCallback=="function") fnCallback(_obj);
@@ -653,5 +681,197 @@
 			return destination;
 		};
 	} else G.extend = Object.extend;
+
+	// 绘制掩码轮廓
+	Hoopla.prototype.drawMaskOutline = function() {
+		// 获取半径值
+		let radius = parseInt(document.getElementById('maskRadius').value)||0 ;
+
+		// 为Canvas元素创建独立的掩码div元素
+		const canvasIds = ['hoopla-srcmodel', 'hoopla-prediction'];
+		canvasIds.forEach(id => {
+			const canvas = document.getElementById(id);
+			if(radius>canvas.width/2){
+				radius = canvas.width/2;
+			}
+			if (canvas && canvas.tagName === 'CANVAS') {
+				// 获取Canvas的父容器
+				const parent = canvas.parentElement;
+				if (parent) {
+					// 移除之前的掩码
+					const oldMask = parent.querySelector('.canvas-mask-outline');
+					if (oldMask) {
+						parent.removeChild(oldMask);
+					}
+					// 创建新的掩码div
+					const maskOutline = document.createElement('div');
+					maskOutline.className = 'canvas-mask-outline';
+					maskOutline.style.position = 'absolute';
+					maskOutline.style.top = canvas.offsetTop + 'px';
+					maskOutline.style.left = canvas.offsetLeft + 'px';
+					maskOutline.style.width = canvas.width + 'px';
+					maskOutline.style.height = canvas.height + 'px';
+					maskOutline.style.pointerEvents = 'none';
+					maskOutline.style.zIndex = '1'; // 降低z-index，确保椭圆显示在掩码之上
+
+					// 创建圆形边框
+					const circle = document.createElement('div');
+					circle.style.position = 'absolute';
+					circle.style.top = '50%';
+					circle.style.left = '50%';
+					circle.style.transform = 'translate(-50%, -50%)';
+					circle.style.width = (radius * 2) + 'px';
+					circle.style.height = (radius * 2) + 'px';
+					circle.style.border = '2px solid white';
+					circle.style.borderRadius = '50%';
+					circle.style.boxSizing = 'border-box';
+
+					maskOutline.appendChild(circle);
+					parent.appendChild(maskOutline);
+				}
+			}
+		});
+
+		// 对于标记容器，我们可以绘制一个简单的div作为掩码轮廓
+		const containerIds = ['marking-container', 'marking-container-src'];
+		containerIds.forEach(id => {
+			const container = document.getElementById(id);
+			if(radius>container.width/2){
+				radius = container.width/2;
+			}
+
+			if (container) {
+				// 移除之前的掩码轮廓
+				const oldMask = container.querySelector('.mask-outline');
+				if (oldMask) {
+					container.removeChild(oldMask);
+				}
+					
+				// 创建掩码轮廓div
+				const maskOutline = document.createElement('div');
+				maskOutline.className = 'mask-outline'; // 添加类名，便于后续移除
+				maskOutline.style.position = 'absolute';
+				maskOutline.style.top = '50%';
+				maskOutline.style.left = '50%';
+				maskOutline.style.transform = 'translate(-50%, -50%)';
+				maskOutline.style.width = (radius * 2) + 'px';
+				maskOutline.style.height = (radius * 2) + 'px';
+				maskOutline.style.border = '2px solid white';
+				maskOutline.style.borderRadius = '50%';
+				maskOutline.style.boxSizing = 'border-box';
+				maskOutline.style.pointerEvents = 'none'; // 确保掩码不会干扰交互
+				maskOutline.style.zIndex = '0'; // 进一步降低z-index，确保椭圆显示在掩码之上
+				
+				container.appendChild(maskOutline);
+			}
+		});
+	};
+
+	Hoopla.prototype.clearMask = function() {
+		// 清除掩码轮廓
+		const containerIds = ['marking-container', 'marking-container-src'];
+		containerIds.forEach(id => {
+			const container = document.getElementById(id);
+			if (container) {
+				// 移除之前的掩码轮廓
+				const oldMask = container.querySelector('.mask-outline');
+				if (oldMask) {
+					container.removeChild(oldMask);
+				}
+			}
+		});
+		document.getElementById('maskRadius').value = undefined;
+	}
+		
+
+		// // 1. 处理画布元素
+		// const canvases = [
+		// 	document.getElementById('hoopla-srcmodel'),
+		// 	document.getElementById('hoopla-prediction')
+		// ];
+		// canvases.forEach(canvas => {
+		// 	if (canvas) {
+		// 		const ctx = canvas.getContext('2d');
+		// 		if (ctx) {
+		// 			// 保存当前画布状态
+		// 			ctx.save();
+		// 			// 计算中心点
+		// 			const centerX = canvas.width / 2;
+		// 			const centerY = canvas.height / 2;
+		// 			// 创建一个临时画布来绘制掩码
+		// 			const tempCanvas = document.createElement('canvas');
+		// 			const tempCtx = tempCanvas.getContext('2d');
+		// 			if (tempCtx) {
+		// 				tempCanvas.width = canvas.width;
+		// 				tempCanvas.height = canvas.height;
+		// 				// 绘制一个全黑的矩形
+		// 				tempCtx.fillStyle = 'black';
+		// 				tempCtx.fillRect(0, 0, canvas.width, canvas.height);
+		// 				// 使用destination-out模式清除圆形区域
+		// 				tempCtx.globalCompositeOperation = 'destination-out';
+		// 				tempCtx.beginPath();
+		// 				tempCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+		// 				tempCtx.fill();
+		// 				// 将临时画布的内容绘制到原始画布上
+		// 				ctx.drawImage(tempCanvas, 0, 0);
+		// 			}
+		// 			// 恢复画布状态
+		// 			ctx.restore();
+		// 		}
+		// 	}
+		// });
+		
+		// // 2. 处理Mass Model和Source Model容器
+		// const modelContainers = [
+		// 	document.getElementById('marking-container'),
+		// 	document.getElementById('marking-container-src')
+		// ];
+		// modelContainers.forEach(container => {
+		// 	if (container) {
+		// 		// 移除已有的掩码
+		// 		const existingMask = container.querySelector('.model-mask');
+		// 		if (existingMask) {
+		// 			container.removeChild(existingMask);
+		// 		}
+				
+		// 		// 创建新的掩码元素
+		// 		const mask = document.createElement('div');
+		// 		mask.className = 'model-mask';
+				
+		// 		// 设置掩码样式
+		// 		const style = mask.style;
+		// 		style.position = 'absolute';
+		// 		style.top = '0';
+		// 		style.left = '0';
+		// 		style.width = '100%';
+		// 		style.height = '100%';
+		// 		style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+		// 		style.pointerEvents = 'none'; // 允许鼠标事件穿透掩码
+		// 		style.borderRadius = '50%';
+		// 		style.transform = 'translate(-50%, -50%)';
+		// 		style.overflow = 'hidden';
+				
+		// 		// 创建内部圆形透明区域
+		// 		const innerCircle = document.createElement('div');
+		// 		style.width = (radius * 2) + 'px';
+		// 		style.height = (radius * 2) + 'px';
+		// 		innerCircle.style.position = 'absolute';
+		// 		innerCircle.style.top = '50%';
+		// 		innerCircle.style.left = '50%';
+		// 		innerCircle.style.transform = 'translate(-50%, -50%)';
+		// 		innerCircle.style.width = (radius * 2) + 'px';
+		// 		innerCircle.style.height = (radius * 2) + 'px';
+		// 		innerCircle.style.borderRadius = '50%';
+		// 		innerCircle.style.boxShadow = '0 0 0 9999px rgba(0, 0, 0, 0.7)';
+				
+		// 		// 添加到容器
+		// 		mask.appendChild(innerCircle);
+		// 		container.appendChild(mask);
+		// 	}
+		// });
+		
+		// 显示掩码已应用的提示
+	// 	console.log('Mask applied with radius:', radius);
+	// };
 
 })(typeof exports !== "undefined" ? exports : window);

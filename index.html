@@ -9,9 +9,11 @@
 <script type="text/javascript" src="lib/conrec.js"></script>
 <script type="text/javascript" src="lib/optimize.js"></script>
 <script type="text/javascript" src="hoopla.js"></script>
-<script src="https://cdn.jsdelivr.net/pyodide/v0.22.1/full/pyodide.js"></script>
+<!-- <script src="https://cdn.jsdelivr.net/pyodide/v0.22.1/full/pyodide.js"></script> -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.28.1/full/pyodide.js"></script>
 <script type="text/javascript" src="lib/hdf5.js"></script>
 <script type="text/javascript" src="lib/fits.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <!-- <script src="https://cdn.jsdelivr.net/npm/fitsjs@0.6.6/lib/fits.min.js"></script> -->
 <!-- <script src="https://cdn.jsdelivr.net/npm/jsfive@0.3.7/dist/hdf5.js"></script> -->
 
@@ -187,7 +189,6 @@
 						x: coords.x,
 						y: coords.y,
 						n_sersic: 1.0,
-						// Ie: 1.0,
 					}
 				});
 				lets.updateModel(components);
@@ -204,7 +205,7 @@
 		try {
 			await initPyodide();  // 先将pyoide启动
 		}catch (e) {
-			console.log("pyoide启动失败，错误:",e);
+			console.log("pyoide启动失败,错误:",e);
 		}
 		setup();
 		document.getElementById('imageUpload').onclick = function (e) {
@@ -222,43 +223,93 @@
 				window.alert('Only HDF5 (.h5) or Fits(.fits) files are allowed!');
 				return;
 			}
-			window._uploadedH5File = imageFile; // 保存到全局
+			window._uploadedImageFile = imageFile; // 保存到全局
 			
 			let url = window.URL.createObjectURL(imageFile);
 			img_name = imageFile.name;
 			document.getElementById("imgURL").innerText = url;
 			
 		};
-		function getImage(imageData, width, height, convert){
-			let canvas = document.createElement('canvas');
-			canvas.width = width;
-			canvas.height = height;
-			let ctx = canvas.getContext('2d');
-			let canvasData = ctx.createImageData(width, height);
-			for (let i = 0; i < height; i++) {
-				let flipped_i = height - 1 - i;  // 从底部开始读取
-				for (let j = 0; j < width; j++) {
-					let val = imageData[i * width + j]; // 1D数组
-					if(convert){
-						val = imageData[flipped_i * width + j];
-					}
-					// let val = imageData[flipped_i * width + j]; //使用fits文件时需要翻转
-					let idx = (i * width + j) * 4;
-					canvasData.data[idx] = val*255; // R
-					canvasData.data[idx + 1] = 0; // G
-					canvasData.data[idx + 2] = 0; // B
-					canvasData.data[idx + 3] = 255; // A
-				}
+		
+		img0 = new Image();
+		img0.onload = function() {
+			// 目标画布大小
+			const targetWidth = 400;
+			const targetHeight = 400;
+			console.log("原始图片宽度:", img0.width, "高度:", img0.height);
+			console.log("目标画布宽度:", targetWidth, "高度:", targetHeight);
+			// 计算缩放比例
+			const scaleX = targetWidth / img0.width;
+			const scaleY = targetHeight / img0.height;
+			const scale = Math.max(scaleX, scaleY); // 取较大的缩放比例以铺满画布
+			// 计算缩放后的图像尺寸
+			const scaledWidth = img0.width * scale;
+			const scaledHeight = img0.height * scale;
+			// 创建临时画布进行图像缩放
+			const tempCanvas = document.createElement('canvas');
+			tempCanvas.width = targetWidth;
+			tempCanvas.height = targetHeight;
+			const tempCtx = tempCanvas.getContext('2d');
+			// 清除临时画布
+			tempCtx.clearRect(0, 0, targetWidth, targetHeight);
+			// 在临时画布中央绘制缩放后的图像
+			const xOffset = (targetWidth - scaledWidth) / 2;
+			const yOffset = (targetHeight - scaledHeight) / 2;
+			tempCtx.drawImage(img0, xOffset, yOffset, scaledWidth, scaledHeight);
+			// 获取缩放后的图像URL
+			const scaledUrl = tempCanvas.toDataURL();
+			// 更新所有图像和画布
+			lets.width = targetWidth;
+			lets.height = targetHeight;
+			img.src = scaledUrl;
+			img_src.src = scaledUrl;
+			imgd.src = scaledUrl; 
+			imgd.width = targetWidth; 
+			imgd.height = targetHeight;
+
+			lets.srcmodelPaper.clear();
+			lets.srcmodelPaper.src = scaledUrl;
+			lets.srcmodelPaper.width = targetWidth;
+			lets.srcmodelPaper.height = targetHeight;
+
+			lets.predictionPaper.clear();
+			lets.predictionPaper.src = scaledUrl;
+			lets.predictionPaper.width = targetWidth;
+			lets.predictionPaper.height = targetHeight;
+
+			lets.paper.src = scaledUrl;
+			lets.paper.width = targetWidth;
+			lets.paper.height = targetHeight;
+
+			lets.resetLens(targetWidth, targetHeight, lets.pixscale);
+
+			// 更新所有bar元素
+			let bar = document.getElementsByClassName("bar");
+			let barTitle = document.getElementsByClassName("barTitle");
+			let canvas = document.querySelectorAll('canvas');
+
+			for (let i = 0; i < bar.length; i++){
+				bar[i].style.backgroundImage = "url(" + scaledUrl + ")";
+				bar[i].style.height= targetHeight + "px";
+				bar[i].style.width = targetWidth + "px";
+				// 确保背景图像覆盖整个bar
+				bar[i].style.backgroundSize = "cover";
+				bar[i].style.backgroundPosition = "center";
 			}
-			// console.log(imgData);
-			ctx.putImageData(canvasData, 0, 0);
-			url = canvas.toDataURL();
-			return url;
-			
+
+			for (let i = 0; i < canvas.length; i++){
+				canvas[i].height = targetHeight;
+				canvas[i].width = targetWidth;
+			}
+
+			for (let i = 0; i < barTitle.length; i++){
+				barTitle[i].style.width = targetWidth + "px";
+			}
 		}
+
 		document.getElementById("confirm").onclick = function () {
 			let url = document.getElementById("imgURL").innerText;
-			let imageFile = window._uploadedH5File;
+			let imageFile = window._uploadedImageFile;
 			if (!imageFile) {
 				window.alert('Please select a valid file!');
 				return;
@@ -295,45 +346,6 @@
 				});
 			}
 			
-			let img0 = new Image();
-			img0.onload = function() {
-				let width = img0.width;
-				let height = img0.height;
-				console.log("图片宽度:", width, "高度:", height);
-				lets.width = width;
-				lets.height = height;
-				img.src = url;
-				img_src.src = url;
-				imgd.src = url; imgd.width = img0.width; imgd.height = img0.height;
-				lets.srcmodelPaper.clear();
-				lets.srcmodelPaper.src = url;
-				lets.srcmodelPaper.width = width;
-				lets.srcmodelPaper.height = height;
-				lets.predictionPaper.clear();
-				lets.predictionPaper.src = url;
-				lets.predictionPaper.width = width;
-				lets.predictionPaper.height = height;
-				lets.paper.src = url;
-				lets.paper.width = width;
-				lets.paper.height = height;
-				lets.resetLens(width, height,pixscale);
-				let bar = document.getElementsByClassName("bar");
-				let barTitle = document.getElementsByClassName("barTitle");
-				let canvas = document.querySelectorAll('canvas');
-				for (let i = 0; i < bar.length; i++){
-					bar[i].style.backgroundImage = "url(" + url + ")";
-					bar[i].style.height = height + "px";
-					bar[i].style.width = width + "px";
-				}
-				for (let i = 0; i < canvas.length; i++){
-					canvas[i].height = height;
-					canvas[i].width = width;
-				}
-				for (let i = 0; i < barTitle.length; i++){
-					barTitle[i].style.width = width + "px";
-				}
-			}
-
 			let pixscale = document.getElementById("pixel-scale").value;
 			const regex = /^\d{0,2}(\.\d{0,6})?$/;
 			if ((url === '' || null) || (pixscale === '' || null)) {
@@ -360,6 +372,8 @@
 			}
 			// 重新绘制图表或其他逻辑
 			drawChiSquareCurve([]); // 传入空数组以清空图表
+			// 清理mask
+			lets.clearMask();
 		}
 
 		document.getElementById("saveModel").onclick = function fun() {
@@ -421,8 +435,46 @@
 			reader.readAsText(input.files[0]);
 		};
 	}
+	function getImage(imageData, width, height, convert){
+		let canvas = document.createElement('canvas');
+		canvas.width = width;
+		canvas.height = height;
+		let minval = 1;
+		let maxval = 0;
+		for(let i = 0; i < imageData.length; i++){
+			if(imageData[i] < minval){
+				minval = imageData[i];
+			}
+			if(imageData[i] > maxval){
+				maxval = imageData[i];
+			}
+		}
+		for(let i = 0; i < imageData.length; i++){
+			imageData[i] = (imageData[i] - minval) / (maxval - minval);
+		}
 
-
+		let ctx = canvas.getContext('2d');
+		let canvasData = ctx.createImageData(width, height);
+		for (let i = 0; i < height; i++) {
+			let flipped_i = height - 1 - i;  // 从底部开始读取
+			for (let j = 0; j < width; j++) {
+				let val = imageData[i * width + j]; // 1D数组
+				if(convert){
+					val = imageData[flipped_i * width + j];
+				}
+				// let val = imageData[flipped_i * width + j]; //使用fits文件时需要翻转
+				let idx = (i * width + j) * 4;
+				canvasData.data[idx] = val*255; // R
+				canvasData.data[idx + 1] = 0; // G
+				canvasData.data[idx + 2] = 0; // B
+				canvasData.data[idx + 3] = 255; // A
+			}
+		}
+		// console.log(imageData);
+		ctx.putImageData(canvasData, 0, 0);
+		url = canvas.toDataURL();
+		return url;
+	}
 	// 重置pixel scale
 	function reset() {
 		let pixscale = document.getElementById('newPixelScale').value;
@@ -434,6 +486,75 @@
 			window.alert('Pixel-scale is not a legitimate input!');
 		}
 	}
+	
+	// 仅监听maskRadius输入框的input事件，DOM加载时不执行绘制操作
+	document.addEventListener('DOMContentLoaded', function() {
+		const maskRadiusInput = document.getElementById('maskRadius');
+		if (maskRadiusInput) {
+			maskRadiusInput.addEventListener('input', function() {
+				if (typeof lets !== 'undefined' && typeof lets.drawMaskOutline === 'function') {
+					lets.drawMaskOutline();
+				}
+			});
+		}
+	});
+
+	// 应用掩码按钮点击事件
+	function applyMask() {
+		const radius = parseInt(document.getElementById('maskRadius').value) || 0;
+		console.log("mask半径:", radius);
+		// 确保img对象存在
+		if (img && img.src) {
+			// 创建新的Image对象，以img为模板
+			const newImg = new Image();
+			newImg.onload = function() {
+				const width = newImg.width;
+				const height = newImg.height;
+				console.log("图像尺寸:", width, height);
+				// 创建临时画布并绘制图像
+				const tempCanvas = document.createElement('canvas');
+				tempCanvas.width = width;
+				tempCanvas.height = height;
+				const tempCtx = tempCanvas.getContext('2d');
+				tempCtx.drawImage(newImg, 0, 0, width, height);
+				// 获取图像数据
+				const imageData = tempCtx.getImageData(0, 0, width, height);
+				const data = imageData.data;
+				// 计算图像中心点
+				const centerX = width / 2;
+				const centerY = height / 2;
+				// 遍历所有像素，应用掩码
+				for (let y = 0; y < height; y++) {
+					for (let x = 0; x < width; x++) {
+						// 计算当前像素到中心点的距离
+						const dx = x - centerX;
+						const dy = y - centerY;
+						const distance = Math.sqrt(dx * dx + dy * dy);
+						// 计算像素在数据数组中的索引
+						const index = (y * width + x) * 4;
+						// 如果像素在掩码外，设置为黑色
+						if (distance > radius) {
+							data[index] = 0;     // 红色通道
+							data[index + 1] = 0; // 绿色通道
+							data[index + 2] = 0; // 蓝色通道
+							data[index + 3] = 255; // 透明度通道(完全不透明)
+						}
+						// 否则保持不变
+					}
+				}
+				// 将修改后的图像数据放回画布
+				tempCtx.putImageData(imageData, 0, 0);
+				// 获取处理后的图像URL
+				const maskedUrl = tempCanvas.toDataURL();
+				img0.src = maskedUrl;
+			};
+			// 设置新图像的源为img的源
+			newImg.src = img.src;
+		} else {
+			console.error("无法获取图像，请确保图像已加载。");
+			window.alert("无法应用掩码：图像未加载。");
+		}
+	};
 
 	//给定一组镜头参数,对每个图像点调用calAlpha()和calImage()计算预测图像光度值
 	function model_lensed_images(p, x1, x2) {
@@ -443,9 +564,8 @@
 		re = p[2];
 		ql = p[3];
 		phl = p[4];
-
 		// 计算得到这个点对应的偏折角
-		let alpha = calAlpha(x1,x2,xc1,xc2,re,ql,phl);
+		let alpha = calAlpha(x1, x2, xc1, xc2, re, ql, phl);
 		// 计算源星系像的角位置
 		let y1 = x1 - alpha.x;
 		let y2 = x2 - alpha.y;
@@ -458,7 +578,7 @@
 		phs = p[9];
 		n = p[10];
 		Ie = p[11];
-		return calImage(y1, y2, yc1, yc2, size, qs, phs, n, Ie);
+		return calImage(y1, y2, yc1, yc2, size, qs, phs, n);
 	}
 
 	//计算单个镜头成像对图像（x，y）的弯曲效应
@@ -561,13 +681,6 @@
 		for (let i = 0, n = red.length; i < n; i ++){
 			red[i] = data[i*4]/255;
 		}
-		// let gray = new Float32Array(imgd.width * imgd.height );
-		// for(let i = 0, n = gray.length; i < n; i ++) {
-		// 	const r = data[i * 4];
-		// 	const g = data[i * 4 + 1];
-		// 	const b = data[i * 4 + 2];
-		// 	gray[i] = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
-		// }
 		//重缩放因子，可以提高采样效率，但数值过大可能会导致图像失真
 		const fscale = 4;
 		const chi = new Array(red.length / fscale / fscale);
@@ -585,7 +698,6 @@
 				chi[i2] = (red[i] - testimg[i])/redstd/redstd/(chi.length);
 			}
 		}
-		// console.log(maxval);
 		return optimize.vector.dot(chi, chi);
 	}
 
@@ -595,7 +707,6 @@
 		ctx.drawImage(imgd, 0, 0);
 		let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
 		let data = dstdata.data;
-
 		let red = new Array(data.length/4);
 		let maxRed = 0;
 		for (let i = 0, n = red.length; i < n; i ++){
@@ -603,17 +714,6 @@
 			if(maxRed<red[i]) maxRed=red[i];
 		}
 		console.log("像素最大值：",maxRed);
-		// let grayMaxval = 0;
-		// let gray = new Float32Array(imgd.width * imgd.height );
-		// for(let i = 0, n = gray.length; i < n; i ++) {
-		// 	const r = data[i * 4];
-		// 	const g = data[i * 4 + 1];
-		// 	const b = data[i * 4 + 2];
-		// 	gray[i] = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
-		// 	if(grayMaxval<gray[i]) grayMaxval = gray[i];
-		// }
-		// console.log(grayMaxval);
-
 		let chi = new Array(red.length);
 		let testimg = new Array(red.length);
 		let redstd = standardDeviation(red);
@@ -629,7 +729,6 @@
 				chi[i] = (red[i] - testimg[i]) / redstd / redstd;
 			}
 		}
-		// console.log(testimg);
 		console.log("max value = ",maxValue);
 		let res = optimize.vector.dot(chi, chi);
 		if(isNaN(res)) {
@@ -732,36 +831,13 @@
 					lets.model.components[0].ell,
 					lets.model.components[0].ang,
 					lets.model.components[0].n_sersic,
-					// lets.model.components[0].Ie,
 				];
 				console.log(p0);
 				// 定义一个包装函数来处理数据类型转换
 				const objectiveWrapper = (params) => {
 					// 确保输入是普通的JavaScript数组
 					const jsParams = Array.from(params);
-
-					let fullParams = [
-						0,//lets.model.components[1].x,
-						0,//lets.model.components[1].y,
-						0.0001,//lets.model.components[1].theta_e,
-						1,//lets.model.components[1].ell,
-						0,//lets.model.components[1].ang,
-						// lets.model.components[0].x,
-						jsParams[0], //source.x
-						// lets.model.components[0].y,
-						jsParams[1], // source.y
-						jsParams[2], // size
-						// lets.model.components[0].ell,
-						jsParams[3], //ell
-						// lets.model.components[0].ang,
-						jsParams[4], //ang
-						// lets.model.components[0].n_sersic,
-						jsParams[5],
-						// jsParams[6],
-					];
-
 					return chi2_rescale(jsParams);
-					// return chi2_rescale(fullParams);
 				};
 
 				// 将包装函数暴露给Python
@@ -838,36 +914,7 @@
 				let p1 = result.x;
 				chiSquaredValues = chiSquaredValues.concat(result.history);
 				drawChiSquareCurve(chiSquaredValues);
-				let fullParams = [
-					0,//lets.model.components[1].x,
-					0,//lets.model.components[1].y,
-					0.0001,//lets.model.components[1].theta_e,
-					1,//lets.model.components[1].ell,
-					0,//lets.model.components[1].ang,
-					// lets.model.components[0].x,
-					p1[0], //x
-					// lets.model.components[0].y,
-					p1[1], //y
-					p1[2], // size
-					// lets.model.components[0].ell,
-					p1[3], //ell
-					// lets.model.components[0].ang,
-					p1[4],
-					// lets.model.components[0].n_sersic
-					p1[5],
-					// p1[6],
-				];
-				// show_res(fullParams);
 				show_res(p1);
-				// 更新模型参数
-				// lets.model.components[0].x = p1[0];
-				// lets.model.components[0].y = p1[1];
-				// lets.model.components[0].size = p1[2];
-				// lets.model.components[0].ell = p1[3];
-				// lets.model.components[0].ang = p1[4];
-				// lets.model.components[0].n_sersic = p1[5];
-				// lets.model.components[0].Ie = p1[6];
-
 				lets.model.components[1].x = p1[0];
 				lets.model.components[1].y = p1[1];
 				lets.model.components[1].theta_e = p1[2];
@@ -879,7 +926,6 @@
 				lets.model.components[0].ell = p1[8];
 				lets.model.components[0].ang = p1[9];
 				lets.model.components[0].n_sersic = p1[10];
-				// lets.model.components[0].Ie = p1[11];
 				lets.loadModel(lets.model.components);
 				const angle = lets.lens.ang2pix({x: lets.model.components[0].x, y: lets.model.components[0].y});
 				lets.update(angle);
@@ -892,6 +938,73 @@
 				// 清理全局变量
 				pyodide.globals.delete("objective_js");
 			}
+		}
+	}
+
+	// 删除前景函数
+	async function delForeground() {
+		// 获取上传的fits文件
+		const imageFile = window._uploadedImageFile;
+		if (!imageFile || !imageFile.name.match(/\.(fits|fit|fts)$/i)) {
+			window.alert('请先上传有效的FITS文件！');
+			return;
+		}
+		// 将fits文件传给后端进行前景去除
+		let formData = new FormData();
+		formData.append('file', imageFile);	
+		console.log("上传的 imageFile:", imageFile);
+		console.log("开始上传文件到后端...");
+		try {
+			let response = await fetch('http://127.0.0.1:8000/extract_background', {
+				method: 'POST',
+				body: formData,
+				mode: 'cors',
+				cache: 'no-cache'
+			});
+			let result = await response.json();
+			// 解码 image_data（base64+gzip+float32）
+			if (result.image_data) {
+				function base64ToUint8Array(base64) {
+					const binary_string = window.atob(base64);
+					const len = binary_string.length;
+					const bytes = new Uint8Array(len);
+					for (let i = 0; i < len; i++) {
+						bytes[i] = binary_string.charCodeAt(i);
+					}
+					return bytes;
+				}
+				const compressed = base64ToUint8Array(result.image_data);
+				const raw = pako.ungzip(compressed);
+				const floatArray = new Float32Array(raw.buffer);
+				let imageData = Array.from(floatArray);
+				let width = result.width;
+				let height = result.height;
+				let url = getImage(imageData, width, height, true);
+				window.alert('前景去除成功！');
+				// 更新img元素和lets对象
+				img0.src = url;
+			} 
+		} catch (error) {
+			console.error('前景去除详细错误:', error);
+			let errorMessage = '前景去除失败:\n';
+			if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+				if (error.message.includes('CORS')) {
+					errorMessage += 'CORS跨域问题，请检查后端配置:\n';
+					errorMessage += '1. 确保后端添加了CORS头: Access-Control-Allow-Origin: *\n';
+					errorMessage += '2. 或者使用相同的域名和端口\n';
+					errorMessage += '3. 检查后端是否正确处理OPTIONS预检请求';
+				} else {
+					errorMessage += '网络连接失败，请检查:\n';
+					errorMessage += '1. 后端服务器是否已启动\n';
+					errorMessage += '2. 防火墙是否阻止了连接\n';
+					errorMessage += '3. 服务器地址是否正确';
+				}
+			} else if (error.message) {
+				errorMessage += error.message;
+			} else {
+				errorMessage += '未知错误，请查看控制台日志';
+			}
+			window.alert(errorMessage);
 		}
 	}
 
@@ -1036,16 +1149,24 @@
 		<input class="input-upload" type="button" id="imageUpload"/>
 		<span>Upload Images</span>
 	</button>
-	<button class="button" id="optimization" onclick="do_fit()"
-			style="vertical-align:middle;width:193px"><span>Optimization</span>
-	</button>
+	<button class="button" id="delForeground" onclick="delForeground()"
+            style="vertical-align:middle;width:193px;background-color:#666666"><span>Del Foreground</span>
+    </button>
+    <button class="button" id="optimization" onclick="do_fit()"
+            style="vertical-align:middle;width:193px"><span>Optimization</span>
+    </button>
 
 </div>
-<div class="container" style="height: 50px;">
+<div class="container" style="height: 50px; width: 1000px;">
 	<span>Current pixel-scale: </span>
 	<input class="pixscale" id="newPixelScale" type="number">
 	<button class="button" onclick="reset()" style="width: 200px;background-color: #666666;vertical-align: middle">
 		<span>Reset Pixel-Scale</span>
+	</button>
+	<span style="margin-left: 10px;">Mask Radius:</span>
+	<input type="number" id="maskRadius" min="0" step="1" style="width: 80px; margin-left: 5px; border-radius: 5px;">
+	<button class="button" onclick="applyMask()" style="width: 150px;background-color: #666666;vertical-align: middle; margin-left: 10px;">
+		<span>Apply Mask</span>
 	</button>
 </div>
 
