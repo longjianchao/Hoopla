@@ -9,6 +9,7 @@
 <script type="text/javascript" src="lib/conrec.js"></script>
 <script type="text/javascript" src="lib/optimize.js"></script>
 <script type="text/javascript" src="hoopla.js"></script>
+
 <!-- <script src="https://cdn.jsdelivr.net/pyodide/v0.22.1/full/pyodide.js"></script> -->
 <script src="https://cdn.jsdelivr.net/pyodide/v0.28.1/full/pyodide.js"></script>
 <script type="text/javascript" src="lib/hdf5.js"></script>
@@ -226,9 +227,8 @@
 			window._uploadedImageFile = imageFile; // 保存到全局
 			
 			let url = window.URL.createObjectURL(imageFile);
-			img_name = imageFile.name;
+			img_name = imageFile.name.split('.')[0];
 			document.getElementById("imgURL").innerText = url;
-			
 		};
 		
 		img0 = new Image();
@@ -955,7 +955,7 @@
 		console.log("上传的 imageFile:", imageFile);
 		console.log("开始上传文件到后端...");
 		try {
-			let response = await fetch('http://127.0.0.1:8000/extract_background', {
+			let response = await fetch('http://127.0.0.1:8080/extract_background', {
 				method: 'POST',
 				body: formData,
 				mode: 'cors',
@@ -979,8 +979,19 @@
 				let imageData = Array.from(floatArray);
 				let width = result.width;
 				let height = result.height;
+				// window._uploadedImageFile = result.fits_file;
 				let url = getImage(imageData, width, height, true);
-				window.alert('前景去除成功！');
+				// 创建自定义确认对话框，询问是否下载
+				const shouldDownload = window.confirm('前景去除成功！\n\n是否下载处理后的图像？');
+				if (shouldDownload) {
+					// 创建下载链接并触发下载
+					const downloadLink = document.createElement('a');
+					downloadLink.href = url;
+					downloadLink.download = img_name+'_foreground_removed.png';
+					document.body.appendChild(downloadLink);
+					downloadLink.click();
+					document.body.removeChild(downloadLink);
+				}
 				// 更新img元素和lets对象
 				img0.src = url;
 			} 
@@ -1007,7 +1018,6 @@
 			window.alert(errorMessage);
 		}
 	}
-
 
 	function updateCanvas(components) {
 		let ang = lets.lens.ang2pix({x: components[1].x, y: components[1].y});
@@ -1056,6 +1066,84 @@
 			console.log("An error occurred:", error);
 		}
 	}
+	// MCMC相关函数
+	function showLoading() {
+		const overlay = document.getElementById('loadingOverlay');
+		overlay.style.display = 'flex';
+		// 禁用所有按钮和输入框
+		document.querySelectorAll('button, input, select').forEach(el => {
+			if (el.id !== 'closeMCMCResults') {
+				el.disabled = true;
+			}
+		});
+	}
+
+	function hideLoading() {
+		const overlay = document.getElementById('loadingOverlay');
+		overlay.style.display = 'none';
+		// 重新启用所有按钮和输入框
+		document.querySelectorAll('button, input, select').forEach(el => {
+			el.disabled = false;
+		});
+	}
+
+	function closeMCMCResults() {
+		document.getElementById('mcmcResults').style.display = 'none';
+	}
+
+	async function startMCMC() {
+		if (!lets || !lets.model || !lets.model.components) {
+			alert('请先加载模型数据！');
+			return;
+		}
+		try {
+			// 显示加载动画
+			showLoading();
+			// 获取当前模型参数
+			const modelData = {
+				components: lets.model.components,
+				pixscale: lets.pixscale,
+			};
+			console.log('发送MCMC请求，参数:', modelData);
+			// 发送到后端
+			const response = await fetch('http://127.0.0.1:8080/mcmc_modeling', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(modelData)
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+			const result = await response.json();
+			console.log('收到MCMC结果:', result);
+			// 隐藏加载动画
+			hideLoading();
+			lets.model.components = result.components;
+			const angle = lets.lens.ang2pix({x: lets.model.components[0].x, y: lets.model.components[0].y});
+			lets.update(angle);
+			lets.freezeSrcModel = true;
+			updateCanvas(lets.model.components);
+			console.log(lets.model.components);
+			if(result.status=='success'){
+				window.alert('MCMC建模成功！');
+			}else{
+				throw new Error(result.message);
+			}
+		} catch (error) {
+			console.error('MCMC建模失败:', error);
+			hideLoading();
+			alert(`MCMC建模失败: ${error.message}`);
+		}
+	}
+	// 添加键盘事件监听，ESC键关闭结果窗口
+	document.addEventListener('keydown', function(event) {
+		if (event.key === 'Escape') {
+			closeMCMCResults();
+		}
+	});
 
 </script>
 
@@ -1136,7 +1224,7 @@
 
 </table>
 
-<div class="container" style="width: 1200px">
+<div class="container" style="width: 1300px">
 	<button class="button" id="saveModel"
 			style="vertical-align:middle;width:193px;background-color:#666666"><span>Save Models</span>
 	</button>
@@ -1150,10 +1238,13 @@
 		<span>Upload Images</span>
 	</button>
 	<button class="button" id="delForeground" onclick="delForeground()"
-            style="vertical-align:middle;width:193px;background-color:#666666"><span>Del Foreground</span>
+            style="vertical-align:middle;width:193px;background-color:#666666"><span>Extract Lens Arc</span>
     </button>
     <button class="button" id="optimization" onclick="do_fit()"
             style="vertical-align:middle;width:193px"><span>Optimization</span>
+    </button>
+    <button class="button" id="mcmcButton" onclick="startMCMC()"
+            style="vertical-align:middle;width:193px;background-color:#8B4513"><span>MCMC</span>
     </button>
 
 </div>
@@ -1200,12 +1291,18 @@
 <div class="container">
 
 </div>
+	<!-- MCMC等待特效 -->
+	<div class="loading-overlay" id="loadingOverlay">
+		<div class="loading-content">
+			<div class="hourglass"></div>
+			<p>正在进行MCMC建模，请稍候...</p>
+		</div>
+	</div>
 
+</body>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="text/javascript" src="lib/marking/marking-surface.js"></script>
 <script type="text/javascript" src="lib/marking/tools/ellipse.js"></script>
-</body>
-
 
 <style type="text/css">
 	body {
@@ -1293,8 +1390,7 @@
 		font-size: medium;
 		border-radius: 5px;
 	}
-
-	label {}
+	
 	.popup-form input {
 		width: 300px;
 		padding: 10px;
@@ -1340,8 +1436,6 @@
 		border: 1px solid #666666;
 		background-color:#666666;
 	}
-
-
 
 	.button {
 		display: inline-block;
@@ -1436,4 +1530,49 @@
 		visibility: visible;
 	}
 
+	/* MCMC等待特效样式 */
+	.loading-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background-color: rgba(0, 0, 0, 0.7);
+		display: none;
+		justify-content: center;
+		align-items: center;
+		z-index: 1000;
+	}
+	
+	.loading-content {
+		text-align: center;
+		color: white;
+	}
+	
+	.hourglass {
+		width: 60px;
+		height: 60px;
+		border: 3px solid #fff;
+		border-radius: 50%;
+		position: relative;
+		animation: rotate 2s linear infinite;
+	}
+	
+	.hourglass:before {
+		content: '';
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 30px;
+		height: 30px;
+		border: 2px solid #fff;
+		border-radius: 50%;
+		transform: translate(-50%, -50%);
+	}
+	
+	@keyframes rotate {
+		0% { transform: rotate(0deg); }
+		100% { transform: rotate(360deg); }
+	}
+	
 </style>
