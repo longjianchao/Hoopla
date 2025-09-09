@@ -5,43 +5,42 @@
 <body>
 
 <table style="margin: 0 auto; border-collapse: collapse;">
-		<tr class="container">
-			<td style="text-align: center;">
-				<div  class="barTitle" style="margin: 0 auto;">
-					<p style="margin-top: 10px;">Mask Test</p>
+	<tr class="container">
+		<td style="text-align: center;">
+			<div  class="barTitle" style="margin: 0 auto;">
+				<p style="margin-top: 10px;">Mask Test</p>
+			</div>
+		</td>
+
+	</tr>
+	<tr class="container">
+		<td style="text-align: center;">
+			<div style="display: flex; justify-content: center; gap: 20px; align-items: flex-start;">
+				<div style="text-align: center;">
+					<h3>Original Image</h3>
+					<div id="MaskContainer" class="bar" style="margin: 0 auto;"></div>
 				</div>
-			</td>
-			
-		</tr>
-		<tr class="container">
-				<td style="text-align: center;">
-					<div style="display: flex; justify-content: center; gap: 20px; align-items: flex-start;">
-						<div style="text-align: center;">
-							<h3>Original Image</h3>
-							<div id="MaskContainer" class="bar" style="margin: 0 auto;"></div>
-						</div>
-						<div style="text-align: center; min-width: 400px;">
-							<h3>Masked Image</h3>
-							<div id="result-container" style="min-height: 400px; border: 1px dashed #ccc; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-							</div>
-						</div>
+				<div style="text-align: center; min-width: 400px;">
+					<h3>Masked Image</h3>
+					<div id="result-container" style="min-height: 400px; border: 1px dashed #ccc; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
 					</div>
-				</td>
-			</tr>
-		<tr class="container">
-			<td style="text-align: center;">
-				<div style="margin: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; max-width: 600px; color: #000;">
-					<h4>使用说明：</h4>
-					<ul style="margin: 10px 0; padding-left: 20px; text-align: left;">
-						<li><strong>红色边框</strong>：maskInner模式（圆内数据将被擦除）</li>
-						<li><strong>青色边框</strong>：maskOuter模式（圆外数据将被擦除）</li>
-						<li>点击圆形可切换其模式</li>
-						<li>按"Apply Masks"按钮应用所有mask效果</li>
-					</ul>
 				</div>
-			</td>
-		</tr>
-	</table>
+			</div>
+		</td>
+	</tr>
+	<tr class="container">
+		<td style="text-align: center;">
+			<div style="margin: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; max-width: 600px; color: #000;">
+				<h4>使用说明：</h4>
+				<ul style="margin: 10px 0; padding-left: 20px; text-align: left;">
+					<li><strong>红色边框</strong>：maskInner模式（圆内数据将被擦除）</li>
+					<li><strong>青色边框</strong>：maskOuter模式（圆外数据将被擦除）</li>
+					<li>按"Apply Masks"按钮应用所有mask效果</li>
+				</ul>
+			</div>
+		</td>
+	</tr>
+</table>
 
 <div class="container" style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; padding: 20px; width: auto; height: auto;">
 	<button class="button" onclick="setMaskMode('maskInner')" style="width: 200px;background-color: #ff6b6b;">
@@ -58,30 +57,33 @@
 	</button>
 </div>
 <table style="margin: 0 auto; border-collapse: collapse;">
-    <tr>
-        <td colspan="3" style="text-align: center; padding: 5px;">
-            <div style="margin: 10px 0;">
-                <button onclick="uploadImage()" style="margin: 0 5px; padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Upload Image</button>
-                <button onclick="uploadMasks()" style="margin: 0 5px; padding: 8px 16px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">Upload Masks</button>
-                <button onclick="saveImage()" style="margin: 0 5px; padding: 8px 16px; background-color: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Image</button>
-                <button onclick="saveMasks()" style="margin: 0 5px; padding: 8px 16px; background-color: #9C27B0; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Masks</button>
-            </div>
-        </td>
-    </tr>
+	<tr>
+		<td colspan="3" style="text-align: center; padding: 5px;">
+			<div style="margin: 10px 0;">
+				<button onclick="uploadImage()" style="margin: 0 5px; padding: 8px 16px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">Upload Image</button>
+				<button onclick="uploadMasks()" style="margin: 0 5px; padding: 8px 16px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">Upload Masks</button>
+				<button onclick="saveImage()" style="margin: 0 5px; padding: 8px 16px; background-color: #FF9800; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Image</button>
+				<button onclick="saveMasks()" style="margin: 0 5px; padding: 8px 16px; background-color: #9C27B0; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Masks</button>
+				<button onclick="saveMaskData()" style="margin: 0 5px; padding: 8px 16px; background-color: #607D8B; color: white; border: none; border-radius: 4px; cursor: pointer;">Save Mask Data</button>
+			</div>
+		</td>
+	</tr>
 </table>
 <div id="mode-indicator" style="margin: 10px 0; font-weight: bold; text-align: center; color: #ffffff;">
 	Current mode: <span id="current-mode">maskInner</span>
 </div>
-	<div id="mask-stats" style="margin-top: 5px; font-size: 14px; color: #ffffff; text-align: center;">
-		<span id="inner-count" style="color: #ff6b6b;">0 × maskInner</span> | 
-		<span id="outer-count" style="color: #4ecdc4;">0 × maskOuter</span>
-	</div>
+<div id="mask-stats" style="margin-top: 5px; font-size: 14px; color: #ffffff; text-align: center;">
+	<span id="inner-count" style="color: #ff6b6b;">0 × maskInner</span> |
+	<span id="outer-count" style="color: #4ecdc4;">0 × maskOuter</span>
+</div>
 </body>
 
+<script type="text/javascript" src="lib/fits.js"></script>
 <script type="text/javascript" src="lib/marking/marking-surface.js"></script>
 <script type="text/javascript" src="lib/marking/tools/ellipse.js"></script>
 <script type="text/javascript" src="lib/marking/tools/circle.js"></script>
 <script type="text/javascript" src="lib/underscore.js"></script>
+<script type="text/javascript" src="lib/hdf5.js"></script>
 <style type="text/css">
 	body {
 		font-family: serif,Helvetica,Arial,sans-serif;
@@ -110,29 +112,6 @@
 		flex-wrap: wrap;
 		gap: 10px;
 	}
-	.container2{
-		width: 1260px;
-		display: flex;
-		flex-direction: row;
-		justify-content: center;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: 10px;
-	}
-
-	#tag,#tag2{
-		width:80px;
-		font-family: Arial,serif;
-		background-color: orange;
-		text-align: center;
-		font-size: medium;
-		color: black;
-		position: absolute;
-		right: 10px;
-		padding: 5px;
-		border-radius: 5px;
-		transition: opacity 0.3s ease-in-out;
-	}
 
 	h1, h2, h3, h4 { font-family: Arial,serif; }
 	h1 { margin-bottom: 0.5em; color: #FFFFFF; }
@@ -140,56 +119,6 @@
 	h4 { color: #666666; }
 	a { color: #666666; }
 
-	#confirm{
-		width: 100px;
-		margin-left: 90px;
-		background-color: #1fc0db;
-		color: white;
-	}
-	#close-form-button{
-		width: 100px;
-		margin-left: 100px;
-		background-color: crimson;
-		color: white;
-	}
-
-	.popup-form {
-		position: fixed;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: 500px;
-		padding: 20px;
-		background-color: #fff;
-		border: 1px solid #c1a3a3;
-		box-shadow: 0 3px 6px 0 rgba(0, 0, 0, 0.16);
-		display: none;
-		border-radius: 5px;
-	}
-	.form-item{
-		height: 50px;
-	}
-	.form-item1{
-		height: 80px;
-	}
-	.popup-form.active {
-		display: block;
-	}
-	.popup-form label{
-		font-size: medium;
-		font-family: Arial,serif;
-		color: black;
-		width: 200px;
-		margin-bottom: 10px;
-		vertical-align: middle;
-	}
-	.pixscale{
-		width: 120px;
-		height: 20px;
-		font-size: medium;
-		border-radius: 5px;
-	}
-	
 	.popup-form input {
 		width: 300px;
 		padding: 10px;
@@ -227,7 +156,7 @@
 		padding-bottom:35px;
 		font-size:27px;
 		font-weight: bold;
-		width: 400px;
+		width: 600px;
 		height: 20px;
 		float: left;
 		margin: 5px;
@@ -276,416 +205,555 @@
 		right: 0;
 	}
 
-	.Uploadbtn {
-		position: relative;
-		overflow: hidden;
-		display: inline-block;
-		border-radius: 7px;
-		background-color: #0f79ac;
-		border: none;
-		color: #FFFFFF;
-		text-align: center;
-		font-size: 18px;
-		padding: 10px;
-		width: 200px;
-		transition: all 0.5s;
-		cursor: pointer;
-		margin: 5px;
-	}
 
-	.Uploadbtn .input-upload {
-		position: absolute;
-		top: 0;
-		right: 0;
-		margin: 0;
-		padding: 0;
-		opacity: 0;
-		height:100%;
-		width:100%;
-	}
-
-
-	.tooltip {
-		position: relative;
-		display: inline-block;
-	}
-
-	.tooltip .tooltiptext {
-		visibility: hidden;
-		width: 220px;
-		background-color: black;
-		color: white;
-		text-align: center;
-		border-radius: 6px;
-		padding: 5px 0;
-		/* Position the tooltip */
-		position: absolute;
-		bottom: 125%;
-		margin-left: -70px;
-	}
-
-	.tooltip:hover .tooltiptext {
-		visibility: visible;
-	}
-
-	/* MCMC等待特效样式 */
-	.loading-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		background-color: rgba(0, 0, 0, 0.7);
-		display: none;
-		justify-content: center;
-		align-items: center;
-		z-index: 1000;
-	}
-	
-	.loading-content {
-		text-align: center;
-		color: white;
-	}
-	
-	.hourglass {
-		width: 60px;
-		height: 60px;
-		border: 3px solid #fff;
-		border-radius: 50%;
-		position: relative;
-		animation: rotate 2s linear infinite;
-	}
-	
-	.hourglass:before {
-		content: '';
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		width: 30px;
-		height: 30px;
-		border: 2px solid #fff;
-		border-radius: 50%;
-		transform: translate(-50%, -50%);
-	}
-	
 	@keyframes rotate {
 		0% { transform: rotate(0deg); }
 		100% { transform: rotate(360deg); }
 	}
-	
+
 </style>
 
 <script type="text/javascript">
-    var src = "images/Figure_29.png";
-    imgname = src.split('/').pop().split('.')[0];
-    var ms;
-    var masks = [];
-    var maskMode = 'maskInner';
-    var img;
-    ms = new MarkingSurface({
-			inputName: 'mass-model',
-			tool: MarkingSurface.CircleTool,
+	var src = "images/Figure_29.png";
+	imgname = src.split('/').pop().split('.')[0];
+	var ms;
+	var masks = [];
+	var maskMode = 'maskInner';
+	var img;
+	ms = new MarkingSurface({
+		inputName: 'mass-model',
+		tool: MarkingSurface.CircleTool,
+	});
+	containerEl = document.getElementById("MaskContainer");
+	containerEl.appendChild(ms.el);
+	var masks = [];
+	maskMode = ''; // 默认模式
+
+	var img = new Image();
+	img.onload = function() {
+		let width = img.width;
+		let height = img.height;
+
+		ms.addShape('image', {
+			'xlink:href': img.src,
+			width: width,
+			height: height
 		});
-    containerEl = document.getElementById("MaskContainer");
-		containerEl.appendChild(ms.el);
-    var masks = [];
-    maskMode = ''; // 默认模式
+		ms.svg.attr({
+			width: width,
+			height: height
+		});
+		ms.rescale(0, 0, width, height);
+		let scaleX = width / img.width;
+		let scaleY = height / img.height;
 
-    var img = new Image();
-		img.onload = function() {
-			let width = img.width;
-			let height = img.height;
+		function updateModel() {
+			let data = JSON.parse(ms.getValue());
+			console.log('Raw data:', data);
 
-			ms.addShape('image', {
-				'xlink:href': img.src,
-				width: width,
-				height: height
-			});
-			ms.svg.attr({
-				width: width,
-				height: height
-			});
-			ms.rescale(0, 0, width, height);
-			let scaleX = width / img.width;
-			let scaleY = height / img.height;
-      
-			function updateModel() {
-				let data = JSON.parse(ms.getValue());
-				console.log('Raw data:', data);
-				
-				if (Array.isArray(data)) {
-					data.forEach(function(item) {
-						// 检查是否为圆形数据（有x, y, r属性）
-						if (item.hasOwnProperty('x') && item.hasOwnProperty('y') && item.hasOwnProperty('r')) {
-							let id = item.id;
-							// 查找是否已存在该圆形
-							let existingIndex = masks.findIndex(mask => mask.id === id);
-							
-							let circleData = {
-								id: id,
-								x: item.x,
-								y: item.y,
-								r: item.r,
-								mode: existingIndex >= 0 ? masks[existingIndex].mode : 'maskInner' // 保留原有mode或设为默认
-							};
-							
-							if (existingIndex >= 0) {
-								// 更新现有圆形的位置和大小
-								masks[existingIndex] = circleData;
-							} else {
-								// 添加新圆形
-                circleData.mode = maskMode;
-								masks.push(circleData);
-							}
+			if (Array.isArray(data)) {
+				data.forEach(function(item) {
+					// 检查是否为圆形数据（有x, y, r属性）
+					if (item.hasOwnProperty('x') && item.hasOwnProperty('y') && item.hasOwnProperty('r')) {
+						let id = item.id;
+						// 查找是否已存在该圆形
+						let existingIndex = masks.findIndex(mask => mask.id === id);
+						let circleData = {
+							id: id,
+							x: item.x,
+							y: item.y,
+							r: item.r,
+							mode: existingIndex >= 0 ? masks[existingIndex].mode : 'maskInner' // 保留原有mode或设为默认
+						};
+
+						if (existingIndex >= 0) {
+							// 更新现有圆形的位置和大小
+							masks[existingIndex] = circleData;
+						} else {
+							// 添加新圆形
+							circleData.mode = maskMode;
+							masks.push(circleData);
 						}
-					});
-					
-					// 清理不存在的圆形（可选，用于处理删除情况）
-					let dataIds = data.map(item => item.id).filter(id => id);
-					masks = masks.filter(mask => dataIds.includes(mask.id));
-					console.log('Updated masks:', masks);
-				} else {
-					console.log('No circle data found');
-				}
+					}
+				});
+
+				// 清理不存在的圆形（可选，用于处理删除情况）
+				let dataIds = data.map(item => item.id).filter(id => id);
+				masks = masks.filter(mask => dataIds.includes(mask.id));
+				console.log('Updated masks:', masks);
+			} else {
+				console.log('No circle data found');
 			}
-			let debouncedUpdateModel = _.debounce(updateModel, 200);
-			ms.on('marking-surface:change', debouncedUpdateModel);
 		}
-		img.src = src;
+		let debouncedUpdateModel = _.debounce(updateModel, 200);
+		ms.on('marking-surface:change', debouncedUpdateModel);
+	}
+	img.src = src;
 
 
-    function setMaskMode(mode) {
-				maskMode = mode; // 设置新圆形的默认mode
-				console.log('Mask mode set to:', maskMode);
-				
-				// 更新UI显示
-				let modeText = document.getElementById('current-mode');
-				if (modeText) {
-					modeText.textContent = mode;
-					modeText.style.color = mode === 'maskInner' ? '#ff6b6b' : '#4ecdc4';
+	function setMaskMode(mode) {
+		maskMode = mode; // 设置新圆形的默认mode
+		console.log('Mask mode set to:', maskMode);
+
+		// 更新UI显示
+		let modeText = document.getElementById('current-mode');
+		if (modeText) {
+			modeText.textContent = mode;
+			modeText.style.color = mode === 'maskInner' ? '#ff6b6b' : '#4ecdc4';
+		}
+		updateMaskStats();
+	}
+
+	function updateMaskStats() {
+		let innerCount = masks.filter(m => m.mode === 'maskInner').length;
+		let outerCount = masks.filter(m => m.mode === 'maskOuter').length;
+
+		let innerSpan = document.getElementById('inner-count');
+		let outerSpan = document.getElementById('outer-count');
+
+		if (innerSpan) innerSpan.textContent = `${innerCount} × maskInner`;
+		if (outerSpan) outerSpan.textContent = `${outerCount} × maskOuter`;
+	}
+
+	function clearMasks() {
+		masks = [];
+		if (ms) {
+			ms.reset(); // 使用MarkingSurface的reset方法清除所有圆形组件
+		}
+		updateMaskStats();
+		document.getElementById('result-container').innerHTML = '';
+		console.log('All masks cleared');
+	}
+
+	// 上传图像函数 - 支持普通图像和FITS文件
+	function uploadImage() {
+		let input = document.createElement('input');
+		input.type = 'file';
+		input.accept = 'image/*,.fits,.fit,.fts';
+		input.onchange = function(e) {
+			let file = e.target.files[0];
+			if (file) {
+				let fileName = file.name.toLowerCase();
+				imgname = file.name.split('.')[0];
+
+				if (fileName.endsWith('.fits') || fileName.endsWith('.fit') || fileName.endsWith('.fts')) {
+					// 处理FITS文件
+					handleFITSFile(file);
+				} else {
+					// 处理普通图像文件
+					handleImageFile(file);
 				}
-				updateMaskStats();
 			}
-			
-			function updateMaskStats() {
-				let innerCount = masks.filter(m => m.mode === 'maskInner').length;
-				let outerCount = masks.filter(m => m.mode === 'maskOuter').length;
-				
-				let innerSpan = document.getElementById('inner-count');
-				let outerSpan = document.getElementById('outer-count');
-				
-				if (innerSpan) innerSpan.textContent = `${innerCount} × maskInner`;
-				if (outerSpan) outerSpan.textContent = `${outerCount} × maskOuter`;
+		};
+		input.click();
+		// Masked Image图像清空
+		document.getElementById('result-container').innerHTML = '';
+		masks = [];
+		ms.reset();
+	}
+
+	// 处理普通图像文件
+	function handleImageFile(file) {
+		let url = window.URL.createObjectURL(file);
+		img.src = url;
+	}
+
+	function getImage(imageData, width, height, convert){
+		let canvas = document.createElement('canvas');
+		canvas.width = width;
+		canvas.height = height;
+		let minval = 1;
+		let maxval = 0;
+		for(let i = 0; i < imageData.length; i++){
+			if(imageData[i] < minval){
+				minval = imageData[i];
+			}
+			if(imageData[i] > maxval){
+				maxval = imageData[i];
+			}
+		}
+		for(let i = 0; i < imageData.length; i++){
+			imageData[i] = (imageData[i] - minval) / (maxval - minval);
+		}
+
+		let ctx = canvas.getContext('2d');
+		let canvasData = ctx.createImageData(width, height);
+		for (let i = 0; i < height; i++) {
+			let flipped_i = height - 1 - i;  // 从底部开始读取
+			for (let j = 0; j < width; j++) {
+				let val = imageData[i * width + j]; // 1D数组
+				if(convert){
+					val = imageData[flipped_i * width + j];
+				}
+				// let val = imageData[flipped_i * width + j]; //使用fits文件时需要翻转
+				let idx = (i * width + j) * 4;
+				canvasData.data[idx] = val*255; // R
+				canvasData.data[idx + 1] = 0; // G
+				canvasData.data[idx + 2] = 0; // B
+				canvasData.data[idx + 3] = 255; // A
+			}
+		}
+		// console.log(imageData);
+		ctx.putImageData(canvasData, 0, 0);
+		url = canvas.toDataURL();
+		return url;
+	}
+
+	// 处理FITS文件
+	function handleFITSFile(file) {
+		new astro.FITS(file, function(fits) {
+			const hdu = fits.getHDU();
+			const header = hdu.header;
+			const dataUnit = hdu.data;
+			imageData = dataUnit.getFrame();
+			width = header.get('NAXIS1');
+			height = header.get('NAXIS2');
+			convert = true;
+			dataUnit.getFrame(0, function(imageData) {
+				url = getImage(imageData,width,height,convert);
+				img.src = url;
+			});
+		});
+	}
+
+	// 上传masks函数
+	function uploadMasks() {
+		masks = [];
+		ms.reset();
+		let input = document.createElement('input');
+		input.type = 'file';
+		input.accept = '.json';
+		input.onchange = function(e) {
+			let file = e.target.files[0];
+			if (file) {
+				let reader = new FileReader();
+				reader.onload = function(e) {
+					try {
+						let loadedMasks = JSON.parse(e.target.result);
+						if (Array.isArray(loadedMasks)) {
+							masks = loadedMasks;
+							// 清空现有的圆形
+							if (ms) {
+								ms.reset();
+							}
+							// 重新绘制加载的masks
+							masks.forEach(mask => {
+								if (mask.x !== undefined && mask.y !== undefined && mask.r !== undefined) {
+									let tool = new MarkingSurface.CircleTool();
+									tool.mark.set({
+										x: mask.x,
+										y: mask.y,
+										r: mask.r,
+										mode: mask.mode || 'maskInner',
+										id: mask.id
+									});
+									ms.addTool(tool);
+								}
+							});
+							updateMaskStats();
+							console.log('Masks uploaded successfully');
+						}
+					} catch (error) {
+						console.error('Error loading masks:', error);
+						alert('Error loading masks file');
+					}
+				};
+				reader.readAsText(file);
+			}
+		};
+		input.click();
+	}
+
+	// 保存图像函数 - 直接使用右侧显示的masked image
+	function saveImage() {
+		let resultContainer = document.getElementById('result-container');
+		let resultImg = resultContainer.querySelector('img');
+
+		if (!resultImg || !resultImg.src) {
+			alert('No masked image to save. Please apply masks first.');
+			return;
+		}
+		let link = document.createElement('a');
+		link.download = imgname + '_masked.png';
+		link.href = resultImg.src;
+		link.click();
+	}
+
+	// 保存masks函数
+	function saveMasks() {
+		if (masks.length === 0) {
+			alert('No masks to save');
+			return;
+		}
+		let dataStr = JSON.stringify(masks, null, 2);
+		let dataBlob = new Blob([dataStr], {type: 'application/json'});
+		let link = document.createElement('a');
+
+		// 添加时间戳到文件名
+		let timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+		link.download = imgname + '_masks_' + timestamp + '.json';
+
+		link.href = URL.createObjectURL(dataBlob);
+		link.click();
+	}
+
+	// 保存mask圈中的像素数据为HDF5格式（包含矩阵数据）
+	function saveMaskData() {
+		if (masks.length === 0) {
+			alert('No masks to save data from');
+			return;
+		}
+		if (!img || !img.src) {
+			alert('No image loaded');
+			return;
+		}
+		// 创建canvas来获取原始图像数据
+		const canvas = document.createElement('canvas');
+		const ctx = canvas.getContext('2d');
+
+		// 使用图像的原始尺寸
+		const imgWidth = img.naturalWidth || img.width;
+		const imgHeight = img.naturalHeight || img.height;
+
+		canvas.width = imgWidth;
+		canvas.height = imgHeight;
+
+		// 绘制图像到canvas
+		ctx.drawImage(img, 0, 0, imgWidth, imgHeight);
+
+		// 获取图像数据
+		const imageData = ctx.getImageData(0, 0, imgWidth, imgHeight);
+		const data = imageData.data;
+
+		// 将RGB转换为灰度值
+		const grayData = new Float32Array(imgHeight * imgWidth);
+		for (let i = 0; i < imgHeight * imgWidth; i++) {
+			const r = data[i * 4];
+			const g = data[i * 4 + 1];
+			const b = data[i * 4 + 2];
+			grayData[i] = (r + g + b) / 3; // 灰度值
+		}
+
+		// 创建HDF5兼容的保存数据结构
+		const maskData = {
+			image_info: {
+				width: imgWidth,
+				height: imgHeight,
+				filename: imgname,
+				timestamp: new Date().toISOString()
+			},
+			full_image_gray: {
+				data: grayData,
+				shape: [imgHeight, imgWidth],
+				dtype: "<f4"
+			},
+			masks: {}
+		};
+
+		// 为每个mask提取数据
+		masks.forEach((mask, index) => {
+			// 计算mask区域的边界框
+			const minX = Math.max(0, Math.floor(mask.x - mask.r));
+			const maxX = Math.min(imgWidth - 1, Math.ceil(mask.x + mask.r));
+			const minY = Math.max(0, Math.floor(mask.y - mask.r));
+			const maxY = Math.min(imgHeight - 1, Math.ceil(mask.y + mask.r));
+
+			const width = maxX - minX + 1;
+			const height = maxY - minY + 1;
+
+			// 创建mask区域的数据矩阵
+			const maskPixels = new Float32Array(height * width);
+			const validPixels = [];
+			let pixelIndex = 0;
+
+			for (let y = 0; y < height; y++) {
+				for (let x = 0; x < width; x++) {
+					const globalX = minX + x;
+					const globalY = minY + y;
+
+					// 检查是否在圆内
+					const dx = globalX - mask.x;
+					const dy = globalY - mask.y;
+					const distance = Math.sqrt(dx * dx + dy * dy);
+
+					if (distance <= mask.r) {
+						// 在圆内，获取像素值
+						const pixelIndex2 = globalY * imgWidth + globalX;
+						maskPixels[pixelIndex] = grayData[pixelIndex2] || 0;
+						validPixels.push(grayData[pixelIndex2] || 0);
+					} else {
+						// 在圆外，设为NaN表示无效数据
+						maskPixels[pixelIndex] = NaN;
+					}
+					pixelIndex++;
+				}
 			}
 
-    function clearMasks() {
-        masks = [];
-        if (ms) {
-            ms.reset(); // 使用MarkingSurface的reset方法清除所有圆形组件
-        }
-        updateMaskStats();
-        document.getElementById('result-container').innerHTML = '';
-        console.log('All masks cleared');
-    }
+			// 保存mask信息
+			maskData.masks[`mask_${index + 1}`] = {
+				metadata: {
+					index: index + 1,
+					x: mask.x,
+					y: mask.y,
+					radius: mask.r,
+					mode: mask.mode,
+					bounding_box: {
+						min_x: minX,
+						min_y: minY,
+						max_x: maxX,
+						max_y: maxY,
+						width: width,
+						height: height
+					},
+					valid_pixel_count: validPixels.length
+				},
+				pixels: {
+					data: maskPixels,
+					shape: [height, width],
+					dtype: "<f4"
+				},
+				valid_pixels: {
+					data: new Float32Array(validPixels),
+					shape: [validPixels.length],
+					dtype: "<f4"
+				}
+			};
+		});
 
-    // 上传图像函数
-    function uploadImage() {
-        let input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = function(e) {
-            let file = e.target.files[0];
-            imgname = file.name.split('.')[0];
-            let url = window.URL.createObjectURL(file);
-            img.src = url;
-        };
-        input.click();
-        // Masked Image图像清空
-        document.getElementById('result-container').innerHTML = '';
-    }
+		try {
+			// 转换为JSON字符串（HDF5兼容格式）
+			const jsonStr = JSON.stringify(maskData, (key, value) => {
+				if (value instanceof Float32Array) {
+					return Array.from(value);
+				}
+				return value;
+			}, 2);
 
-    // 上传masks函数
-    function uploadMasks() {
-        let input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.onchange = function(e) {
-            let file = e.target.files[0];
-            if (file) {
-                let reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        let loadedMasks = JSON.parse(e.target.result);
-                        if (Array.isArray(loadedMasks)) {
-                            masks = loadedMasks;
-                            // 清空现有的圆形
-                            if (ms) {
-                                ms.reset();
-                            }
-                            // 重新绘制加载的masks
-                            masks.forEach(mask => {
-                                if (mask.x !== undefined && mask.y !== undefined && mask.r !== undefined) {
-                                    let tool = new MarkingSurface.CircleTool();
-                                    tool.mark.set({
-                                        x: mask.x,
-                                        y: mask.y,
-                                        r: mask.r,
-                                        mode: mask.mode || 'maskInner',
-                                        id: mask.id
-                                    });
-                                    ms.addTool(tool);
-                                }
-                            });
-                            updateMaskStats();
-                            console.log('Masks uploaded successfully');
-                        }
-                    } catch (error) {
-                        console.error('Error loading masks:', error);
-                        alert('Error loading masks file');
-                    }
-                };
-                reader.readAsText(file);
-            }
-        };
-        input.click();
-    }
+			// 创建并下载文件 - 添加时间戳
+			const blob = new Blob([jsonStr], {type: 'application/json'});
+			const link = document.createElement('a');
 
-    // 保存图像函数 - 直接使用右侧显示的masked image
-    function saveImage() {
-        let resultContainer = document.getElementById('result-container');
-        let resultImg = resultContainer.querySelector('img');
-        
-        if (!resultImg || !resultImg.src) {
-            alert('No masked image to save. Please apply masks first.');
-            return;
-        }
-        let link = document.createElement('a');
-        link.download = imgname + '_masked.png';
-        link.href = resultImg.src;
-        link.click();
-    }
+			let timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+			link.download = imgname + '_mask_data_' + timestamp + '.h5.json';
 
-    // 保存masks函数
-    function saveMasks() {
-        if (masks.length === 0) {
-            alert('No masks to save');
-            return;
-        }
-        let dataStr = JSON.stringify(masks, null, 2);
-        let dataBlob = new Blob([dataStr], {type: 'application/json'});
-        let link = document.createElement('a');
-        link.download = imgname + '_masks.json';
-        link.href = URL.createObjectURL(dataBlob);
-        link.click();
-    }
+			link.href = URL.createObjectURL(blob);
+			link.click();
 
-    function toggleCircleMode(circleId) {
-        let index = masks.findIndex(m => m.id === circleId);
-        if (index !== -1) {
-            masks[index].mode = masks[index].mode === 'maskInner' ? 'maskOuter' : 'maskInner';
-            updateMaskStats();
-            console.log('Toggled circle mode:', circleId, 'new mode:', masks[index].mode);
-        }
-    }
+			console.log('Mask data saved successfully as HDF5-compatible JSON:', maskData);
+			alert('Mask data saved as HDF5-compatible JSON file!\n\n文件包含：\n- 完整图像灰度数据\n- 每个mask的像素矩阵\n- mask元数据（位置、半径等）\n\n可以用Python的h5py或pandas读取处理');
+		} catch (error) {
+			console.error('Error saving mask data:', error);
+			alert('Error saving mask data. Please check the console for details.');
+		}
+	}
 
-    function applyMasksToImage(){
-        console.log('Applying masks:', masks);
-        if (masks.length === 0) {
-            console.log('No masks to apply');
-            return;
-        }
-        // 获取原始图像
-        let originalImg = img;
-        if (!originalImg) {
-            console.error('No image found');
-            return;
-        }
-        // 获取MaskContainer的尺寸用于对齐
-        let maskContainer = document.getElementById('MaskContainer');
-        let containerRect = maskContainer.getBoundingClientRect();
-        let imgRect = originalImg.getBoundingClientRect();
+	function toggleCircleMode(circleId) {
+		let index = masks.findIndex(m => m.id === circleId);
+		if (index !== -1) {
+			masks[index].mode = masks[index].mode === 'maskInner' ? 'maskOuter' : 'maskInner';
+			updateMaskStats();
+			console.log('Toggled circle mode:', circleId, 'new mode:', masks[index].mode);
+		}
+	}
 
-        // 创建canvas来处理图像，保持与显示图像相同的尺寸
-        let canvas = document.createElement('canvas');
-        let ctx = canvas.getContext('2d');
-        
-        // 使用显示图像的实际尺寸，确保对齐
-        let displayWidth = originalImg.clientWidth || originalImg.width;
-        let displayHeight = originalImg.clientHeight || originalImg.height;
-        
-        // 设置canvas尺寸与显示图像一致
-        canvas.width = originalImg.naturalWidth || originalImg.width;
-        canvas.height = originalImg.naturalHeight || originalImg.height;
-        
-        // 绘制原始图像
-        ctx.drawImage(originalImg, 0, 0);
-        
-        // 获取图像数据
-        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        let data = imageData.data;
-        
-        // 分类处理mask
-        let innerMasks = masks.filter(m => m.mode === 'maskInner');
-        let outerMasks = masks.filter(m => m.mode === 'maskOuter');
-        
-        for (let y = 0; y < canvas.height; y++) {
-            for (let x = 0; x < canvas.width; x++) {
-                let index = (y * canvas.width + x) * 4;
-                
-                // 检查像素位置
-                let inAnyInnerCircle = innerMasks.some(mask => {
-                    let dx = x - mask.x;
-                    let dy = y - mask.y;
-                    return Math.sqrt(dx * dx + dy * dy) <= mask.r;
-                });
-                
-                let inAnyOuterCircle = outerMasks.some(mask => {
-                    let dx = x - mask.x;
-                    let dy = y - mask.y;
-                    return Math.sqrt(dx * dx + dy * dy) <= mask.r;
-                });
-                
-                // 应用mask规则
-                let shouldErase = false;
-                
-                if (innerMasks.length > 0 && inAnyInnerCircle) {
-                    // maskInner模式：圆内数据擦除置零
-                    shouldErase = true;
-                }
-                
-                if (outerMasks.length > 0 && !inAnyOuterCircle) {
-                    // maskOuter模式：圆外数据擦除置零
-                    shouldErase = true;
-                }
-                
-                if (shouldErase) {
-                    data[index] = 0;     // R
-                    data[index + 1] = 0; // G
-                    data[index + 2] = 0; // B
-                }
-            }
-        }
-        
-        // 将处理后的图像数据放回canvas
-        ctx.putImageData(imageData, 0, 0);
-        
-        // 获取已存在的result-container
-        let resultDiv = document.getElementById('result-container');
-        resultDiv.innerHTML = ''; // 清空之前的内容
-        resultDiv.style.padding = '0'; // 移除内边距确保对齐
-        
-        let resultImg = document.createElement('img');
-        resultImg.src = canvas.toDataURL();
-        resultImg.style.maxWidth = '100%';
-        resultImg.style.maxHeight = 'none'; // 移除高度限制
-        resultImg.style.border = 'none'; // 移除边框确保对齐
-        resultImg.style.borderRadius = '0'; // 移除圆角确保对齐
-        resultImg.style.display = 'block'; // 确保图像对齐
-        
-        resultDiv.appendChild(resultImg);
-        
-        console.log('Masks applied successfully');
-        updateMaskStats();
-    }
+	function applyMasksToImage(){
+		console.log('Applying masks:', masks);
+		if (masks.length === 0) {
+			console.log('No masks to apply');
+			return;
+		}
+		// 获取原始图像
+		let originalImg = img;
+		if (!originalImg) {
+			console.error('No image found');
+			return;
+		}
+		// 获取MaskContainer的尺寸用于对齐
+		let maskContainer = document.getElementById('MaskContainer');
+		let containerRect = maskContainer.getBoundingClientRect();
+		let imgRect = originalImg.getBoundingClientRect();
+
+		// 创建canvas来处理图像，保持与显示图像相同的尺寸
+		let canvas = document.createElement('canvas');
+		let ctx = canvas.getContext('2d');
+
+		// 使用显示图像的实际尺寸，确保对齐
+		let displayWidth = originalImg.clientWidth || originalImg.width;
+		let displayHeight = originalImg.clientHeight || originalImg.height;
+
+		// 设置canvas尺寸与显示图像一致
+		canvas.width = originalImg.naturalWidth || originalImg.width;
+		canvas.height = originalImg.naturalHeight || originalImg.height;
+
+		// 绘制原始图像
+		ctx.drawImage(originalImg, 0, 0);
+
+		// 获取图像数据
+		let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+		let data = imageData.data;
+
+		// 分类处理mask
+		let innerMasks = masks.filter(m => m.mode === 'maskInner');
+		let outerMasks = masks.filter(m => m.mode === 'maskOuter');
+
+		for (let y = 0; y < canvas.height; y++) {
+			for (let x = 0; x < canvas.width; x++) {
+				let index = (y * canvas.width + x) * 4;
+
+				// 检查像素位置
+				let inAnyInnerCircle = innerMasks.some(mask => {
+					let dx = x - mask.x;
+					let dy = y - mask.y;
+					return Math.sqrt(dx * dx + dy * dy) <= mask.r;
+				});
+
+				let inAnyOuterCircle = outerMasks.some(mask => {
+					let dx = x - mask.x;
+					let dy = y - mask.y;
+					return Math.sqrt(dx * dx + dy * dy) <= mask.r;
+				});
+
+				// 应用mask规则
+				let shouldErase = false;
+
+				if (innerMasks.length > 0 && inAnyInnerCircle) {
+					// maskInner模式：圆内数据擦除置零
+					shouldErase = true;
+				}
+
+				if (outerMasks.length > 0 && !inAnyOuterCircle) {
+					// maskOuter模式：圆外数据擦除置零
+					shouldErase = true;
+				}
+
+				if (shouldErase) {
+					data[index] = 0;     // R
+					data[index + 1] = 0; // G
+					data[index + 2] = 0; // B
+				}
+			}
+		}
+
+		// 将处理后的图像数据放回canvas
+		ctx.putImageData(imageData, 0, 0);
+
+		// 获取已存在的result-container
+		let resultDiv = document.getElementById('result-container');
+		resultDiv.innerHTML = ''; // 清空之前的内容
+		resultDiv.style.padding = '0'; // 移除内边距确保对齐
+
+		let resultImg = document.createElement('img');
+		resultImg.src = canvas.toDataURL();
+		resultImg.style.maxWidth = '100%';
+		resultImg.style.maxHeight = 'none'; // 移除高度限制
+		resultImg.style.border = 'none'; // 移除边框确保对齐
+		resultImg.style.borderRadius = '0'; // 移除圆角确保对齐
+		resultImg.style.display = 'block'; // 确保图像对齐
+
+		resultDiv.appendChild(resultImg);
+
+		console.log('Masks applied successfully');
+		updateMaskStats();
+	}
 
 </script>
