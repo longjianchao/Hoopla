@@ -26,6 +26,7 @@
 	imgd.src = src;
 	imgd.width = 400;
 	imgd.height = 400;
+	var scale = 1.0;
 	var lets,ms,ms_src,containerEl,containerEl_src,img,img_src;
 	// 在全局作用域声明
 	let pyodide = null;
@@ -220,8 +221,8 @@
 
 		document.getElementById("image-url").onchange = async function () {
 			let imageFile = this.files[0];
-			if (!imageFile || (!imageFile.name.endsWith('.h5')&&!imageFile.name.match(/\.(fits|fit|fts)$/i))) {
-				window.alert('Only HDF5 (.h5) or Fits(.fits) files are allowed!');
+			if (!imageFile || (!imageFile.name.endsWith('.h5')&&!imageFile.name.match(/\.(fits|fit|fts)$/i)&&!imageFile.name.endsWith('.png'))) {
+				window.alert('Only HDF5 (.h5) or Fits(.fits) or PNG files are allowed!');
 				return;
 			}
 			window._uploadedImageFile = imageFile; // 保存到全局
@@ -325,9 +326,11 @@
 					shape = dataset.shape;
 					height = shape[0];
 					width = shape[1];
+					scale = lets.height/height;
 					convert = false;
 					url = getImage(imageData,width,height,convert);
 					img0.src = url;
+					lets.pixscale = pixscale/scale;
 				}
 				reader.readAsArrayBuffer(imageFile);
 			}else if(imageFile.name.match(/\.(fits|fit|fts)$/i)){	
@@ -338,12 +341,19 @@
 				imageData = dataUnit.getFrame();
 				width = header.get('NAXIS1');
 				height = header.get('NAXIS2');
+				scale = lets.height/height;
+				console.log("缩放比例是："+scale);
 				convert = true;
 				dataUnit.getFrame(0, function(imageData) {
 					url = getImage(imageData,width,height,convert);
 					img0.src = url;
+					lets.pixscale = pixscale/scale;
+					console.log("缩放后的像素 scale 是："+lets.pixscale);
 				});
 				});
+			}else if(imageFile.name.endsWith('.png')){
+				url = document.getElementById("imgURL").innerText;
+				img0.src = url;
 			}
 			
 			let pixscale = document.getElementById("pixel-scale").value;
@@ -353,8 +363,9 @@
 				return;
 			}
 			if (regex.test(pixscale)) {
-				lets.pixscale = pixscale;
-				lets.model.pixscale = pixscale;
+				lets.pixscale = pixscale/scale;
+				lets.model.pixscale = pixscale/scale;
+				console.log(scale);
 			} else {
 				window.alert('Please re-enter the pixel scale of the image correctly!');
 				return;
@@ -391,7 +402,7 @@
 				let pixscale = data.pixscale;
 				console.log(data);
 				lets.loadModel(components);
-				lets.pixscale = pixscale;
+				lets.pixscale = pixscale/scale;
 				lets.freezeSrcModel = true;
 				updateCanvas(components);
 				const angle = lets.lens.ang2pix({x: components[0].x, y: components[0].y});
@@ -480,7 +491,7 @@
 		let pixscale = document.getElementById('newPixelScale').value;
 		const regex = /^\d{0,2}(\.\d{0,6})?$/;
 		if(regex.test(pixscale)){
-			lets.pixscale = pixscale;
+			lets.pixscale = pixscale/scale;
 			console.log(lets);
 		}else{
 			window.alert('Pixel-scale is not a legitimate input!');
@@ -735,7 +746,6 @@
 			console.log('Error: NaN result');
 		}
 		console.log('res:'+res/red.length);
-
 		for (let x = 0; x < imgd.height; ++x) {
 			for (let y = 0; y < imgd.width; ++y) {
 				let index = (x * imgd.width + y) * 4;   //4是image的4个通道r,g,b和透明度
@@ -931,7 +941,7 @@
 				lets.update(angle);
 				lets.freezeSrcModel = true;
 				updateCanvas(lets.model.components);
-				console.log(lets.model.components);
+				console.log(lets);
 			} catch (error) {
 				console.error("优化过程出错:", error);
 			} finally {
@@ -1102,7 +1112,7 @@
 			// 获取当前模型参数
 			const modelData = {
 				components: lets.model.components,
-				pixscale: lets.pixscale,
+				pixscale: lets.pixscale*scale,
 			};
 			console.log('发送MCMC请求，参数:', modelData);
 			// 发送到后端
@@ -1124,8 +1134,8 @@
 			lets.model.components = result.components;
 			const angle = lets.lens.ang2pix({x: lets.model.components[0].x, y: lets.model.components[0].y});
 			lets.update(angle);
-			lets.freezeSrcModel = true;
 			updateCanvas(lets.model.components);
+			lets.freezeSrcModel = true;
 			console.log(lets.model.components);
 			if(result.status=='success'){
 				window.alert('MCMC建模成功！');

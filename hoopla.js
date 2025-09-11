@@ -406,7 +406,7 @@
 			imgSrc = imgSrc.substring(0,256);
 		}
 		this.model.src = imgSrc;
-		this.model.pixscale = this.pixscale;
+		this.model.pixscale = this.pixscale*scale;
 		delete this.model.source;
 		delete this.model.PSFwidth;
 		// this.downloadImage();
