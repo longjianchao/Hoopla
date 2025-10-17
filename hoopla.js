@@ -291,12 +291,14 @@
 	}
 	// 设置标签为Freezing
 	Hoopla.prototype.setFreezed = function(){
+		this.freezeSrcModel = true;
 		let tag = document.getElementById('tag');
 		tag.innerHTML = "<span class=\"tooltiptext\">Freezing Mode is unactivated, click left button of the mouse to turn into interactive mode.</span>Freezing"
 		tag.style.backgroundColor = "lightblue";
 	}
 
 	Hoopla.prototype.setActived = function(){
+		this.freezeSrcModel = false;
 		let tag = document.getElementById('tag');
 		tag.innerHTML = "<span class=\"tooltiptext\">Interactive Mode is activated, click left button of the mouse to turn into freezing mode.</span>Interactive";
 		tag.style.backgroundColor = "orange";
@@ -406,7 +408,8 @@
 			imgSrc = imgSrc.substring(0,256);
 		}
 		this.model.src = imgSrc;
-		this.model.pixscale = this.pixscale*scale;
+		this.model.pixscale = this.pixscale*window.fileHandlerScale;
+		
 		delete this.model.source;
 		delete this.model.PSFwidth;
 		// this.downloadImage();
@@ -783,95 +786,5 @@
 		document.getElementById('maskRadius').value = undefined;
 	}
 		
-
-		// // 1. 处理画布元素
-		// const canvases = [
-		// 	document.getElementById('hoopla-srcmodel'),
-		// 	document.getElementById('hoopla-prediction')
-		// ];
-		// canvases.forEach(canvas => {
-		// 	if (canvas) {
-		// 		const ctx = canvas.getContext('2d');
-		// 		if (ctx) {
-		// 			// 保存当前画布状态
-		// 			ctx.save();
-		// 			// 计算中心点
-		// 			const centerX = canvas.width / 2;
-		// 			const centerY = canvas.height / 2;
-		// 			// 创建一个临时画布来绘制掩码
-		// 			const tempCanvas = document.createElement('canvas');
-		// 			const tempCtx = tempCanvas.getContext('2d');
-		// 			if (tempCtx) {
-		// 				tempCanvas.width = canvas.width;
-		// 				tempCanvas.height = canvas.height;
-		// 				// 绘制一个全黑的矩形
-		// 				tempCtx.fillStyle = 'black';
-		// 				tempCtx.fillRect(0, 0, canvas.width, canvas.height);
-		// 				// 使用destination-out模式清除圆形区域
-		// 				tempCtx.globalCompositeOperation = 'destination-out';
-		// 				tempCtx.beginPath();
-		// 				tempCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-		// 				tempCtx.fill();
-		// 				// 将临时画布的内容绘制到原始画布上
-		// 				ctx.drawImage(tempCanvas, 0, 0);
-		// 			}
-		// 			// 恢复画布状态
-		// 			ctx.restore();
-		// 		}
-		// 	}
-		// });
-		
-		// // 2. 处理Mass Model和Source Model容器
-		// const modelContainers = [
-		// 	document.getElementById('marking-container'),
-		// 	document.getElementById('marking-container-src')
-		// ];
-		// modelContainers.forEach(container => {
-		// 	if (container) {
-		// 		// 移除已有的掩码
-		// 		const existingMask = container.querySelector('.model-mask');
-		// 		if (existingMask) {
-		// 			container.removeChild(existingMask);
-		// 		}
-				
-		// 		// 创建新的掩码元素
-		// 		const mask = document.createElement('div');
-		// 		mask.className = 'model-mask';
-				
-		// 		// 设置掩码样式
-		// 		const style = mask.style;
-		// 		style.position = 'absolute';
-		// 		style.top = '0';
-		// 		style.left = '0';
-		// 		style.width = '100%';
-		// 		style.height = '100%';
-		// 		style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-		// 		style.pointerEvents = 'none'; // 允许鼠标事件穿透掩码
-		// 		style.borderRadius = '50%';
-		// 		style.transform = 'translate(-50%, -50%)';
-		// 		style.overflow = 'hidden';
-				
-		// 		// 创建内部圆形透明区域
-		// 		const innerCircle = document.createElement('div');
-		// 		style.width = (radius * 2) + 'px';
-		// 		style.height = (radius * 2) + 'px';
-		// 		innerCircle.style.position = 'absolute';
-		// 		innerCircle.style.top = '50%';
-		// 		innerCircle.style.left = '50%';
-		// 		innerCircle.style.transform = 'translate(-50%, -50%)';
-		// 		innerCircle.style.width = (radius * 2) + 'px';
-		// 		innerCircle.style.height = (radius * 2) + 'px';
-		// 		innerCircle.style.borderRadius = '50%';
-		// 		innerCircle.style.boxShadow = '0 0 0 9999px rgba(0, 0, 0, 0.7)';
-				
-		// 		// 添加到容器
-		// 		mask.appendChild(innerCircle);
-		// 		container.appendChild(mask);
-		// 	}
-		// });
-		
-		// 显示掩码已应用的提示
-	// 	console.log('Mask applied with radius:', radius);
-	// };
 
 })(typeof exports !== "undefined" ? exports : window);

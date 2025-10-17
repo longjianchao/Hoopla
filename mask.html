@@ -82,6 +82,7 @@
 <script type="text/javascript" src="lib/marking/marking-surface.js"></script>
 <script type="text/javascript" src="lib/marking/tools/ellipse.js"></script>
 <script type="text/javascript" src="lib/marking/tools/circle.js"></script>
+<script type="text/javascript" src="imageProcessor.js"></script>
 <script type="text/javascript" src="lib/underscore.js"></script>
 <script type="text/javascript" src="lib/hdf5.js"></script>
 <style type="text/css">
@@ -358,46 +359,46 @@
 		img.src = url;
 	}
 
-	function getImage(imageData, width, height, convert){
-		let canvas = document.createElement('canvas');
-		canvas.width = width;
-		canvas.height = height;
-		let minval = 1;
-		let maxval = 0;
-		for(let i = 0; i < imageData.length; i++){
-			if(imageData[i] < minval){
-				minval = imageData[i];
-			}
-			if(imageData[i] > maxval){
-				maxval = imageData[i];
-			}
-		}
-		for(let i = 0; i < imageData.length; i++){
-			imageData[i] = (imageData[i] - minval) / (maxval - minval);
-		}
+	// function getImage(imageData, width, height, convert){
+	// 	let canvas = document.createElement('canvas');
+	// 	canvas.width = width;
+	// 	canvas.height = height;
+	// 	let minval = 1;
+	// 	let maxval = 0;
+	// 	for(let i = 0; i < imageData.length; i++){
+	// 		if(imageData[i] < minval){
+	// 			minval = imageData[i];
+	// 		}
+	// 		if(imageData[i] > maxval){
+	// 			maxval = imageData[i];
+	// 		}
+	// 	}
+	// 	for(let i = 0; i < imageData.length; i++){
+	// 		imageData[i] = (imageData[i] - minval) / (maxval - minval);
+	// 	}
 
-		let ctx = canvas.getContext('2d');
-		let canvasData = ctx.createImageData(width, height);
-		for (let i = 0; i < height; i++) {
-			let flipped_i = height - 1 - i;  // 从底部开始读取
-			for (let j = 0; j < width; j++) {
-				let val = imageData[i * width + j]; // 1D数组
-				if(convert){
-					val = imageData[flipped_i * width + j];
-				}
-				// let val = imageData[flipped_i * width + j]; //使用fits文件时需要翻转
-				let idx = (i * width + j) * 4;
-				canvasData.data[idx] = val*255; // R
-				canvasData.data[idx + 1] = 0; // G
-				canvasData.data[idx + 2] = 0; // B
-				canvasData.data[idx + 3] = 255; // A
-			}
-		}
-		// console.log(imageData);
-		ctx.putImageData(canvasData, 0, 0);
-		url = canvas.toDataURL();
-		return url;
-	}
+	// 	let ctx = canvas.getContext('2d');
+	// 	let canvasData = ctx.createImageData(width, height);
+	// 	for (let i = 0; i < height; i++) {
+	// 		let flipped_i = height - 1 - i;  // 从底部开始读取
+	// 		for (let j = 0; j < width; j++) {
+	// 			let val = imageData[i * width + j]; // 1D数组
+	// 			if(convert){
+	// 				val = imageData[flipped_i * width + j];
+	// 			}
+	// 			// let val = imageData[flipped_i * width + j]; //使用fits文件时需要翻转
+	// 			let idx = (i * width + j) * 4;
+	// 			canvasData.data[idx] = val*255; // R
+	// 			canvasData.data[idx + 1] = 0; // G
+	// 			canvasData.data[idx + 2] = 0; // B
+	// 			canvasData.data[idx + 3] = 255; // A
+	// 		}
+	// 	}
+	// 	// console.log(imageData);
+	// 	ctx.putImageData(canvasData, 0, 0);
+	// 	url = canvas.toDataURL();
+	// 	return url;
+	// }
 
 	// 处理FITS文件
 	function handleFITSFile(file) {
