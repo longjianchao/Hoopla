@@ -213,6 +213,9 @@
 		}
 		setup();
 		document.getElementById('imageUpload').onclick = function (e) {
+			if (window.cleanupCanvas) {
+				window.cleanupCanvas();
+			}
 			document.getElementById("imgURL").innerText = "";
 			document.getElementById("pixel-scale").value = "";
 			document.querySelector('.popup-form').classList.add('active');
@@ -362,6 +365,7 @@
 		};
 
 		document.getElementById('modelUpload').onchange = async function (e) {
+			
 			let input = e.target;
 			let modelFile = input.files[0];
 			
@@ -386,6 +390,11 @@
 
 	// 重置pixel scale
   function reset() {
+    // 清理参数趋势图
+    if (window.cleanupCanvas) {
+      window.cleanupCanvas();
+    }
+    
     const pixscaleInput = document.getElementById('newPixelScale');
     const pixscale = pixscaleInput.value;
     
@@ -419,19 +428,39 @@
   }
 	
 	// 仅监听maskRadius输入框的input事件，DOM加载时不执行绘制操作
-	document.addEventListener('DOMContentLoaded', function() {
-		const maskRadiusInput = document.getElementById('maskRadius');
-		if (maskRadiusInput) {
-			maskRadiusInput.addEventListener('input', function() {
-				if (typeof lets !== 'undefined' && typeof lets.drawMaskOutline === 'function') {
-					lets.drawMaskOutline();
-				}
-			});
+document.addEventListener('DOMContentLoaded', function() {
+	const maskRadiusInput = document.getElementById('maskRadius');
+	if (maskRadiusInput) {
+		maskRadiusInput.addEventListener('input', function() {
+			if (typeof lets !== 'undefined' && typeof lets.drawMaskOutline === 'function') {
+				lets.drawMaskOutline();
+			}
+		});
+	}
+	
+	// 处理模型参数对比线开关
+	const modelComparisonToggle = document.getElementById('modelComparisonToggle');
+	if (modelComparisonToggle) {
+		// 初始化开关状态
+		if (typeof window.drawModelComparisonLine !== 'undefined') {
+			modelComparisonToggle.checked = window.drawModelComparisonLine;
 		}
-	});
+		
+		// 添加点击事件监听器
+		modelComparisonToggle.addEventListener('change', function() {
+			window.drawModelComparisonLine = this.checked;
+			console.log('模型参数对比线功能已' + (this.checked ? '启用' : '禁用'));
+		});
+	}
+	
+});
 
 	// 应用掩码按钮点击事件（已移至imageProcessor.js）
 	function applyMask() {
+		// 清理参数趋势图
+		if (window.cleanupCanvas) {
+			window.cleanupCanvas();
+		}
 		return window.imageProcessor.applyMask();
 	}
 
@@ -554,6 +583,12 @@
 	<button class="button" onclick="applyMask()" style="width: 150px;background-color: #666666;vertical-align: middle; margin-left: 10px;">
 		<span>Apply Mask</span>
 	</button>
+</div>
+<div class="container" style="height: 40px; width: 1000px;">
+	<label style="color: white; margin-right: 10px;">
+		<input type="checkbox" id="modelComparisonToggle" checked style="margin-right: 5px;">
+		绘制模型参数对比线
+	</label>
 </div>
 
 <div class="popup-form">

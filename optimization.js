@@ -141,10 +141,15 @@ function chi2_rescale(p) {
 			x = col* lets.pixscale - lets.pixscale*lets.width/2 + lets.pixscale/2;
 			y = -row* lets.pixscale + lets.pixscale*lets.height/2 - lets.pixscale/2;
 			testimg[i] = model_lensed_images(p, x, y);
-			chi[i2] = (red[i] - testimg[i])/redstd/redstd/(chi.length);
+			chi[i2] = (red[i] - testimg[i])/redstd;
 		}
 	}
-	return optimize.vector.dot(chi, chi);
+	// 计算卡方值
+	const chi2 = optimize.vector.dot(chi, chi);
+	// 计算自由度：数据点数量 - 参数数量(12个参数)
+	const dof = chi.length - 12;
+	// 返回约化卡方
+	return chi2 / dof;
 }
 
 function show_res(p) {
@@ -201,7 +206,8 @@ function show_res(p) {
 	return res;
 }
 
-var chartInstance = null; // 声明一个全局变量来存储 Chart 实例
+var chartInstance = null; // 声明一个全局变量来存储卡方值图表实例
+var paramsChartInstances = paramsChartInstances || []; // 声明一个全局变量来存储参数趋势图表实例
 
 // 修改绘制曲线函数，使其更适合显示优化过程
 function drawChiSquareCurve(chiSquaredValues) {
@@ -222,7 +228,7 @@ function drawChiSquareCurve(chiSquaredValues) {
 			data: {
 				labels: Array.from({ length: chiSquaredValues.length }, (_, i) => i + 1),
 				datasets: [{
-					label: '卡方值',
+					label: 'chi-squared value',
 					data: chiSquaredValues,
 					borderColor: 'rgb(75, 192, 192)',
 					tension: 0.1,
@@ -235,13 +241,13 @@ function drawChiSquareCurve(chiSquaredValues) {
 					x: {
 						title: {
 							display: true,
-							text: '迭代次数'
+							text: 'iteration number'
 						}
 					},
 					y: {
 						title: {
 							display: true,
-							text: '目标函数值'
+							text: 'target function value'
 						},
 						// 使用对数刻度可能更好地显示函数值的变化
 						type: 'logarithmic'
@@ -250,7 +256,7 @@ function drawChiSquareCurve(chiSquaredValues) {
 				plugins: {
 					title: {
 						display: true,
-						text: '优化过程中的卡方值变化'
+						text: 'optimization process'
 					},
 					legend: {
 						position: 'top',
@@ -261,9 +267,311 @@ function drawChiSquareCurve(chiSquaredValues) {
 	}
 }
 
+/**
+ * 绘制参数趋势图（累加式更新）
+ * @param {Array} paramsHistory - 包含每次迭代参数值的数组
+ */
+// 存储全局参数历史数据和图表实例，用于累加更新
+window.globalParamsHistory = window.globalParamsHistory || [];
+// 设置是否在上传模型后绘制对比线的开关
+window.drawModelComparisonLine = true;
+
+function drawParamsTrendChart(paramsHistory) {
+	// 将新的参数历史数据追加到全局历史中
+	if (paramsHistory && paramsHistory.length > 0) {
+		window.globalParamsHistory = window.globalParamsHistory.concat(paramsHistory);
+	}
+	
+	// 如果全局历史为空，则直接返回
+	if (window.globalParamsHistory.length === 0) {
+		return;
+	}
+	
+	// 定义参数名称
+	const paramNames = [
+		'lens_x', 'lens_y', 'theta_e', 'lens_ell', 'lens_ang', 
+		'source_x', 'source_y', 'source_size', 'source_ell', 'source_ang', 'n_sersic'
+	];
+	
+	// 颜色数组，用于为不同参数分配不同颜色
+	const colors = [
+		'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(255, 206, 86)', 
+		'rgb(75, 192, 192)', 'rgb(153, 102, 255)', 'rgb(255, 159, 64)',
+		'rgb(199, 199, 199)', 'rgb(83, 102, 255)', 'rgb(40, 159, 64)',
+		'rgb(210, 199, 199)', 'rgb(255, 99, 232)'
+	];
+	
+	// 获取或创建参数趋势图的容器
+	let container = document.getElementById('paramsTrendContainer');
+	if (!container) {
+		// 创建新容器
+		container = document.createElement('div');
+		container.id = 'paramsTrendContainer';
+		container.style.width = '1240px';
+		container.style.marginTop = '15px';
+		container.style.display = 'grid';
+		container.style.gridTemplateColumns = 'repeat(4, 1fr)';
+		container.style.gridTemplateRows = 'repeat(3, auto)';
+		container.style.gap = '8px';
+		container.style.padding = '10px';
+		container.style.borderRadius = '8px';
+		
+		// 插入到页面底部
+		const body = document.querySelector('body');
+		if (body) {
+			body.appendChild(container);
+		}
+	} else {
+		// 确保容器在页面底部
+		const body = document.querySelector('body');
+		if (body && container.parentNode !== body) {
+			container.remove();
+			body.appendChild(container);
+		}
+	}
+	
+	// 检查参数数量
+	// 移除重复声明，后续使用此参数计数
+	const paramCount = Math.min(window.globalParamsHistory[0].length, paramNames.length);
+	
+	// 确保所有图表canvas都存在
+	for (let i = 0; i < paramCount; i++) {
+		let canvas = document.getElementById(`paramChart_${i}`);
+		if (!canvas) {
+			// 创建canvas容器，设置固定尺寸
+			const canvasContainer = document.createElement('div');
+			canvasContainer.style.backgroundColor = 'white';
+			canvasContainer.style.padding = '5px';
+			canvasContainer.style.borderRadius = '4px';
+			canvasContainer.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+			canvasContainer.style.height = '180px';
+			canvasContainer.style.width = '280px';
+			canvasContainer.style.flexShrink = '0';
+			
+			// 创建canvas元素，设置固定尺寸
+			canvas = document.createElement('canvas');
+			canvas.id = `paramChart_${i}`;
+			canvas.width = 280;
+			canvas.height = 180;
+			canvas.style.width = '100%';
+			canvas.style.height = '100%';
+			
+			canvasContainer.appendChild(canvas);
+			container.appendChild(canvasContainer);
+		}
+	}
+	// 为每个参数更新或创建图表
+	for (let i = 0; i < paramCount; i++) {
+		const canvas = document.getElementById(`paramChart_${i}`);
+		const ctx = canvas.getContext('2d');
+		
+		// 提取当前参数的所有迭代值
+		const paramValues = window.globalParamsHistory.map(iteration => iteration[i]);
+		const labels = Array.from({ length: window.globalParamsHistory.length }, (_, idx) => idx + 1);
+		
+		// 检查是否存在该参数的图表实例
+		if (paramsChartInstances[i]) {
+			// 更新现有图表
+			paramsChartInstances[i].data.labels = labels;
+			paramsChartInstances[i].data.datasets[0].data = paramValues;
+			paramsChartInstances[i].update();
+		} else {
+			// 创建新图表
+			const chart = new Chart(ctx, {
+				type: 'line',
+				data: {
+					labels: labels,
+					datasets: [{
+						label: paramNames[i],
+						data: paramValues,
+						borderColor: colors[i % colors.length],
+						tension: 0.1,
+						fill: false
+					}]
+				},
+				options: {
+					responsive: true,
+					maintainAspectRatio: false,
+					backgroundColor: 'white',
+					scales: {
+						x: {
+							title: {
+								display: true,
+								text: 'iteration number',
+								color: '#333'
+							},
+							grid: {
+								color: 'rgba(0, 0, 0, 0.1)'
+							},
+							ticks: {
+								color: '#666'
+							}
+						},
+						y: {
+							title: {
+								display: true,
+								text: 'parameter value',
+								color: '#333'
+							},
+							grid: {
+								color: 'rgba(0, 0, 0, 0.1)'
+							},
+							ticks: {
+								color: '#666'
+							}
+						}
+					},
+					plugins: {
+						title: {
+							display: true,
+							text: `Parameter: ${paramNames[i]}`,
+							color: '#333',
+							font: {
+								size: 12,
+								weight: 'bold'
+							}
+						},
+						legend: {
+							display: false
+						},
+						backgroundColor: 'white'
+					}
+				}
+			});
+			
+			// 保存图表实例
+			paramsChartInstances[i] = chart;
+		}
+	}
+}
+
+
+// 更新cleanupCanvas函数以清理参数趋势图
+function cleanupCanvas() {
+	// 清理卡方曲线图
+	if (chartInstance) {
+		chartInstance.destroy();
+		chartInstance = null;
+	}
+	
+	// 清理参数趋势图实例
+	if (paramsChartInstances && Array.isArray(paramsChartInstances)) {
+		paramsChartInstances.forEach(instance => {
+			if (instance) {
+				instance.destroy();
+			}
+		});
+		paramsChartInstances = [];
+	}
+	
+	// 清空全局参数历史数据
+	if (globalParamsHistory) {
+		globalParamsHistory = [];
+	}
+	
+	// 删除整个参数趋势图容器（包括包装容器）
+	const wrapper = document.getElementById('paramsTrendContainer');
+	if (wrapper) {
+		wrapper.remove();
+	}
+	
+	// 重新绘制空的卡方曲线图
+	if (typeof drawChiSquareCurve === 'function') {
+		drawChiSquareCurve([]);
+	}
+	
+	// 清理mask
+	if (lets && typeof lets.clearMask === 'function') {
+		lets.clearMask();
+	}
+}
+
+// 在上传模型后绘制参数对比线
+function drawModelComparisonLines(modelParams) {
+    // 检查是否启用了对比线功能
+    if (!window.drawModelComparisonLine) {
+        return;
+    }
+    
+    // 检查参数趋势图实例是否存在
+    if (!paramsChartInstances || paramsChartInstances.length === 0) {
+        return;
+    }
+    
+    // 检查全局参数历史是否为空
+    if (!window.globalParamsHistory || window.globalParamsHistory.length === 0) {
+        return;
+    }
+    
+    // 定义参数名称
+    const paramNames = [
+        'lens_x', 'lens_y', 'theta_e', 'lens_ell', 'lens_ang', 
+        'source_x', 'source_y', 'source_size', 'source_ell', 'source_ang', 'n_sersic'
+    ];
+    
+    // 检查模型参数数量是否匹配
+    if (!modelParams || modelParams.length !== paramNames.length) {
+        console.warn('模型参数数量不匹配，无法绘制对比线');
+        return;
+    }
+    
+    // 获取标签数量（迭代次数）
+    const labelsCount = window.globalParamsHistory.length;
+    
+    // 为每个参数绘制对比线
+    for (let i = 0; i < modelParams.length; i++) {
+        // 检查该参数的图表实例是否存在
+        if (!paramsChartInstances[i]) {
+            continue;
+        }
+        
+        // 获取当前图表实例
+        const chart = paramsChartInstances[i];
+        
+        // 创建对比线数据集
+        const comparisonData = Array(labelsCount).fill(modelParams[i]);
+        
+        // 检查是否已存在对比线数据集，如果存在则更新，不存在则添加
+        let comparisonDatasetIndex = -1;
+        for (let j = 0; j < chart.data.datasets.length; j++) {
+            if (chart.data.datasets[j].label === 'Model Comparison') {
+                comparisonDatasetIndex = j;
+                break;
+            }
+        }
+        
+        if (comparisonDatasetIndex !== -1) {
+            // 更新现有对比线
+            chart.data.datasets[comparisonDatasetIndex].data = comparisonData;
+        } else {
+            // 添加新的对比线数据集
+            chart.data.datasets.push({
+                label: 'Model Comparison',
+                data: comparisonData,
+                borderColor: 'rgba(0, 0, 0, 0.8)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false,
+                tension: 0,
+                order: 0 // 确保对比线在原始数据线下显示
+            });
+        }
+        
+        // 更新图表
+        chart.update();
+    }
+}
+
+// 确保函数在全局作用域中可用，以便其他模块调用
+window.cleanupCanvas = cleanupCanvas;
+window.drawModelComparisonLines = drawModelComparisonLines;
+
 let timer = async(timeout) => {
 	console.log("Modeling");
 	let chiSquaredValues = [];
+	window.globalParamsHistory = [];
+
 	for (let i = 0; i < timeout; ++i){
 		try {
 			let p0 = [
@@ -294,13 +602,16 @@ let timer = async(timeout) => {
 			let result = await pyodide.runPythonAsync(`
 					import numpy as np
 					from scipy import optimize
-					# 存储优化过程中的函数值
+					# 存储优化过程中的函数值和参数值
 					optimization_history = []
+					# 存储每个参数在每次迭代中的值
+					params_history = []
 					def objective(x):
 						try:
 							x_list = x.tolist() if hasattr(x, 'tolist') else list(x)
 							val = float(objective_js(x_list))
 							optimization_history.append(val)
+							params_history.append(x_list.copy())
 							return val
 						except Exception as e:
 							print(f"目标函数错误: {str(e)}")
@@ -338,7 +649,8 @@ let timer = async(timeout) => {
 								'iterations': int(result.nit),
 								'success': bool(result.success),
 								'message': str(result.message),
-								'history': optimization_history
+								'history': optimization_history,
+								'params_history': params_history
 							}
 
 						except Exception as e:
@@ -361,6 +673,10 @@ let timer = async(timeout) => {
 			let p1 = result.x;
 			chiSquaredValues = chiSquaredValues.concat(result.history);
 			drawChiSquareCurve(chiSquaredValues);
+			// 如果有参数历史数据，绘制参数趋势图
+			if (result.params_history && result.params_history.length > 0) {
+				drawParamsTrendChart(result.params_history);
+			}
 			show_res(p1);
 			lets.model.components[1].x = p1[0];
 			lets.model.components[1].y = p1[1];

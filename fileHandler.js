@@ -243,6 +243,15 @@ function loadModelFile(modelFile, updateCanvas, showRes, appInstance, scaleValue
         let p = [xc1, xc2, re, ql, phl, yc1, yc2, sig2, qs, phs, n];
         showRes(p);
         
+        // 在加载模型后绘制参数对比线
+        if (window.drawModelComparisonLines) {
+            try {
+                window.drawModelComparisonLines(p);
+            } catch (err) {
+                console.warn('绘制模型参数对比线失败:', err);
+            }
+        }
+        
         // 导入UI处理模块并调用清理函数
           import('./uiHandler.js').then(uiModule => {
             uiModule.cleanupCanvas();
