@@ -136,6 +136,12 @@ async function handleConfirmButtonClick() {
   // 处理图像文件
   try {
     await fileHandler.processImageFile(imageFile, pixscale, img0, lets);
+    // 清空文件输入字段，允许重新上传相同文件
+    if (imageUrlInput) {
+      imageUrlInput.value = '';
+    }
+    // 重置上传的文件引用
+    window._uploadedImageFile = null;
   } catch (error) {
     console.error("Error processing image file:", error);
     window.alert("Error processing image: " + error.message);
@@ -180,6 +186,8 @@ async function handleModelUpload(e) {
       lets, // 传递应用实例对象
       scale || 1 // 传递缩放比例
     );
+    // 无论成功或失败，都清空文件输入字段，允许重新上传相同文件
+    input.value = '';
   } catch (error) {
     window.alert(error.message);
     input.value = ''; // 清空文件输入

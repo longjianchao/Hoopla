@@ -154,29 +154,33 @@ function getImage(imageData, width, height, convert){
 			maxval = imageData[i];
 		}
 	}
-	for(let i = 0; i < imageData.length; i++){
-		imageData[i] = (imageData[i] - minval) / (maxval - minval);
-	}
-
+	console.log("maxval:", maxval);
+	globalImageData = new Array(imageData.length);
+	// for(let i = 0; i < imageData.length; i++){
+	// 	imageData[i] = (imageData[i] - minval) / (maxval - minval);
+	// }
+	
 	let ctx = canvas.getContext('2d');
 	let canvasData = ctx.createImageData(width, height);
 	for (let i = 0; i < height; i++) {
 		let flipped_i = height - 1 - i;  // 从底部开始读取
 		for (let j = 0; j < width; j++) {
 			let val = imageData[i * width + j]; // 1D数组
+			globalImageData[i * width + j] = val;
 			if(convert){
 				val = imageData[flipped_i * width + j];
+				globalImageData[i * width + j] = val;
 			}
-			// let val = imageData[flipped_i * width + j]; //使用fits文件时需要翻转
 			let idx = (i * width + j) * 4;
-			canvasData.data[idx] = val*255; // R
+			canvasData.data[idx] = val/maxval*255; // R
 			canvasData.data[idx + 1] = 0; // G
 			canvasData.data[idx + 2] = 0; // B
 			canvasData.data[idx + 3] = 255; // A
 		}
 	}
-	// console.log(imageData);
+	// console.log("globalImageData:", globalImageData);
 	ctx.putImageData(canvasData, 0, 0);
+	// console.log("canvasData:", canvasData);
 	url = canvas.toDataURL();
 	return url;
 }

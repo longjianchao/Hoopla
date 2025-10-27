@@ -23,7 +23,7 @@ function standardDeviation(values){
 function calAlpha(xl, yl, xlc, ylc, re, ql, phl) {
 	// console.log('calAlpha');
 	if(ql <1.0){
-		phl = Math.PI * ((phl) / 180);
+		phl = Math.PI * ((90-phl) / 180);
 	}
 	else{
 		ql = 1.0/ql-0.0000000001;
@@ -64,28 +64,30 @@ function calAlpha(xl, yl, xlc, ylc, re, ql, phl) {
 }
 
 //根据弯曲后的点(x- αx, y-αy)计算该点在重构图像中的光度值。
-function calImage(xs, ys, xsc, ysc, size, qs, phs, n = 1.0) {
+function calImage(xs, ys, xsc, ysc, size, qs, phs, n, Ie) {
 	// console.log('calImage');
-	let r2, res, phirad;
+	let res, phirad;
 	// const n = 1.0;
 	let b_n = 1.9992 * n - 0.3271;
 	const Re = size;
-	// let Ie = 1.0 / (2 * Math.PI * Re**2 * n * Math.exp(b_n) / b_n**(2*n));  // 保证总光度一致
-	// Loop over x and y. Store 1-D pixel index as i.
 	phirad = phs/180*Math.PI;
 	// 重新进行坐标变换，得到了像素代表的坐标
 	let xnew = (xs-xsc) * Math.cos(phirad) + (ys-ysc) * Math.sin(phirad);
 	let ynew = (ys-ysc) * Math.cos(phirad) - (xs-xsc) * Math.sin(phirad);
-	// Gaussian方法
-	// r2 = ( xnew*xnew/qs + ynew*ynew*qs );
-	// 计算得到区域亮度因子
-	// let sig2 = size ** 2 * 0.693;
-	// res = Math.exp(-r2/(2.0 * sig2));
 	let r_ell = Math.sqrt((xnew * xnew) / qs + (ynew * ynew) * qs);
-	// 归一化并代入 Sersic profile（n = 1）
+	// 归一化并代入 Sersic profile
 	let rnorm = r_ell / Re;
-	res = Math.exp(-b_n * (rnorm**(1/n)));  //这里做了sersic函数的归一化处理
-	return res; 
+	// 避免数值问题
+	if (rnorm === 0) {
+		return 1.0; // 在中心处返回最大值
+	}
+	try {
+		res = Ie * Math.exp(-b_n * (Math.pow(rnorm, 1/n)-1.0));
+		// 检查结果是否为有效数字
+		return isNaN(res) || !isFinite(res) ? 0 : res;
+	} catch (e) {
+		return 0;
+	}
 }
 
 //给定一组镜头参数,对每个图像点调用calAlpha()和calImage()计算预测图像光度值
@@ -102,7 +104,7 @@ function model_lensed_images(p, x1, x2) {
 	let y1 = x1 - alpha.x;
 	let y2 = x2 - alpha.y;
 
-	let yc1, yc2, size, qs, phs, n, Ie;
+	let yc1, yc2, size, qs, phs, n;
 	yc1 = p[5];
 	yc2 = p[6];
 	size = p[7];
@@ -110,47 +112,48 @@ function model_lensed_images(p, x1, x2) {
 	phs = p[9];
 	n = p[10];
 	Ie = p[11];
-	return calImage(y1, y2, yc1, yc2, size, qs, phs, n);
+	return calImage(y1, y2, yc1, yc2, size, qs, phs, n, Ie);
 }
 
-//考虑放缩因子，对图像downsampling后进行最小二乘拟合,加快计算速度
 function chi2_rescale(p) {
-	// console.log(imgd.width,imgd.height);
-	let c = document.getElementById("myCanvas");
-	c.willReadFrequently = true;
-	let ctx = c.getContext("2d");
-	ctx.drawImage(imgd, 0, 0);
-	let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
-	let data = dstdata.data;
-	//图像存储方式为RGBA，一个像素就是由（R,G,B,A）来存储的，将图像映射到红色通道上，所以长度为原数据长度的1/4
-	let red = new Array(data.length/4);
-	for (let i = 0, n = red.length; i < n; i ++){
-		red[i] = data[i*4]/255;
+	if(!globalImageData){
+		let c = document.getElementById("myCanvas");
+		c.willReadFrequently = true;
+		let ctx = c.getContext("2d");
+		ctx.drawImage(imgd, 0, 0);
+		let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
+		let data = dstdata.data;
+		//图像存储方式为RGBA，一个像素就是由（R,G,B,A）来存储的，将图像映射到红色通道上，所以长度为原数据长度的1/4
+		globalImageData = new Array(data.length/4);
+		for (let i = 0, n = globalImageData.length; i < n; i ++){
+			globalImageData[i] = data[i*4]/255;
+		}
 	}
+		
 	//重缩放因子，可以提高采样效率，但数值过大可能会导致图像失真
 	const fscale = 4;
-	const chi = new Array(red.length / fscale / fscale);
-	const testimg = new Array(red.length);
-	const redstd = standardDeviation(red);
+	const chi = new Array(globalImageData.length / fscale / fscale);
+	const redstd = standardDeviation(globalImageData);
 
 	for(let row = 0 ; row < imgd.height ; row+=fscale){
 		for(let col = 0 ; col < imgd.width ; col+=fscale){
 			let i,i2,x,y;
-			i = row * imgd.width + col;
+			i = row/scale * imgd.width/scale + col/scale;
 			i2 = row/fscale*imgd.width/fscale+col/fscale;
 			x = col* lets.pixscale - lets.pixscale*lets.width/2 + lets.pixscale/2;
 			y = -row* lets.pixscale + lets.pixscale*lets.height/2 - lets.pixscale/2;
-			testimg[i] = model_lensed_images(p, x, y);
-			chi[i2] = (red[i] - testimg[i])/redstd;
+			val = model_lensed_images(p, x, y);
+			chi[i2] = (globalImageData[i] - val)/redstd;
 		}
 	}
 	// 计算卡方值
 	const chi2 = optimize.vector.dot(chi, chi);
-	// 计算自由度：数据点数量 - 参数数量(12个参数)
-	const dof = chi.length - 12;
+	// 计算自由度：数据点数量 - 参数数量
+	const dof = chi.length - 11;
 	// 返回约化卡方
 	return chi2 / dof;
 }
+
 
 function show_res(p) {
 	let c = document.getElementById("myCanvas");
@@ -290,7 +293,7 @@ function drawParamsTrendChart(paramsHistory) {
 	// 定义参数名称
 	const paramNames = [
 		'lens_x', 'lens_y', 'theta_e', 'lens_ell', 'lens_ang', 
-		'source_x', 'source_y', 'source_size', 'source_ell', 'source_ang', 'n_sersic'
+		'source_x', 'source_y', 'source_size', 'source_ell', 'source_ang', 'n_sersic', 'Ie'
 	];
 	
 	// 颜色数组，用于为不同参数分配不同颜色
@@ -298,7 +301,7 @@ function drawParamsTrendChart(paramsHistory) {
 		'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(255, 206, 86)', 
 		'rgb(75, 192, 192)', 'rgb(153, 102, 255)', 'rgb(255, 159, 64)',
 		'rgb(199, 199, 199)', 'rgb(83, 102, 255)', 'rgb(40, 159, 64)',
-		'rgb(210, 199, 199)', 'rgb(255, 99, 232)'
+		'rgb(210, 199, 199)', 'rgb(255, 99, 232)', 'rgb(50, 205, 50)'
 	];
 	
 	// 获取或创建参数趋势图的容器
@@ -506,7 +509,7 @@ function drawModelComparisonLines(modelParams) {
     // 定义参数名称
     const paramNames = [
         'lens_x', 'lens_y', 'theta_e', 'lens_ell', 'lens_ang', 
-        'source_x', 'source_y', 'source_size', 'source_ell', 'source_ang', 'n_sersic'
+        'source_x', 'source_y', 'source_size', 'source_ell', 'source_ang', 'n_sersic', 'Ie'
     ];
     
     // 检查模型参数数量是否匹配
@@ -586,12 +589,27 @@ let timer = async(timeout) => {
 				lets.model.components[0].ell,
 				lets.model.components[0].ang,
 				lets.model.components[0].n_sersic,
+				lets.model.components[0].Ie,
 			];
 			console.log(p0);
 			// 定义一个包装函数来处理数据类型转换
 			const objectiveWrapper = (params) => {
 				// 确保输入是普通的JavaScript数组
 				const jsParams = Array.from(params);
+				let ptest = [
+					0,
+					0,
+					0,
+					1,
+					0,
+					jsParams[5],
+					jsParams[6],
+					jsParams[7],
+					jsParams[8],
+					jsParams[9],
+					jsParams[10],
+					jsParams[11],
+				]
 				return chi2_rescale(jsParams);
 			};
 
@@ -617,8 +635,8 @@ let timer = async(timeout) => {
 							print(f"目标函数错误: {str(e)}")
 							raise
 					bounds = [
-							(-5, 5), (-5, 5), (0, 10), (0.0, 100), (-360, 360),  # 透镜参数
-							(-5, 5), (-5, 5), (0, 5.0), (0.0, 100), (-360, 360),(0.3, 6.0)    # 源参数
+							(-1, 1), (-1, 1), (0.1, 10), (0.1, 10), (0, 180),  			   # 透镜参数
+							(-5, 5), (-5, 5), (0.01, 5.0), (0.1, 10), (0, 180),(0.3, 6.0), (0.1, 10.0)    # 源参数
 					]
 					def run_optimization():
 						# 设置初始参数
@@ -683,12 +701,18 @@ let timer = async(timeout) => {
 			lets.model.components[1].theta_e = p1[2];
 			lets.model.components[1].ell = p1[3];
 			lets.model.components[1].ang = p1[4];
+			// lets.model.components[1].x = 0;
+			// lets.model.components[1].y = 0;
+			// lets.model.components[1].theta_e = 0;
+			// lets.model.components[1].ell = 1;
+			// lets.model.components[1].ang = 0;
 			lets.model.components[0].x = p1[5];
 			lets.model.components[0].y = p1[6];
 			lets.model.components[0].size = p1[7];
 			lets.model.components[0].ell = p1[8];
 			lets.model.components[0].ang = p1[9];
 			lets.model.components[0].n_sersic = p1[10];
+			lets.model.components[0].Ie = p1[11];
 			lets.loadModel(lets.model.components);
 			const angle = lets.lens.ang2pix({x: lets.model.components[0].x, y: lets.model.components[0].y});
 			lets.update(angle);

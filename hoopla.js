@@ -404,23 +404,16 @@
 
 		// this.model.name = imgSrc.split('/')[imgSrc.split('/').length-1].split('.')[0];
 		this.model.name = img_name + "_"+ this.getFormat(new Date());
-		if(imgSrc.length>256){
-			imgSrc = imgSrc.substring(0,256);
-		}
-		this.model.src = imgSrc;
+		
 		this.model.pixscale = this.pixscale*window.fileHandlerScale;
 		
 		delete this.model.source;
-		delete this.model.PSFwidth;
-		// this.downloadImage();
 		let str = JSON.stringify(this.model,
 								 function(key, val) {
 									 return val.toFixed ? Number(val.toFixed(4)):val;
 								 }, 4);
 
 		let link = document.createElement('a');
-		//link.download = 'lensModels.json';
-
 		link.download = this.model.name+'.JSON';
 		let blob = new Blob([str], {type: 'text/plain'});
 		link.href = window.URL.createObjectURL(blob);

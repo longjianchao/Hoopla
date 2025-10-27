@@ -34,6 +34,7 @@ async function handleImageUpload(imageFile) {
  */
 function processImageFile(imageFile, pixelScale, imageObj, appInstance) {
   // 初始化全局变量
+  globalImageData = null;
   lets = appInstance;
   img0 = imageObj;
   return new Promise((resolve, reject) => {
@@ -239,8 +240,9 @@ function loadModelFile(modelFile, updateCanvas, showRes, appInstance, scaleValue
         qs = lets.model.components[0].ell;
         phs = lets.model.components[0].ang;
         n = lets.model.components[0].n_sersic;
+        Ie = lets.model.components[0].Ie;
         
-        let p = [xc1, xc2, re, ql, phl, yc1, yc2, sig2, qs, phs, n];
+        let p = [xc1, xc2, re, ql, phl, yc1, yc2, sig2, qs, phs, n, Ie];
         showRes(p);
         
         // 在加载模型后绘制参数对比线

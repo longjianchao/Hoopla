@@ -27,6 +27,7 @@
 	imgd.width = 400;
 	imgd.height = 400;
 	var scale = 1.0;
+	var globalImageData = null;
 	var lets,ms,ms_src,containerEl,containerEl_src,img,img_src;
 	// 在全局作用域声明
 	let pyodide = null;
@@ -108,7 +109,10 @@
 			}
 
 			function getAngle(d) {
-				return d.angle;
+				if (d.angle < 0) {
+					return d.angle + 180;
+				}
+				return d.angle%180;
 			}
 
 			function getCoords(d) {
@@ -174,7 +178,10 @@
 			}
 
 			function getAngle(d) {
-				return d.angle;
+				if (d.angle < 0) {
+					return d.angle + 180;
+				}
+				return d.angle%180;
 			}
 
 			function getCoords(d) {
@@ -193,6 +200,7 @@
 						x: coords.x,
 						y: coords.y,
 						n_sersic: 1.0,
+						Ie: 1.0,
 					}
 				});
 				lets.updateModel(components);
@@ -248,7 +256,8 @@
 			// 计算缩放比例
 			const scaleX = targetWidth / img0.width;
 			const scaleY = targetHeight / img0.height;
-			const scale = Math.max(scaleX, scaleY); // 取较大的缩放比例以铺满画布
+			scale = Math.max(scaleX, scaleY); // 取较大的缩放比例以铺满画布
+			console.log("缩放比例:", scale);
 			// 计算缩放后的图像尺寸
 			const scaledWidth = img0.width * scale;
 			const scaledHeight = img0.height * scale;
@@ -333,7 +342,6 @@
 				const uiModule = await import('./uiHandler.js');
 				// 调用文件处理模块处理图像
 				await fileModule.processImageFile(imageFile, pixscale, img0, lets);
-				console.log("lets.pixscale 是："+lets.pixscale+"，scale 是："+scale);
 				
 				// 重置标记表面
 				ms.reset();
@@ -381,9 +389,12 @@
 					lets,
 					scale
 				);
+				// 无论成功或失败，都清空文件输入字段，允许重新上传相同或已更改的文件
+				input.value = '';
 			} catch (error) {
 				window.alert("Error loading model: " + error.message);
-				input.value = ''; // 清空文件输入
+				// 清空文件输入字段，允许重新上传相同或已更改的文件
+				input.value = '';
 			}
 		};
 	}
