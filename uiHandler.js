@@ -392,6 +392,93 @@ function resetPixelScale(pixscale, letsInstance, scaleValue) {
   }
 }
 
+// 初始化加载动画覆盖层
+function initializeLoadingOverlay() {
+  // 检查是否已存在加载动画容器
+  let loadingOverlay = document.getElementById('loading-overlay');
+  
+  if (!loadingOverlay) {
+    // 创建加载动画容器
+    loadingOverlay = document.createElement('div');
+    loadingOverlay.id = 'loading-overlay';
+    loadingOverlay.classList.add('loading-overlay');
+    loadingOverlay.style.display = 'none';
+    
+    // 创建加载内容
+    const loadingContent = document.createElement('div');
+    loadingContent.classList.add('loading-content');
+    
+    // 创建加载图标
+    const loadingSpinner = document.createElement('div');
+    loadingSpinner.classList.add('loading-spinner');
+    
+    // 创建加载文本
+    const loadingText = document.createElement('p');
+    loadingText.classList.add('loading-text');
+    loadingText.textContent = '正在进行MCMC建模，请稍候...';
+    
+    // 组合元素
+    loadingContent.appendChild(loadingSpinner);
+    loadingContent.appendChild(loadingText);
+    loadingOverlay.appendChild(loadingContent);
+    
+    // 添加到body
+    document.body.appendChild(loadingOverlay);
+  }
+}
+
+// 显示加载动画
+function showLoading() {
+  const loadingOverlay = document.getElementById('loading-overlay');
+  if (loadingOverlay) {
+    loadingOverlay.style.display = 'flex';
+  }
+}
+
+// 隐藏加载动画
+function hideLoading() {
+  const loadingOverlay = document.getElementById('loading-overlay');
+  if (loadingOverlay) {
+    loadingOverlay.style.display = 'none';
+  }
+}
+
+// 处理MCMC按钮点击事件
+function startMCMC() {
+  // 显示加载动画
+  showLoading();
+  
+  // 执行MCMC相关逻辑
+  // 这里假设存在window.lets.runMCMC方法
+  if (window.lets && window.lets.runMCMC) {
+    window.lets.runMCMC()
+      .then(() => {
+        // MCMC完成后隐藏加载动画
+        hideLoading();
+      })
+      .catch(error => {
+        console.error('MCMC execution error:', error);
+        hideLoading();
+        window.alert('MCMC执行出错: ' + error.message);
+      });
+  } else {
+    hideLoading();
+    window.alert('MCMC功能不可用');
+  }
+}
+
+// 修改initEventListeners以添加MCMC按钮和加载动画支持
+function enhanceEventListeners() {
+  // 初始化加载动画
+  initializeLoadingOverlay();
+  
+  // MCMC按钮点击事件
+  const startMCMCButton = document.getElementById('startMCMCButton');
+  if (startMCMCButton) {
+    startMCMCButton.addEventListener('click', startMCMC);
+  }
+}
+
 // 导出UI处理模块
 export {
   initUIHandler,
@@ -401,4 +488,7 @@ export {
   handleConfirmButtonClick,
   handleModelUpload,
   cleanupCanvas,
+  showLoading,
+  hideLoading,
+  initializeLoadingOverlay
 };

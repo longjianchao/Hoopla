@@ -239,7 +239,8 @@ function drawChiSquareCurve(chiSquaredValues) {
 				}]
 			},
 			options: {
-				responsive: true,
+				responsive: false,
+				maintainAspectRatio: true,
 				scales: {
 					x: {
 						title: {
@@ -304,34 +305,34 @@ function drawParamsTrendChart(paramsHistory) {
 		'rgb(210, 199, 199)', 'rgb(255, 99, 232)', 'rgb(50, 205, 50)'
 	];
 	
-	// 获取或创建参数趋势图的容器
+	// 获取参数趋势图的容器（在index.html中已预创建）
 	let container = document.getElementById('paramsTrendContainer');
 	if (!container) {
-		// 创建新容器
+		// 作为后备，创建容器并确保添加到DOM
 		container = document.createElement('div');
 		container.id = 'paramsTrendContainer';
-		container.style.width = '1240px';
-		container.style.marginTop = '15px';
-		container.style.display = 'grid';
-		container.style.gridTemplateColumns = 'repeat(4, 1fr)';
-		container.style.gridTemplateRows = 'repeat(3, auto)';
-		container.style.gap = '8px';
-		container.style.padding = '10px';
-		container.style.borderRadius = '8px';
-		
-		// 插入到页面底部
-		const body = document.querySelector('body');
-		if (body) {
-			body.appendChild(container);
-		}
-	} else {
-		// 确保容器在页面底部
-		const body = document.querySelector('body');
-		if (body && container.parentNode !== body) {
-			container.remove();
-			body.appendChild(container);
+		container.style.flex = '1';
+		container.style.minWidth = '0';
+		// 查找flex容器并添加，或者添加到body
+		const flexContainer = document.querySelector('div[style*="display: flex"]');
+		if (flexContainer) {
+			flexContainer.appendChild(container);
+		} else {
+			document.body.appendChild(container);
 		}
 	}
+	
+	// 设置容器样式为4*3网格布局，更紧凑的间距
+	container.style.display = 'grid';
+	container.style.gridTemplateColumns = 'repeat(3, 1fr)';
+	container.style.gridTemplateRows = 'repeat(4, auto)';
+	container.style.gap = '4px';
+	container.style.padding = '6px';
+	container.style.borderRadius = '6px';
+	container.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+	// 确保容器可见
+	container.style.visibility = 'visible';
+	container.style.opacity = '1';
 	
 	// 检查参数数量
 	// 移除重复声明，后续使用此参数计数
@@ -341,17 +342,56 @@ function drawParamsTrendChart(paramsHistory) {
 	for (let i = 0; i < paramCount; i++) {
 		let canvas = document.getElementById(`paramChart_${i}`);
 		if (!canvas) {
-			// 创建canvas容器，设置固定尺寸
+			// 创建canvas容器，恢复原始尺寸但保留较小的边距
 			const canvasContainer = document.createElement('div');
 			canvasContainer.style.backgroundColor = 'white';
-			canvasContainer.style.padding = '5px';
+			canvasContainer.style.padding = '3px';
 			canvasContainer.style.borderRadius = '4px';
 			canvasContainer.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
 			canvasContainer.style.height = '180px';
 			canvasContainer.style.width = '280px';
 			canvasContainer.style.flexShrink = '0';
+			canvasContainer.style.margin = '2px';
+			canvasContainer.style.display = 'block';
 			
-			// 创建canvas元素，设置固定尺寸
+			// 创建canvas元素，恢复原始尺寸
+			canvas = document.createElement('canvas');
+			canvas.id = `paramChart_${i}`;
+			canvas.width = 280;
+			canvas.height = 180;
+			canvas.style.width = '100%';
+			canvas.style.height = '100%';
+			canvas.style.display = 'block';
+			
+			canvasContainer.appendChild(canvas);
+			container.appendChild(canvasContainer);
+			
+			// 验证canvas是否成功添加到DOM
+			const verifyCanvas = document.getElementById(`paramChart_${i}`);
+			if (!verifyCanvas) {
+				console.warn(`Failed to create or find canvas with id paramChart_${i}`);
+			}
+		}
+	}
+	// 为每个参数更新或创建图表
+	for (let i = 0; i < paramCount; i++) {
+		let canvas = document.getElementById(`paramChart_${i}`);
+		
+		// 如果canvas不存在，立即创建并添加到DOM
+		if (!canvas) {
+			console.log(`Creating missing canvas: paramChart_${i}`);
+			
+			// 创建canvas容器
+			const canvasContainer = document.createElement('div');
+			canvasContainer.style.backgroundColor = 'white';
+			canvasContainer.style.padding = '3px';
+			canvasContainer.style.borderRadius = '4px';
+			canvasContainer.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+			canvasContainer.style.height = '180px';
+			canvasContainer.style.width = '280px';
+			canvasContainer.style.margin = '2px';
+			
+			// 创建canvas元素
 			canvas = document.createElement('canvas');
 			canvas.id = `paramChart_${i}`;
 			canvas.width = 280;
@@ -361,12 +401,21 @@ function drawParamsTrendChart(paramsHistory) {
 			
 			canvasContainer.appendChild(canvas);
 			container.appendChild(canvasContainer);
+			
+			// 再次尝试获取canvas
+			canvas = document.getElementById(`paramChart_${i}`);
+			if (!canvas) {
+				console.error(`Failed to create canvas with id paramChart_${i}`);
+				continue;
+			}
 		}
-	}
-	// 为每个参数更新或创建图表
-	for (let i = 0; i < paramCount; i++) {
-		const canvas = document.getElementById(`paramChart_${i}`);
+		
+		// 获取画布上下文
 		const ctx = canvas.getContext('2d');
+		if (!ctx) {
+			console.error(`Failed to get context for canvas paramChart_${i}`);
+			continue;
+		}
 		
 		// 提取当前参数的所有迭代值
 		const paramValues = window.globalParamsHistory.map(iteration => iteration[i]);
@@ -635,8 +684,8 @@ let timer = async(timeout) => {
 							print(f"目标函数错误: {str(e)}")
 							raise
 					bounds = [
-							(-1, 1), (-1, 1), (0.1, 10), (0.1, 10), (0, 180),  			   # 透镜参数
-							(-5, 5), (-5, 5), (0.01, 5.0), (0.1, 10), (0, 180),(0.3, 6.0), (0.1, 10.0)    # 源参数
+							(-1, 1), (-1, 1), (0.1, 10), (1.0, 10), (0, 180),  			   # 透镜参数
+							(-5, 5), (-5, 5), (0.01, 5.0), (1.0, 10), (0, 180),(0.3, 6.0), (0.1, 10.0)    # 源参数
 					]
 					def run_optimization():
 						# 设置初始参数

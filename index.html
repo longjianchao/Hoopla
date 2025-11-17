@@ -3,6 +3,10 @@
 
 <title>Hoopla</title>
 <link rel="stylesheet" type="text/css" href="style.css">
+<!-- 引入Three.js库 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- 引入星空粒子背景特效 -->
+<script type="text/javascript" src="starfield-bg.js"></script>
 
 <script type="text/javascript" src="lib/underscore.js"></script>
 <script type="text/javascript" src="lib/eelens.js"></script>
@@ -466,7 +470,6 @@ document.addEventListener('DOMContentLoaded', function() {
 	
 });
 
-	// 应用掩码按钮点击事件（已移至imageProcessor.js）
 	function applyMask() {
 		// 清理参数趋势图
 		if (window.cleanupCanvas) {
@@ -475,7 +478,6 @@ document.addEventListener('DOMContentLoaded', function() {
 		return window.imageProcessor.applyMask();
 	}
 
-	// 删除前景函数（已移至imageProcessor.js）
 	async function delForeground() {
 		return window.imageProcessor.delForeground();
 	}
@@ -491,21 +493,24 @@ document.addEventListener('DOMContentLoaded', function() {
 	</header>
 </div>
 
-<table>
+<div style="display: flex; gap: 10px; margin: 10px;">
+	<!-- 现有的6个画布表格 -->
+	<div style="flex: 1;">
+		<table>
 	<tr class="container">
 		<td>
-			<div  class="barTitle">
-				<p style="margin-top: 10px;margin-left: -8px;">Mass Model</p>
-			</div>
+			<div class="barTitle">
+			<p>Mass Model</p>
+		</div>
 		</td>
 		<td>
-			<div  class="barTitle">
-				<p style="margin-top: 10px;margin-left: -8px;">Source Model</p>
-			</div>
+			<div class="barTitle">
+			<p>Source Model</p>
+		</div>
 		</td>
         <td>
-            <div  class="barTitle">
-                <p style="margin-top: 10px;margin-left: -8px;">Chi-Square Curve</p>
+            <div class="barTitle">
+                <p>Chi-Square Curve</p>
             </div>
         </td>
 	</tr>
@@ -522,18 +527,18 @@ document.addEventListener('DOMContentLoaded', function() {
 	</tr>
 	<tr class="container">
 		<td>
-			<div  class="barTitle">
-				<p style="margin-top: 10px;margin-left: -8px;">Source Plane</p>
-			</div>
+			<div class="barTitle">
+			<p>Source Plane</p>
+		</div>
 		</td>
 		<td>
-			<div  class="barTitle">
-				<p style="margin-top: 10px;margin-left: -8px;">Image Plane</p>
-			</div>
+			<div class="barTitle">
+			<p>Image Plane</p>
+		</div>
 		</td>
         <td>
-            <div  class="barTitle">
-                <p style="margin-top: 10px;margin-left: -8px;">Residual Map</p>
+            <div class="barTitle">
+				<p>Residual Map</p>
             </div>
         </td>
 	</tr>
@@ -557,7 +562,14 @@ document.addEventListener('DOMContentLoaded', function() {
         </td>
 	</tr>
 
-</table>
+		</table>
+	</div>
+	
+	<!-- 参数走势图容器 -->
+	<div id="paramsTrendContainer" style="flex: 1; min-width: 0;">
+		<!-- 这里将由optimization.js填充12个参数走势图，4*3布局 -->
+	</div>
+</div>
 
 <div class="container" style="width: 1300px">
 	<button class="button" id="saveModel"
@@ -634,7 +646,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		<div class="loading"></div>
 		<p>正在进行MCMC建模，请稍候...</p>
 		<h3>模型日志</h3>
-		<pre id="log" style="color:rgb(255, 255, 255); padding:10px;width: 800px; height:400px; overflow:auto;"></pre>
+		<pre id="log" style="color:rgb(255, 255, 255); padding:10px;width: 800px; height:400px; overflow:auto; font-size:14px;"></pre>
 	</div>
 </div>
 

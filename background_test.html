@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星空粒子平滑视角变换</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(ellipse at center, #0a0e2a 0%, #000000 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        .info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            z-index: 100;
+            text-shadow: 0 0 10px rgba(100, 150, 255, 0.7);
+            max-width: 400px;
+            background: rgba(5, 10, 30, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(100, 180, 255, 0.3);
+        }
+        h1 {
+            margin-top: 0;
+            color: #6ab7ff;
+            border-bottom: 1px solid rgba(100, 180, 255, 0.3);
+            padding-bottom: 10px;
+        }
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: white;
+            z-index: 100;
+            background: rgba(5, 10, 30, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(100, 180, 255, 0.3);
+        }
+        .control-item {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+        }
+        label {
+            margin-right: 10px;
+            min-width: 120px;
+            font-size: 14px;
+        }
+        input[type="range"] {
+            width: 150px;
+        }
+        .value {
+            margin-left: 10px;
+            min-width: 40px;
+            text-align: right;
+            font-size: 14px;
+        }
+        .hint {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            z-index: 100;
+            background: rgba(5, 10, 30, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h1>星空粒子平滑视角变换</h1>
+        <p>移动鼠标体验从外太空到星系中心的旅程：</p>
+        <p>• 屏幕边缘 - 外太空视角，星系团遥远而密集</p>
+        <p>• 屏幕中心 - 星系中心视角，恒星明亮而分散</p>
+        <p>• 平滑的视角变换，线性过渡</p>
+    </div>
+
+    <div class="controls">
+        <div class="control-item">
+            <label for="particleCount">粒子数量:</label>
+            <input type="range" id="particleCount" min="5000" max="30000" value="15000">
+            <span class="value" id="particleCountValue">15000</span>
+        </div>
+        <div class="control-item">
+            <label for="particleSize">粒子大小:</label>
+            <input type="range" id="particleSize" min="0.5" max="3" step="0.1" value="1.2">
+            <span class="value" id="particleSizeValue">1.2</span>
+        </div>
+        <div class="control-item">
+            <label for="zoomSmoothness">缩放平滑度:</label>
+            <input type="range" id="zoomSmoothness" min="1" max="20" value="10">
+            <span class="value" id="zoomSmoothnessValue">10</span>
+        </div>
+        <div class="control-item">
+            <label for="particleSpeed">粒子速度:</label>
+            <input type="range" id="particleSpeed" min="0" max="200" value="100">
+            <span class="value" id="particleSpeedValue">100</span>
+        </div>
+    </div>
+
+    <div class="hint">
+        提示: 缓慢移动鼠标，体验平滑的视角变换效果
+    </div>
+
+    <script>
+        // 初始化变量
+        let scene, camera, renderer, particles;
+        let mouseX = 0, mouseY = 0;
+        let targetCameraZ = 800;
+        let currentCameraZ = 800;
+        let particleCount = 35000;
+        let particleSize = 3;
+        let zoomSmoothness = 10;
+        let particleSpeed = 100;
+        
+        // 存储粒子的速度和原始位置
+        let velocities = [];
+        let originalPositions = [];
+
+        // 初始化Three.js场景
+        function init() {
+            // 创建场景
+            scene = new THREE.Scene();
+            
+            // 创建相机
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 3000);
+            camera.position.z = 800;
+            
+            // 创建渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.body.appendChild(renderer.domElement);
+            
+            // 创建粒子
+            createParticles();
+            
+            // 添加窗口大小调整监听
+            window.addEventListener('resize', onWindowResize);
+            
+            // 添加鼠标移动监听
+            document.addEventListener('mousemove', onMouseMove);
+            
+            // 添加控制监听
+            setupControls();
+            
+            // 开始动画循环
+            animate();
+        }
+
+        // 设置控制面板
+        function setupControls() {
+            const particleCountSlider = document.getElementById('particleCount');
+            const particleSizeSlider = document.getElementById('particleSize');
+            const zoomSmoothnessSlider = document.getElementById('zoomSmoothness');
+            const particleSpeedSlider = document.getElementById('particleSpeed');
+            
+            particleCountSlider.addEventListener('input', function() {
+                particleCount = parseInt(this.value);
+                document.getElementById('particleCountValue').textContent = particleCount;
+                createParticles();
+            });
+            
+            particleSizeSlider.addEventListener('input', function() {
+                particleSize = parseFloat(this.value);
+                document.getElementById('particleSizeValue').textContent = particleSize;
+                particles.material.size = particleSize;
+            });
+            
+            zoomSmoothnessSlider.addEventListener('input', function() {
+                zoomSmoothness = parseInt(this.value);
+                document.getElementById('zoomSmoothnessValue').textContent = zoomSmoothness;
+            });
+            
+            particleSpeedSlider.addEventListener('input', function() {
+                particleSpeed = parseInt(this.value);
+                document.getElementById('particleSpeedValue').textContent = particleSpeed;
+            });
+        }
+
+        // 创建粒子系统
+        function createParticles() {
+            // 如果已有粒子，从场景中移除
+            if (particles) {
+                scene.remove(particles);
+                particles.geometry.dispose();
+                particles.material.dispose();
+            }
+            
+            // 重置速度和原始位置数组
+            velocities = [];
+            originalPositions = [];
+            
+            // 粒子几何体
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            const sizes = new Float32Array(particleCount);
+            
+            // 随机生成粒子位置、颜色和大小
+            // 创建星系团效果 - 粒子在中心区域更密集
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                
+                // 创建星系团分布 - 中心区域更密集
+                let radius, theta, phi;
+                
+                // 80%的粒子在中心区域，20%的粒子在外围
+                if (Math.random() < 0.8) {
+                    // 中心区域 - 密集
+                    radius = Math.random() * 400;
+                } else {
+                    // 外围区域 - 稀疏
+                    radius = Math.random() * 1000 + 400;
+                }
+                
+                theta = Math.random() * Math.PI * 2;
+                phi = Math.acos((Math.random() * 2) - 1);
+                
+                // 转换为笛卡尔坐标
+                positions[i3] = radius * Math.sin(phi) * Math.cos(theta);
+                positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                positions[i3 + 2] = radius * Math.cos(phi);
+                
+                // 保存原始位置
+                originalPositions[i3] = positions[i3];
+                originalPositions[i3 + 1] = positions[i3 + 1];
+                originalPositions[i3 + 2] = positions[i3 + 2];
+                
+                // 根据距离中心的远近设置颜色和亮度
+                const distanceFromCenter = Math.sqrt(
+                    positions[i3] * positions[i3] + 
+                    positions[i3 + 1] * positions[i3 + 1] + 
+                    positions[i3 + 2] * positions[i3 + 2]
+                );
+                
+                // 中心区域粒子更亮，外围粒子较暗
+                const brightness = Math.max(0.3, 1 - (distanceFromCenter / 1400));
+                
+                // 随机颜色 - 主要为蓝色调，添加一些变化
+                colors[i3] = Math.random() * 0.2 * brightness + 0.7 * brightness;     // 红色分量
+                colors[i3 + 1] = Math.random() * 0.3 * brightness + 0.7 * brightness; // 绿色分量
+                colors[i3 + 2] = Math.random() * 0.5 * brightness + 0.5 * brightness; // 蓝色分量
+                
+                // 随机大小 - 中心区域粒子更大
+                const sizeFactor = Math.max(0.5, 1 - (distanceFromCenter / 1400));
+                sizes[i] = (Math.random() * particleSize + particleSize * 0.5) * sizeFactor;
+                
+                // 为每个粒子设置随机速度和方向
+                velocities.push({
+                    x: (Math.random() - 0.5) * 0.5,
+                    y: (Math.random() - 0.5) * 0.5,
+                    z: (Math.random() - 0.5) * 0.5
+                });
+            }
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+            
+            // 粒子材质 - 使用圆形精灵
+            const material = new THREE.PointsMaterial({
+                size: particleSize,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending,
+                sizeAttenuation: true,
+                map: createCircleTexture()
+            });
+            
+            // 创建粒子系统
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+        }
+
+        // 创建圆形纹理
+        function createCircleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32;
+            canvas.height = 32;
+            const context = canvas.getContext('2d');
+            
+            // 绘制圆形
+            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.5, 'rgba(200,220,255,0.8)');
+            gradient.addColorStop(1, 'rgba(100,150,255,0)');
+            
+            context.fillStyle = gradient;
+            context.beginPath();
+            context.arc(16, 16, 16, 0, Math.PI * 2);
+            context.fill();
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+
+        // 处理鼠标移动
+        function onMouseMove(event) {
+            // 将鼠标坐标转换为归一化设备坐标 (-1到+1)
+            mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            // 计算鼠标距离屏幕中心的距离 (0到1)
+            const distanceFromCenter = Math.min(1, Math.sqrt(mouseX * mouseX + mouseY * mouseY));
+            
+            // 根据距离设置目标相机位置
+            // 屏幕边缘(距离=1) -> 外太空视角 (Z=800)
+            // 屏幕中心(距离=0) -> 星系中心视角 (Z=200)
+            targetCameraZ = 200 + distanceFromCenter * 600;
+        }
+
+        // 动画循环
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // 平滑更新相机位置 - 使用平滑度参数控制
+            const smoothFactor = 0.05 + (zoomSmoothness / 200);
+            currentCameraZ += (targetCameraZ - currentCameraZ) * smoothFactor;
+            camera.position.z = currentCameraZ;
+            
+            // 更新粒子位置
+            const positions = particles.geometry.attributes.position.array;
+            const time = Date.now() * 0.0001;
+            const speedFactor = particleSpeed / 100;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                
+                // 添加鼠标交互效果
+                const dx = positions[i3] - mouseX * 200;
+                const dy = positions[i3 + 1] - mouseY * 200;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // 鼠标影响范围内的粒子
+                if (distance < 100) {
+                    const force = (100 - distance) / 100 * 0.5;
+                    positions[i3] += dx * force * 0.05;
+                    positions[i3 + 1] += dy * force * 0.05;
+                }
+                
+                // 使用存储的速度更新粒子位置
+                positions[i3] += velocities[i].x * speedFactor;
+                positions[i3 + 1] += velocities[i].y * speedFactor;
+                positions[i3 + 2] += velocities[i].z * speedFactor;
+                
+                // 边界检查 - 如果粒子超出边界，从另一侧出现
+                if (Math.abs(positions[i3]) > 1500) positions[i3] = -positions[i3] * 0.9;
+                if (Math.abs(positions[i3 + 1]) > 1500) positions[i3 + 1] = -positions[i3 + 1] * 0.9;
+                if (Math.abs(positions[i3 + 2]) > 1500) positions[i3 + 2] = -positions[i3 + 2] * 0.9;
+                
+                // 添加额外的随机运动
+                positions[i3] += Math.sin(time + i) * 0.1;
+                positions[i3 + 1] += Math.cos(time + i) * 0.1;
+                positions[i3 + 2] += Math.sin(time + i * 0.5) * 0.1;
+            }
+            
+            particles.geometry.attributes.position.needsUpdate = true;
+            
+            // 根据相机距离调整粒子透明度 - 实现近少远多效果
+            // 当相机在近处(200)时，粒子更少(透明度低)，在远处(800)时，粒子更多(透明度高)
+            const opacityFactor = 0.3 + (currentCameraZ - 200) / 600 * 0.7;
+            particles.material.opacity = Math.min(0.9, opacityFactor);
+            
+            // 根据相机距离调整粒子大小 - 近大远小
+            const sizeFactor = 0.5 + (800 - currentCameraZ) / 600 * 0.5;
+            particles.material.size = particleSize * sizeFactor;
+            
+            // 缓慢旋转整个粒子系统
+            particles.rotation.x += 0.0002;
+            particles.rotation.y += 0.0003;
+            
+            // 渲染场景
+            renderer.render(scene, camera);
+        }
+
+        // 处理窗口大小调整
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // 初始化
+        init();
+    </script>
+</body>
+</html>
