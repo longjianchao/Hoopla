@@ -305,9 +305,6 @@
 
 			// 更新所有bar元素
 			let bar = document.getElementsByClassName("bar");
-			let barTitle = document.getElementsByClassName("barTitle");
-			let canvas = document.querySelectorAll('canvas');
-
 			for (let i = 0; i < bar.length; i++){
 				bar[i].style.backgroundImage = "url(" + scaledUrl + ")";
 				bar[i].style.height= targetHeight + "px";
@@ -316,14 +313,8 @@
 				bar[i].style.backgroundSize = "cover";
 				bar[i].style.backgroundPosition = "center";
 			}
-
-			for (let i = 0; i < canvas.length; i++){
-				canvas[i].height = targetHeight;
-				canvas[i].width = targetWidth;
-			}
-
-			for (let i = 0; i < barTitle.length; i++){
-				barTitle[i].style.width = targetWidth + "px";
+			if(typeof drawResiduals === 'function'){
+				drawResiduals();
 			}
 		}
 
@@ -566,44 +557,91 @@ document.addEventListener('DOMContentLoaded', function() {
 	</div>
 	
 	<!-- 参数走势图容器 -->
-	<div id="paramsTrendContainer" style="flex: 1; min-width: 0;">
-		<!-- 这里将由optimization.js填充12个参数走势图，4*3布局 -->
+	<div style="flex: 1; min-width: 0;">
+		<div class="paramChartTitle">
+			<p>Parameter Trending Charts</p>
+		</div>
+		<div id="paramsTrendContainer" style="flex: 1; min-width: 0;">
+		<!-- 参数走势图容器，4*3布局 -->
+		<div style="display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, auto); gap: 4px; padding: 8px;">
+			<!-- 第一行 -->
+			<div class="chart-container">
+				<canvas id="paramChart_0" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
+			</div>
+			<div class="chart-container">
+				<canvas id="paramChart_1" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
+			</div>
+			<div class="chart-container">
+				<canvas id="paramChart_2" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
+			</div>
+			<!-- 第二行 -->
+			<div class="chart-container">
+				<canvas id="paramChart_3" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
+			</div>
+			<div class="chart-container">
+				<canvas id="paramChart_4" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
+			</div>
+			<div class="chart-container">
+				<canvas id="paramChart_5" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
+			</div>
+			<!-- 第三行 -->
+			<div class="chart-container">
+				<canvas id="paramChart_6" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
+			</div>
+			<div class="chart-container">
+				<canvas id="paramChart_7" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
+			</div>
+			<div class="chart-container">
+				<canvas id="paramChart_8" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
+			</div>
+			<!-- 第四行 -->
+			<div class="chart-container">
+				<canvas id="paramChart_9" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
+			</div>
+			<div class="chart-container">
+				<canvas id="paramChart_10" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
+			</div>
+			<div class="chart-container">
+				<canvas id="paramChart_11" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
+			</div>
+		</div>
+	</div>
 	</div>
 </div>
 
 <div class="container" style="width: 1300px">
 	<button class="button" id="saveModel"
-			style="vertical-align:middle;width:193px;background-color:#666666"><span>Save Models</span>
+			style="vertical-align:middle;width:193px;"><span>Save Models</span>
 	</button>
-	<button class="Uploadbtn"  style="vertical-align:middle;width:193px;background-color:#666666">
+	<button class="Uploadbtn"  style="vertical-align:middle;width:193px;">
 		<input class="input-upload" type="file" id="modelUpload"/>
 		<span>Load Models</span>
 	</button>
 
-	<button class="Uploadbtn"  style="vertical-align:middle;width:193px;background-color:#666666">
+	<button class="Uploadbtn"  style="vertical-align:middle;width:193px;">
 		<input class="input-upload" type="button" id="imageUpload"/>
 		<span>Upload Images</span>
 	</button>
 	<button class="button" id="delForeground" onclick="delForeground()"
-            style="vertical-align:middle;width:193px;background-color:#666666"><span>Extract Lens Arc</span>
+            style="vertical-align:middle;width:193px;"><span>Extract Lens Arc</span>
     </button>
     <button class="button" id="optimization" onclick="do_fit()"
             style="vertical-align:middle;width:193px"><span>Optimization</span>
     </button>
     <button class="button" id="mcmcButton" onclick="startMCMC()"
-            style="vertical-align:middle;width:193px;background-color:#8B4513"><span>MCMC</span>
+            style="vertical-align:middle;width:193px;background-color:#e84d05"><span>MCMC</span>
     </button>
 
 </div>
 <div class="container" style="height: 50px; width: 1000px;">
 	<span>Current pixel-scale: </span>
 	<input class="pixscale" id="newPixelScale" type="number">
-	<button class="button" onclick="reset()" style="width: 200px;background-color: #666666;vertical-align: middle">
+	<button class="button" onclick="reset()" style="width: 200px;vertical-align: middle">
 		<span>Reset Pixel-Scale</span>
 	</button>
 	<span style="margin-left: 10px;">Mask Radius:</span>
 	<input type="number" id="maskRadius" min="0" step="1" style="width: 80px; margin-left: 5px; border-radius: 5px;">
-	<button class="button" onclick="applyMask()" style="width: 150px;background-color: #666666;vertical-align: middle; margin-left: 10px;">
+	<button class="button" onclick="applyMask()" style="width: 150px;vertical-align: middle; margin-left: 10px;">
 		<span>Apply Mask</span>
 	</button>
 </div>
@@ -644,30 +682,35 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="loading-overlay" id="loadingOverlay">
 	<div class="loading-content">
 		<div class="loading"></div>
-		<p>正在进行MCMC建模，请稍候...</p>
+		<!-- MCMC进度条 -->
+		<div id="timeEstimate" class="progress-time">预计建模时间: 3分钟</div>
+		<div class="progress-container">
+			<div id="mcmcProgressBar" class="progress-bar">
+				<div class="progress-fill"></div>
+				<div class="progress-glow"></div>
+			</div>
+		</div>
+		<div id="progressText" class="progress-text">0% 完成 (0:00 / 3:00)</div>
+		
 		<h3>模型日志</h3>
 		<pre id="log" style="color:rgb(255, 255, 255); padding:10px;width: 800px; height:400px; overflow:auto; font-size:14px;"></pre>
 	</div>
 </div>
 
-<div id="result-container" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:white; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.3); padding:30px; max-width:90vw; max-height:90vh; overflow:auto;">
-  <div style="display:flex; justify-content:center; gap:30px; margin-bottom:30px; align-items:flex-start;">
+<div id="result-container">
+  <div class="result-images-container">
     <!-- 根据原始比例设置相同高度 -->
-    <div style="height:400px;">
-      <img id="result-img" style="height:100%; object-fit:contain; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.2); cursor:pointer;" onclick="openImageViewer(this.src)">
+    <div class="result-image-wrapper">
+      <img id="result-img" class="result-image">
     </div>
-    <div style="height:400px;">
-      <img id="corner-img" style="height:100%; object-fit:contain; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.2); cursor:pointer;" onclick="openImageViewer(this.src)">
+    <div class="result-image-wrapper">
+      <img id="corner-img" class="result-image">
     </div>
   </div>
 
-  <div style="text-align:center; margin-top:30px;">
-    <button id="save-btn" style="margin-right:20px; padding:12px 24px; border:none; border-radius:8px; background:#007bff; color:white; cursor:pointer; font-size:16px; transition:background 0.3s;">
-      💾 Save Result
-    </button>
-    <button id="continue-btn" style="padding:12px 24px; border:none; border-radius:8px; background:#28a745; color:white; cursor:pointer; font-size:16px; transition:background 0.3s;">
-      🔁 Next Modeling
-    </button>
+  <div class="result-actions">
+    <button id="save-btn">💾 Save Result</button>
+    <button id="continue-btn">🔁 Next Modeling</button>
   </div>
 </div>
 
@@ -714,4 +757,11 @@ document.addEventListener('DOMContentLoaded', function() {
   if (typeof getImage === 'function') {
     window.getImage = getImage;
   }
+  
+  // 页面加载完成后初始化参数走势图
+  document.addEventListener('DOMContentLoaded', function() {
+    if (typeof initializeParamsTrendChart === 'function') {
+      initializeParamsTrendChart();
+    }
+  });
 </script>

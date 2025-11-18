@@ -155,6 +155,49 @@ function chi2_rescale(p) {
 }
 
 
+/**
+ * 专门用于将imgd的红色通道绘制到myCanvas上的函数
+ */
+function drawResiduals() {
+	if(!imgd.complete || imgd.naturalWidth === 0) {
+		imgd.onload = () => {
+			console.log("图像加载完成，重新执行drawResiduals");
+			drawResiduals();
+		};
+		return;
+	}
+	let c = document.getElementById("myCanvas");
+	let ctx = c.getContext("2d");
+	try {
+		// 清除画布
+		ctx.clearRect(0, 0, c.width, c.height);
+		ctx.drawImage(imgd, 0, 0, c.width, c.height);
+		let dstdata = ctx.getImageData(0, 0, c.width, c.height);
+		let data = dstdata.data;
+		let red = new Array(data.length/4);
+		for (let i = 0, n = red.length; i < n; i ++){
+			red[i] = data[i*4]/255; // 提取红色通道值（0-1之间）
+		}
+		for (let x = 0; x < c.height; ++x) {
+			for (let y = 0; y < c.width; ++y) {
+				let index = (x * c.width + y) * 4;   // 4个通道：r,g,b,alpha
+				let index2 = (x * c.width + y);      // 像素索引
+				// 设置红色通道为原始红色值
+				data[index]   = Math.round(red[index2] * 255);    // red
+				data[++index] = 0;    // green
+				data[++index] = 0;    // blue
+				data[++index] = 255;  // alpha
+			}
+		}
+		for (let i = 0; i < data.length; i++) {
+			dstdata.data[i] = data[i];
+		}
+		ctx.putImageData(dstdata, 0, 0);
+	} catch (error) {
+		console.error("绘制过程中发生错误:", error);
+	}
+}
+
 function show_res(p) {
 	let c = document.getElementById("myCanvas");
 	let ctx = c.getContext("2d");
@@ -189,6 +232,8 @@ function show_res(p) {
 		console.log('Error: NaN result');
 	}
 	console.log('res:'+res/red.length);
+	let checkParams = p.map((param) => param === 0);
+	
 	for (let x = 0; x < imgd.height; ++x) {
 		for (let y = 0; y < imgd.width; ++y) {
 			let index = (x * imgd.width + y) * 4;   //4是image的4个通道r,g,b和透明度
@@ -208,6 +253,7 @@ function show_res(p) {
 	ctx.putImageData(dstdata, 0, 0);
 	return res;
 }
+
 
 var chartInstance = null; // 声明一个全局变量来存储卡方值图表实例
 var paramsChartInstances = paramsChartInstances || []; // 声明一个全局变量来存储参数趋势图表实例
@@ -322,92 +368,43 @@ function drawParamsTrendChart(paramsHistory) {
 		}
 	}
 	
-	// 设置容器样式为4*3网格布局，更紧凑的间距
-	container.style.display = 'grid';
-	container.style.gridTemplateColumns = 'repeat(3, 1fr)';
-	container.style.gridTemplateRows = 'repeat(4, auto)';
-	container.style.gap = '4px';
-	container.style.padding = '6px';
-	container.style.borderRadius = '6px';
-	container.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-	// 确保容器可见
-	container.style.visibility = 'visible';
-	container.style.opacity = '1';
+	// 查找网格容器（子元素）
+	let gridContainer = container.querySelector('div[style*="display: grid"]');
+	if (!gridContainer) {
+		// 如果没有找到，创建网格容器
+		gridContainer = document.createElement('div');
+		gridContainer.style.display = 'grid';
+		gridContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
+		gridContainer.style.gridTemplateRows = 'repeat(4, auto)';
+		gridContainer.style.gap = '4px';
+		gridContainer.style.padding = '8px';
+		container.appendChild(gridContainer);
+	} else {
+		// 更新网格容器的样式，但不改变布局
+		gridContainer.style.gap = '4px';
+		gridContainer.style.padding = '8px';
+	}
 	
 	// 检查参数数量
 	// 移除重复声明，后续使用此参数计数
 	const paramCount = Math.min(window.globalParamsHistory[0].length, paramNames.length);
 	
-	// 确保所有图表canvas都存在
+	// 只检查参数名称是否需要更新，HTML中已预创建
 	for (let i = 0; i < paramCount; i++) {
-		let canvas = document.getElementById(`paramChart_${i}`);
-		if (!canvas) {
-			// 创建canvas容器，恢复原始尺寸但保留较小的边距
-			const canvasContainer = document.createElement('div');
-			canvasContainer.style.backgroundColor = 'white';
-			canvasContainer.style.padding = '3px';
-			canvasContainer.style.borderRadius = '4px';
-			canvasContainer.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
-			canvasContainer.style.height = '180px';
-			canvasContainer.style.width = '280px';
-			canvasContainer.style.flexShrink = '0';
-			canvasContainer.style.margin = '2px';
-			canvasContainer.style.display = 'block';
-			
-			// 创建canvas元素，恢复原始尺寸
-			canvas = document.createElement('canvas');
-			canvas.id = `paramChart_${i}`;
-			canvas.width = 280;
-			canvas.height = 180;
-			canvas.style.width = '100%';
-			canvas.style.height = '100%';
-			canvas.style.display = 'block';
-			
-			canvasContainer.appendChild(canvas);
-			container.appendChild(canvasContainer);
-			
-			// 验证canvas是否成功添加到DOM
-			const verifyCanvas = document.getElementById(`paramChart_${i}`);
-			if (!verifyCanvas) {
-				console.warn(`Failed to create or find canvas with id paramChart_${i}`);
-			}
+		const titleDiv = document.querySelector(`#paramChart_${i} + .param-title`);
+		if (titleDiv && paramNames[i]) {
+			titleDiv.textContent = paramNames[i];
 		}
 	}
-	// 为每个参数更新或创建图表
+	
+	// 直接为每个参数更新图表数据，不再重复创建Canvas
 	for (let i = 0; i < paramCount; i++) {
 		let canvas = document.getElementById(`paramChart_${i}`);
 		
-		// 如果canvas不存在，立即创建并添加到DOM
+		// 如果canvas不存在，输出警告但不创建（应该在HTML中已存在）
 		if (!canvas) {
-			console.log(`Creating missing canvas: paramChart_${i}`);
-			
-			// 创建canvas容器
-			const canvasContainer = document.createElement('div');
-			canvasContainer.style.backgroundColor = 'white';
-			canvasContainer.style.padding = '3px';
-			canvasContainer.style.borderRadius = '4px';
-			canvasContainer.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
-			canvasContainer.style.height = '180px';
-			canvasContainer.style.width = '280px';
-			canvasContainer.style.margin = '2px';
-			
-			// 创建canvas元素
-			canvas = document.createElement('canvas');
-			canvas.id = `paramChart_${i}`;
-			canvas.width = 280;
-			canvas.height = 180;
-			canvas.style.width = '100%';
-			canvas.style.height = '100%';
-			
-			canvasContainer.appendChild(canvas);
-			container.appendChild(canvasContainer);
-			
-			// 再次尝试获取canvas
-			canvas = document.getElementById(`paramChart_${i}`);
-			if (!canvas) {
-				console.error(`Failed to create canvas with id paramChart_${i}`);
-				continue;
-			}
+			console.warn(`Canvas with id paramChart_${i} not found. Please ensure it exists in the HTML.`);
+			continue;
 		}
 		
 		// 获取画布上下文
@@ -442,34 +439,46 @@ function drawParamsTrendChart(paramsHistory) {
 					}]
 				},
 				options: {
-					responsive: true,
-					maintainAspectRatio: false,
+					responsive: false,
+					maintainAspectRatio: true,
 					backgroundColor: 'white',
 					scales: {
 						x: {
 							title: {
 								display: true,
 								text: 'iteration number',
-								color: '#333'
+								color: '#333',
+								font: {
+									size: 10
+								}
 							},
 							grid: {
 								color: 'rgba(0, 0, 0, 0.1)'
 							},
 							ticks: {
-								color: '#666'
+								color: '#666',
+								font: {
+									size: 9
+								}
 							}
 						},
 						y: {
 							title: {
 								display: true,
 								text: 'parameter value',
-								color: '#333'
+								color: '#333',
+								font: {
+									size: 10
+								}
 							},
 							grid: {
 								color: 'rgba(0, 0, 0, 0.1)'
 							},
 							ticks: {
-								color: '#666'
+								color: '#666',
+								font: {
+									size: 9
+								}
 							}
 						}
 					},
@@ -479,7 +488,7 @@ function drawParamsTrendChart(paramsHistory) {
 							text: `Parameter: ${paramNames[i]}`,
 							color: '#333',
 							font: {
-								size: 12,
+								size: 11,
 								weight: 'bold'
 							}
 						},
@@ -521,15 +530,12 @@ function cleanupCanvas() {
 		globalParamsHistory = [];
 	}
 	
-	// 删除整个参数趋势图容器（包括包装容器）
-	const wrapper = document.getElementById('paramsTrendContainer');
-	if (wrapper) {
-		wrapper.remove();
-	}
-	
 	// 重新绘制空的卡方曲线图
 	if (typeof drawChiSquareCurve === 'function') {
 		drawChiSquareCurve([]);
+	}
+	if (typeof drawParamsTrendChart === 'function') {
+		drawParamsTrendChart([]);
 	}
 	
 	// 清理mask
@@ -824,3 +830,6 @@ function updateCanvas(components) {
 	ms_src.tools[0].mark.rx = ms_src.tools[0].mark.ry *components[0].ell;
 	ms_src.renderTools();
 }
+
+// 将show_res函数设置为全局函数，以便在其他模块中调用
+window.drawResiduals = drawResiduals;

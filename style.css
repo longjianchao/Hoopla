@@ -171,7 +171,7 @@ h1, h2, h3, h4 { font-family: Arial,serif; }
 	padding: 10px 20px;
 	margin-right: 10px;
 	border: none;
-	background: linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%);
+	background: #3a7bd5;
 	cursor: pointer;
 	border-radius: 7px;
 	color: white;
@@ -182,6 +182,7 @@ h1, h2, h3, h4 { font-family: Arial,serif; }
 .popup-form button:hover {
 	box-shadow: 0 0 20px rgba(0, 210, 255, 0.8);
 	transform: translateY(-2px);
+	background: #2c5aa0;
 }
 
 .popup-form button:active {
@@ -209,17 +210,14 @@ h1, h2, h3, h4 { font-family: Arial,serif; }
 	float: left;
 	margin: 5px;
 	border: 1px solid rgba(100, 180, 255, 0.5);
-	background: linear-gradient(135deg, #1a3b6e 0%, #2a5a9e 100%);
+	background: #1a3b6e;
 	border-radius: 8px;
-	text-shadow: 0 0 10px rgba(100, 180, 255, 0.7);
-	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 0 15px rgba(100, 180, 255, 0.2);
 	transition: all 0.3s ease;
 	position: relative;
 	overflow: hidden;
 }
 
 .barTitle:hover {
-	box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4), 0 0 25px rgba(100, 180, 255, 0.4);
 	transform: translateY(-2px);
 	border-color: rgba(100, 180, 255, 0.8);
 }
@@ -230,21 +228,41 @@ h1, h2, h3, h4 { font-family: Arial,serif; }
 	z-index: 2;
 }
 
-.barTitle::before {
-	content: '';
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	height: 3px;
-	background: linear-gradient(90deg, transparent, rgba(100, 180, 255, 0.8), transparent);
-	z-index: 1;
+/* 参数走势图标题样式 - 参考barTitle但有所区别 */
+.paramChartTitle {
+	font-family: 'Arial', sans-serif;
+	text-align: center;
+	padding: 15px 0px;
+	font-size: 22px;
+	font-weight: bold;
+	color: #ffffff;
+	width: 100%;
+	height: auto;
+	margin: 7px;
+	border: 1px solid rgba(100, 180, 255, 0.4);
+	background: #2c5aa0;
+	border-radius: 8px;
+	transition: all 0.3s ease;
+	position: relative;
+	overflow: hidden;
 }
+
+.paramChartTitle:hover {
+	transform: translateY(-1px);
+	border-color: rgba(100, 180, 255, 0.7);
+}
+
+.paramChartTitle p {
+	margin: 0;
+	position: relative;
+	z-index: 2;
+}
+
 
 .button {
 	display: inline-block;
 	border-radius: 7px;
-	background-color: #0f79ac;
+	background: #2d68ba;
 	border: none;
 	color: #FFFFFF;
 	text-align: center;
@@ -281,8 +299,12 @@ h1, h2, h3, h4 { font-family: Arial,serif; }
 	right: 0;
 }
 
+.button:hover {
+	background: #2c5aa0;
+}
+
 button {
-	background: linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%);
+	background: #3a7bd5;
 	color: white;
 	padding: 8px 16px;
 	border: none;
@@ -295,6 +317,7 @@ button {
 button:hover {
 	box-shadow: 0 0 20px rgba(0, 210, 255, 0.8);
 	transform: translateY(-2px);
+	background: #2c5aa0;
 }
 
 button:active {
@@ -306,7 +329,7 @@ button:active {
 	overflow: hidden;
 	display: inline-block;
 	border-radius: 7px;
-	background: linear-gradient(135deg, #3a7bd5 0%, #00d2ff 100%);
+	background: #3a7bd5;
 	border: none;
 	color: #FFFFFF;
 	text-align: center;
@@ -322,6 +345,7 @@ button:active {
 .Uploadbtn:hover {
 	box-shadow: 0 0 20px rgba(0, 210, 255, 0.8);
 	transform: translateY(-2px);
+	background: #2c5aa0;
 }
 
 input[type="number"], input[type="text"] {
@@ -457,13 +481,96 @@ input[type="number"]:focus, input[type="text"]:focus {
 	font-weight: bold;
 }
 
-/* 结果展示容器样式 */
+/* 结果展示容器样式 - 增大面积并优化布局 */
 #result-container {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background: white;
+	border-radius: 15px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+	padding: 30px;
+	max-width: 95vw;
+	max-height: 95vh;
+	overflow: auto;
+	display: none;
+	z-index: 1000;
+}
+
+/* 图片容器样式 */
+.result-images-container {
+	display: flex;
+	justify-content: center;
+	gap: 30px;
+	margin-bottom: 30px;
+	align-items: flex-start;
+}
+
+/* 图片容器高度控制 */
+.result-image-wrapper {
+	height: 500px; /* 增大图片容器高度 */
+}
+
+/* 图片样式 */
+.result-image {
+	height: 100%;
+	object-fit: contain;
+	border-radius: 10px;
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+	cursor: pointer;
+	transition: transform 0.2s ease;
+}
+
+.result-image:hover {
+	transform: scale(1.02);
+}
+
+/* 按钮容器样式 */
+.result-actions {
+	text-align: center;
+	margin-top: 30px;
+}
+
+/* 保存按钮样式 */
+#save-btn {
+	margin-right: 20px;
+	padding: 12px 24px;
+	border: none;
+	border-radius: 8px;
+	background: #007bff;
+	color: white;
+	cursor: pointer;
+	font-size: 16px;
+	transition: background 0.3s;
+}
+
+#save-btn:hover {
+	background: #0056b3;
+}
+
+/* 继续按钮样式 */
+#continue-btn {
+	padding: 12px 24px;
+	border: none;
+	border-radius: 8px;
+	background: #28a745;
+	color: white;
+	cursor: pointer;
+	font-size: 16px;
+	transition: background 0.3s;
+}
+
+#continue-btn:hover {
+	background: #1e7e34;
+}
+
+/* 原有的结果展示容器样式（备用） */
+.result-container-original {
 	position: fixed;
 	top: 0;
 	left: 0;
 	background-color: rgba(0, 0, 0, 0.9);
-	/* z-index: 10000; */
 	display: none;
 	justify-content: center;
 	align-items: center;
@@ -499,10 +606,136 @@ input[type="number"]:focus, input[type="text"]:focus {
 	transform: scale(1.1);
 }
 
+/* 参数走势图容器样式 */
+.chart-container {
+	background-color: white;
+	padding: 8px;
+	border-radius: 4px;
+	box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+	height: 200px;
+	border: 1px solid #ddd;
+}
+
+/* MCMC进度条样式 */
+.progress-time {
+	color: #b9c3cd;
+	font-size: 24px;
+	font-weight: bold;
+	margin: 20px 0;
+	text-align: center;
+	text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.progress-container {
+	width: 80%;
+	height: 24px;
+	background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+	border-radius: 12px;
+	margin: 15px auto;
+	overflow: hidden;
+	position: relative;
+	border: 2px solid rgba(76, 175, 80, 0.3);
+	box-shadow: 
+		inset 0 2px 4px rgba(0, 0, 0, 0.2),
+		0 2px 8px rgba(76, 175, 80, 0.2);
+}
+
+.progress-bar {
+	height: 100%;
+	width: 0%;
+	position: relative;
+	overflow: hidden;
+	border-radius: 10px;
+	transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.progress-fill {
+	height: 100%;
+	width: 100%;
+	background: linear-gradient(90deg, 
+		#4CAF50 0%, 
+		#45a049 25%, 
+		#66BB6A 50%, 
+		#4CAF50 75%, 
+		#2E7D32 100%);
+	background-size: 200% 100%;
+	animation: progress-shine 2s linear infinite;
+	border-radius: 10px;
+	position: relative;
+}
+
+.progress-fill::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: linear-gradient(90deg, 
+		transparent, 
+		rgba(255, 255, 255, 0.3), 
+		transparent);
+	animation: progress-sweep 1.5s ease-in-out infinite;
+}
+
+.progress-glow {
+	position: absolute;
+	top: -2px;
+	left: -2px;
+	right: -2px;
+	bottom: -2px;
+	background: linear-gradient(90deg, 
+		#4CAF50, 
+		#66BB6A, 
+		#4CAF50);
+	border-radius: 12px;
+	z-index: -1;
+	opacity: 0;
+	animation: progress-glow 2s ease-in-out infinite;
+}
+
+.progress-text {
+	color: white;
+	font-size: 16px;
+	font-weight: 600;
+	margin-top: 15px;
+	text-align: center;
+	text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+	letter-spacing: 0.5px;
+}
+
+/* 进度条动画 */
+@keyframes progress-shine {
+	0% { background-position: 200% 0; }
+	100% { background-position: -200% 0; }
+}
+
+@keyframes progress-sweep {
+	0% { transform: translateX(-100%); }
+	100% { transform: translateX(100%); }
+}
+
+@keyframes progress-glow {
+	0%, 100% { opacity: 0; }
+	50% { opacity: 0.6; }
+}
+
 /* 响应式调整 */
 @media (max-width: 1024px) {
 	.result-content {
 		grid-template-columns: 1fr;
+	}
+	
+	.progress-container {
+		width: 90%;
+	}
+	
+	.progress-time {
+		font-size: 20px;
+	}
+	
+	.progress-text {
+		font-size: 14px;
 	}
 }
 
@@ -528,5 +761,17 @@ input[type="number"]:focus, input[type="text"]:focus {
 	.result-actions button {
 		padding: 10px 20px;
 		font-size: 14px;
+	}
+	
+	.progress-container {
+		height: 20px;
+	}
+	
+	.progress-time {
+		font-size: 18px;
+	}
+	
+	.progress-text {
+		font-size: 12px;
 	}
 }
