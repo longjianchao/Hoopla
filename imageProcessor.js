@@ -35,6 +35,9 @@ async function delForeground() {
 				}
 				return bytes;
 			}
+			let chi1 = result.chi_square_1,chi2 = result.chi_square_2;
+			console.log("chi1:", chi1);
+			console.log("chi2:", chi2);
 			const compressed = base64ToUint8Array(result.image_data);
 			const raw = pako.ungzip(compressed);
 			const floatArray = new Float32Array(raw.buffer);

@@ -265,56 +265,69 @@ function drawChiSquareCurve(chiSquaredValues) {
 		chartInstance.destroy();
 		chartInstance = null;  // 重要：将实例设置为null
 	}
-	if (chartInstance) {
-		// 更新现有图表
-		chartInstance.data.labels = Array.from({ length: chiSquaredValues.length }, (_, i) => i + 1);
-		chartInstance.data.datasets[0].data = chiSquaredValues;
-		chartInstance.update();
-	} else {
-		// 创建新图表
-		chartInstance = new Chart(ctx, {
-			type: 'line',
-			data: {
-				labels: Array.from({ length: chiSquaredValues.length }, (_, i) => i + 1),
-				datasets: [{
-					label: 'chi-squared value',
-					data: chiSquaredValues,
-					borderColor: 'rgb(75, 192, 192)',
-					tension: 0.1,
-					fill: false
-				}]
-			},
-			options: {
-				responsive: false,
-				maintainAspectRatio: true,
-				scales: {
-					x: {
-						title: {
-							display: true,
-							text: 'iteration number'
-						}
-					},
-					y: {
-						title: {
-							display: true,
-							text: 'target function value'
-						},
-						// 使用对数刻度可能更好地显示函数值的变化
-						type: 'logarithmic'
-					}
-				},
-				plugins: {
+	
+	// 确保chiSquaredValues是数组
+	chiSquaredValues = chiSquaredValues || [];
+	
+	// 创建新图表，无论数据是否为空
+	chartInstance = new Chart(ctx, {
+		type: 'line',
+		data: {
+			labels: Array.from({ length: chiSquaredValues.length || 1 }, (_, i) => i + 1),
+			datasets: [{
+				label: 'chi-squared value',
+				data: chiSquaredValues.length > 0 ? chiSquaredValues : [],
+				borderColor: 'rgb(75, 192, 192)',
+				tension: 0.1,
+				fill: false
+			}]
+		},
+		options: {
+			responsive: false,
+			maintainAspectRatio: true,
+			// 确保即使没有数据也显示轴线
+			scales: {
+				x: {
+					display: true,
 					title: {
 						display: true,
-						text: 'optimization process'
+						text: 'iteration number'
 					},
-					legend: {
-						position: 'top',
+					// 确保x轴始终显示
+					min: 0,
+					beginAtZero: true,
+					ticks: {
+						stepSize: 1
+					}
+				},
+				y: {
+					display: true,
+					title: {
+						display: true,
+						text: 'target function value'
+					},
+					// 使用对数刻度可能更好地显示函数值的变化
+					type: 'logarithmic',
+					// 确保y轴始终显示
+					min: 0.1,
+					ticks: {
+						min: 0.1,
+						max: 100
 					}
 				}
+			},
+			plugins: {
+				title: {
+					display: true,
+					text: 'optimization process'
+				},
+				legend: {
+					position: 'top',
+					display: true
+				}
 			}
-		});
-	}
+		}
+	});
 }
 
 /**
@@ -330,11 +343,6 @@ function drawParamsTrendChart(paramsHistory) {
 	// 将新的参数历史数据追加到全局历史中
 	if (paramsHistory && paramsHistory.length > 0) {
 		window.globalParamsHistory = window.globalParamsHistory.concat(paramsHistory);
-	}
-	
-	// 如果全局历史为空，则直接返回
-	if (window.globalParamsHistory.length === 0) {
-		return;
 	}
 	
 	// 定义参数名称
@@ -385,20 +393,8 @@ function drawParamsTrendChart(paramsHistory) {
 		gridContainer.style.padding = '8px';
 	}
 	
-	// 检查参数数量
-	// 移除重复声明，后续使用此参数计数
-	const paramCount = Math.min(window.globalParamsHistory[0].length, paramNames.length);
-	
-	// 只检查参数名称是否需要更新，HTML中已预创建
-	for (let i = 0; i < paramCount; i++) {
-		const titleDiv = document.querySelector(`#paramChart_${i} + .param-title`);
-		if (titleDiv && paramNames[i]) {
-			titleDiv.textContent = paramNames[i];
-		}
-	}
-	
-	// 直接为每个参数更新图表数据，不再重复创建Canvas
-	for (let i = 0; i < paramCount; i++) {
+	// 直接为每个参数创建或更新图表，无论是否有数据
+	for (let i = 0; i < paramNames.length; i++) {
 		let canvas = document.getElementById(`paramChart_${i}`);
 		
 		// 如果canvas不存在，输出警告但不创建（应该在HTML中已存在）
@@ -414,9 +410,12 @@ function drawParamsTrendChart(paramsHistory) {
 			continue;
 		}
 		
-		// 提取当前参数的所有迭代值
-		const paramValues = window.globalParamsHistory.map(iteration => iteration[i]);
-		const labels = Array.from({ length: window.globalParamsHistory.length }, (_, idx) => idx + 1);
+		// 提取当前参数的所有迭代值，如果全局历史为空则使用空数组
+		const paramValues = window.globalParamsHistory.length > 0 ? 
+			window.globalParamsHistory.map(iteration => iteration[i]) : [];
+		const labels = window.globalParamsHistory.length > 0 ? 
+			Array.from({ length: window.globalParamsHistory.length }, (_, idx) => idx + 1) : 
+			[1]; // 至少显示一个标签
 		
 		// 检查是否存在该参数的图表实例
 		if (paramsChartInstances[i]) {
@@ -425,7 +424,7 @@ function drawParamsTrendChart(paramsHistory) {
 			paramsChartInstances[i].data.datasets[0].data = paramValues;
 			paramsChartInstances[i].update();
 		} else {
-			// 创建新图表
+			// 创建新图表，无论数据是否为空
 			const chart = new Chart(ctx, {
 				type: 'line',
 				data: {
@@ -442,8 +441,10 @@ function drawParamsTrendChart(paramsHistory) {
 					responsive: false,
 					maintainAspectRatio: true,
 					backgroundColor: 'white',
+					// 确保即使没有数据也显示轴线
 					scales: {
 						x: {
+							display: true,
 							title: {
 								display: true,
 								text: 'iteration number',
@@ -463,6 +464,7 @@ function drawParamsTrendChart(paramsHistory) {
 							}
 						},
 						y: {
+							display: true,
 							title: {
 								display: true,
 								text: 'parameter value',

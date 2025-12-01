@@ -225,9 +225,6 @@
 		}
 		setup();
 		document.getElementById('imageUpload').onclick = function (e) {
-			if (window.cleanupCanvas) {
-				window.cleanupCanvas();
-			}
 			document.getElementById("imgURL").innerText = "";
 			document.getElementById("pixel-scale").value = "";
 			document.querySelector('.popup-form').classList.add('active');
@@ -335,6 +332,28 @@
 				// 动态导入模块
 				const fileModule = await import('./fileHandler.js');
 				const uiModule = await import('./uiHandler.js');
+				
+				// 清理之前的Source和lens组件
+				if (lets && lets.model) {
+					// 重置模型组件为默认状态
+					lets.model.components = [
+						{
+							plane: "source",
+							size: 0.3,
+							x: 0.0,
+							y: 0.0,
+							ell: 0.7,
+							ang: 32,
+							n_sersic: 1.0,
+							Ie: 1.0,
+						}
+					];
+					// 重置冻结状态
+					lets.freezeSrcModel = false;
+					// 重新初始化
+					lets.init();
+				}
+				
 				// 调用文件处理模块处理图像
 				await fileModule.processImageFile(imageFile, pixscale, img0, lets);
 				
@@ -345,9 +364,9 @@
 				document.getElementById('newPixelScale').value = pixscale;
 				// 关闭弹窗
 				document.querySelector('.popup-form').classList.remove('active');
-				// 清理卡方曲线图
-				if (window.chartInstance) {
-					uiModule.cleanupCanvas();
+				// 清理卡方曲线图和参数趋势图
+				if (window.cleanupCanvas) {
+					window.cleanupCanvas();
 				}
 				
 			} catch (error) {
@@ -758,10 +777,15 @@ document.addEventListener('DOMContentLoaded', function() {
     window.getImage = getImage;
   }
   
-  // 页面加载完成后初始化参数走势图
+  // 页面加载完成后初始化参数走势图和卡方曲线图
   document.addEventListener('DOMContentLoaded', function() {
-    if (typeof initializeParamsTrendChart === 'function') {
-      initializeParamsTrendChart();
+    // 初始化卡方曲线图
+    if (typeof drawChiSquareCurve === 'function') {
+      drawChiSquareCurve([]);
+    }
+    // 初始化参数走势图
+    if (typeof drawParamsTrendChart === 'function') {
+      drawParamsTrendChart([]);
     }
   });
 </script>
