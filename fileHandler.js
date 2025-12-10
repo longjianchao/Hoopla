@@ -150,9 +150,6 @@ function loadFitsFile(imageFile, pixelScale) {
 function loadPngFile(imageFile, pixelScale) {
   return new Promise((resolve) => {
     const url = document.getElementById("imgURL").innerText;
-    img0.src = url;
-    
-    // 为PNG文件也添加像素比例调整逻辑
     // 创建一个临时图像来获取实际尺寸
     const tempImg = new Image();
     tempImg.onload = function() {
@@ -165,6 +162,27 @@ function loadPngFile(imageFile, pixelScale) {
       if (lets.model) {
         lets.model.pixscale = lets.pixscale;
       }
+      
+      // 创建画布来处理PNG图像数据
+      const canvas = document.createElement('canvas');
+      canvas.width = tempImg.width;
+      canvas.height = tempImg.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(tempImg, 0, 0);
+      
+      // 获取图像数据
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      
+      // 初始化globalImageData，只使用红色通道
+      globalImageData = new Float32Array(data.length / 4);
+      for (let i = 0, n = globalImageData.length; i < n; i++) {
+        globalImageData[i] = data[i * 4] / 255; // 归一化到0-1范围
+      }
+      
+      // 设置图像源
+      img0.src = url;
+      
       resolve({ url, width: tempImg.width, height: tempImg.height });
     };
     tempImg.onerror = function() {
@@ -233,7 +251,7 @@ function loadModelFile(modelFile, updateCanvas, showRes, appInstance, scaleValue
         ql = lets.model.components[1].ell;
         phl = lets.model.components[1].ang;
         
-        let yc1, yc2, sig2, qs, phs, n;
+        let yc1, yc2, sig2, qs, phs, n, Ie;
         yc1 = lets.model.components[0].x;
         yc2 = lets.model.components[0].y;
         sig2 = lets.model.components[0].size;
@@ -292,10 +310,99 @@ function saveModelToFile(imageSrc, appInstance) {
   }
 }
 
+/**
+ * 处理PSF文件上传
+ * @param {File} psfFile - 上传的PSF文件
+ * @returns {Promise} 包含PSF数据的Promise
+ */
+async function handlePSFUpload(psfFile) {
+  if (!psfFile || (!psfFile.name.match(/\.(fits|fit|fts)$/i) && !psfFile.name.endsWith('.h5'))) {
+    throw new Error('Only FITS (.fits, .fit, .fts) or HDF5 (.h5) files are allowed for PSF!');
+  }
+  
+  return new Promise((resolve, reject) => {
+    try {
+      let reader = new FileReader();
+      reader.onloadend = function(evt) {
+        try {
+          let result = evt.target.result;
+          if (psfFile.name.endsWith('.h5')) {
+            // 处理HDF5格式
+            let f = new hdf5.File(result, psfFile.name);
+            let dataset = f.get('psf');
+            let psfData = dataset.value;
+            let shape = dataset.shape;
+            
+            // 执行PSF归一化
+            const psfSum = psfData.reduce((sum, val) => sum + val, 0);
+            let normalizedPsfData = psfData;
+            if (psfSum !== 0) {
+              normalizedPsfData = psfData.map(val => val / psfSum);
+            }
+            
+            let psfInfo = {
+              data: normalizedPsfData,
+              width: shape[1],
+              height: shape[0],
+              type: 'h5',
+            };
+            // 保存到全局变量
+            window.globalPSFData = psfInfo;
+            resolve(psfInfo);
+          } else {
+            // 处理FITS格式
+            new astro.FITS(psfFile, function(fits) {
+              try {
+                const hdu = fits.getHDU();
+                const header = hdu.header;
+                const dataUnit = hdu.data;
+                let width = header.get('NAXIS1');
+                let height = header.get('NAXIS2');
+                
+                dataUnit.getFrame(0, function(psfData) {
+                  try {
+                    // 执行PSF归一化
+                    const psfSum = psfData.reduce((sum, val) => sum + val, 0);
+                    let normalizedPsfData = psfData;
+                    if (psfSum !== 0) {
+                      normalizedPsfData = psfData.map(val => val / psfSum);
+                    }
+                    console.log('PSF sum:', psfSum);
+                    let psfInfo = {
+                      data: normalizedPsfData,
+                      width: width,
+                      height: height,
+                      type: 'fits',
+                    };
+                    // 保存到全局变量
+                    window.globalPSFData = psfInfo;
+                    resolve(psfInfo);
+                  } catch (err) {
+                    reject(err);
+                  }
+                });
+              } catch (err) {
+                reject(err);
+              }
+            }, reject);
+          }
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(psfFile);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 // 导出文件处理模块
 export {
   handleImageUpload,
   processImageFile,
   loadModelFile,
-  saveModelToFile
+  saveModelToFile,
+  handlePSFUpload
 };

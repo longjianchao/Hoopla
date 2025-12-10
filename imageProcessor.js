@@ -147,12 +147,8 @@ function getImage(imageData, width, height, convert){
 	let canvas = document.createElement('canvas');
 	canvas.width = width;
 	canvas.height = height;
-	let minval = 1;
 	let maxval = 0;
 	for(let i = 0; i < imageData.length; i++){
-		if(imageData[i] < minval){
-			minval = imageData[i];
-		}
 		if(imageData[i] > maxval){
 			maxval = imageData[i];
 		}
@@ -181,10 +177,8 @@ function getImage(imageData, width, height, convert){
 			canvasData.data[idx + 3] = 255; // A
 		}
 	}
-	// console.log("globalImageData:", globalImageData);
 	ctx.putImageData(canvasData, 0, 0);
-	// console.log("canvasData:", canvasData);
-	url = canvas.toDataURL();
+	const url = canvas.toDataURL();
 	return url;
 }
 

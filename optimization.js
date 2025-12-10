@@ -1,5 +1,10 @@
 // 拟合优化建模相关功能
 
+// 从npm导入ndarray相关库
+import ndarray from 'ndarray';
+import * as ops from 'ndarray-ops';
+import fft from 'ndarray-fft';
+
 //计算平均值
 function average(data){
 	let sum = data.reduce(function(sum, value){
@@ -104,7 +109,7 @@ function model_lensed_images(p, x1, x2) {
 	let y1 = x1 - alpha.x;
 	let y2 = x2 - alpha.y;
 
-	let yc1, yc2, size, qs, phs, n;
+	let yc1, yc2, size, qs, phs, n, Ie;
 	yc1 = p[5];
 	yc2 = p[6];
 	size = p[7];
@@ -115,41 +120,148 @@ function model_lensed_images(p, x1, x2) {
 	return calImage(y1, y2, yc1, yc2, size, qs, phs, n, Ie);
 }
 
-function chi2_rescale(p) {
-	if(!globalImageData){
-		let c = document.getElementById("myCanvas");
-		c.willReadFrequently = true;
-		let ctx = c.getContext("2d");
-		ctx.drawImage(imgd, 0, 0);
-		let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
-		let data = dstdata.data;
-		//图像存储方式为RGBA，一个像素就是由（R,G,B,A）来存储的，将图像映射到红色通道上，所以长度为原数据长度的1/4
-		globalImageData = new Array(data.length/4);
-		for (let i = 0, n = globalImageData.length; i < n; i ++){
-			globalImageData[i] = data[i*4]/255;
-		}
+// FFT-based PSF convolution with WebGPU acceleration
+async function applyPSF(image, width, height, psf, psfW, psfH) {
+	if(!psf || !psf.length){
+		return image;
 	}
-		
+    // 确保WebGPU已初始化
+    await initWebGPU(width, height);
+    // 如果WebGPU可用，使用WebGPU加速实现
+    if (webgpuInitialized && fftConvolve) {
+        try {
+            // 将PSF数据填充到与图像相同大小
+            let psfData = new Float32Array(width * height);
+            const ox = Math.floor(width / 2 - psfW / 2);
+            const oy = Math.floor(height / 2 - psfH / 2);
+            
+            for (let y = 0; y < psfH; y++) {
+                for (let x = 0; x < psfW; x++) {
+                    psfData[(y + oy) * width + (x + ox)] = psf[y * psfW + x];
+                }
+            }
+            // 使用WebGPU执行FFT卷积
+            const result = await fftConvolve.convolve(image, psfData);
+            return result;
+        } catch (error) {
+            console.error('WebGPU PSF convolution failed, falling back to CPU implementation:', error);
+            // 回退到CPU实现
+        }
+    }
+    
+    // CPU实现（回退方案）
+    console.log('Using CPU for PSF convolution.');
+    if(!globalPSFData || !globalPSFData.data){
+        // console.error("PSF数据未加载或无效");
+        return image;
+    }
+
+    // 1. Construct ndarrays
+    const imgArr = ndarray(new Float32Array(width * height), [width, height]);
+    imgArr.data.set(image);
+
+    const psfArr = ndarray(new Float32Array(width * height), [width, height]);
+
+    // put PSF into center of psfArr (zero-pad)
+    const ox = Math.floor(width / 2 - psfW / 2);
+    const oy = Math.floor(height / 2 - psfH / 2);
+
+    for (let y = 0; y < psfH; y++) {
+        for (let x = 0; x < psfW; x++) {
+            psfArr.set(x + ox, y + oy, psf[y * psfW + x]);
+        }
+    }
+
+    // 2. FFT image + FFT PSF
+    const imgFFT_re = ndarray(new Float32Array(width * height), [width, height]);
+    const imgFFT_im = ndarray(new Float32Array(width * height), [width, height]);
+
+    const psfFFT_re = ndarray(new Float32Array(width * height), [width, height]);
+    const psfFFT_im = ndarray(new Float32Array(width * height), [width, height]);
+
+    // copy
+    ops.assign(imgFFT_re, imgArr); ops.assigns(imgFFT_im, 0);
+    ops.assign(psfFFT_re, psfArr); ops.assigns(psfFFT_im, 0);
+
+    // forward FFTs - use the correct fft function syntax
+    fft(1, imgFFT_re, imgFFT_im);
+    fft(1, psfFFT_re, psfFFT_im);
+
+    // 3. Multiply in Fourier domain: (a+bi)*(c+di)
+    // out_re = ac - bd
+    // out_im = ad + bc
+    const out_re = ndarray(new Float32Array(width * height), [width, height]);
+    const out_im = ndarray(new Float32Array(width * height), [width, height]);
+
+    // Initialize output arrays to 0
+    ops.assigns(out_re, 0);
+    ops.assigns(out_im, 0);
+
+    for (let y=0; y<height; y++){
+        for (let x=0; x<width; x++){
+            const a = imgFFT_re.get(x,y);
+            const b = imgFFT_im.get(x,y);
+            const c = psfFFT_re.get(x,y);
+            const d = psfFFT_im.get(x,y);
+            out_re.set(x,y, a*c - b*d);
+            out_im.set(x,y, a*d + b*c);
+        }
+    }
+
+    // 4. Inverse FFT - use the correct fft function syntax
+    fft(-1, out_re, out_im);
+
+    // 5. Normalize by N = width * height
+    const N = width * height;
+    const result = new Float32Array(N);
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            result[y * width + x] = out_re.get(x, y) / N;
+        }
+    }
+
+    return result;
+}
+
+
+async function chi2_rescale(p) {
 	//重缩放因子，可以提高采样效率，但数值过大可能会导致图像失真
 	const fscale = 4;
 	const chi = new Array(globalImageData.length / fscale / fscale);
 	const redstd = standardDeviation(globalImageData);
 
+	// 生成模型图像
+	let modelImage = new Float32Array(imgd.width * imgd.height);
 	for(let row = 0 ; row < imgd.height ; row+=fscale){
 		for(let col = 0 ; col < imgd.width ; col+=fscale){
-			let i,i2,x,y;
-			i = row/scale * imgd.width/scale + col/scale;
-			i2 = row/fscale*imgd.width/fscale+col/fscale;
-			x = col* lets.pixscale - lets.pixscale*lets.width/2 + lets.pixscale/2;
-			y = -row* lets.pixscale + lets.pixscale*lets.height/2 - lets.pixscale/2;
-			val = model_lensed_images(p, x, y);
-			chi[i2] = (globalImageData[i] - val)/redstd;
+			let i = Math.floor(row/scale) * Math.floor(imgd.width/scale) + Math.floor(col/scale);
+			let x = col * lets.pixscale - lets.pixscale * lets.width / 2 + lets.pixscale / 2;
+			let y = -row * lets.pixscale + lets.pixscale * lets.height / 2 - lets.pixscale / 2;
+			modelImage[i] = model_lensed_images(p, x, y);
 		}
 	}
+	// 应用PSF卷积（WebGPU加速）
+	let convolvedImage;
+	if (globalPSFData && globalPSFData.data) {
+		convolvedImage = await applyPSF(modelImage, imgd.width, imgd.height,
+			 globalPSFData.data, globalPSFData.width, globalPSFData.height);
+	} else {
+		// 如果没有PSF数据，直接使用模型图像
+		convolvedImage = modelImage;
+	}
+	// 计算卡方值
+	for(let row = 0 ; row < imgd.height ; row+=fscale){
+		for(let col = 0 ; col < imgd.width ; col+=fscale){
+			let i = Math.floor(row/scale) * Math.floor(imgd.width/scale) + Math.floor(col/scale);
+			let i2 = Math.floor(row/fscale) * Math.floor(imgd.width/fscale) + Math.floor(col/fscale);
+			chi[i2] = (globalImageData[i] - convolvedImage[i])/redstd;
+		}
+	}
+	
 	// 计算卡方值
 	const chi2 = optimize.vector.dot(chi, chi);
 	// 计算自由度：数据点数量 - 参数数量
-	const dof = chi.length - 11;
+	const dof = chi.length - 12;
 	// 返回约化卡方
 	return chi2 / dof;
 }
@@ -198,7 +310,7 @@ function drawResiduals() {
 	}
 }
 
-function show_res(p) {
+async function show_res(p) {
 	let c = document.getElementById("myCanvas");
 	let ctx = c.getContext("2d");
 	ctx.drawImage(imgd, 0, 0);
@@ -216,6 +328,8 @@ function show_res(p) {
 	let redstd = standardDeviation(red);
 	let i,x,y;
 	let maxValue = 0;
+	
+	// 生成模型图像
 	for (let row = 0; row < lets.height; row++) {
 		for (let col = 0; col < lets.width; col++) {
 			i = row * lets.width + col;
@@ -223,16 +337,25 @@ function show_res(p) {
 			y = -row * lets.pixscale + lets.pixscale*lets.height/2 ;
 			testimg[i] = model_lensed_images(p, x, y);
 			if(maxValue<testimg[i]) maxValue = testimg[i];
-			chi[i] = (red[i] - testimg[i]) / redstd / redstd;
 		}
 	}
-	console.log("max value = ",maxValue);
+	
+	// 应用PSF卷积（WebGPU加速）
+	let convolvedImage = await applyPSF(testimg, lets.width, lets.height, null, 0, 0);
+	
+	// 计算残差
+	for (let row = 0; row < lets.height; row++) {
+		for (let col = 0; col < lets.width; col++) {
+			i = row * lets.width + col;
+			chi[i] = (red[i] - convolvedImage[i]) / redstd / redstd;
+		}
+	}
+	
 	let res = optimize.vector.dot(chi, chi);
 	if(isNaN(res)) {
 		console.log('Error: NaN result');
 	}
 	console.log('res:'+res/red.length);
-	let checkParams = p.map((param) => param === 0);
 	
 	for (let x = 0; x < imgd.height; ++x) {
 		for (let y = 0; y < imgd.width; ++y) {
@@ -240,7 +363,7 @@ function show_res(p) {
 			let index2 = (x * imgd.width + y);
 			testimg[index2] /= maxValue;
 			// data[index]   = Math.round(testimg[index2]*255);    // red
-			data[index]   = Math.round(Math.abs(testimg[index2]-red[index2])*255);    // red
+			data[index]   = Math.round(Math.abs(convolvedImage[index2]-red[index2])*255);    // red
 			data[++index] = 0;    // green
 			data[++index] = 0;    // blue
 			data[++index] = 255;      // alpha
@@ -253,6 +376,7 @@ function show_res(p) {
 	ctx.putImageData(dstdata, 0, 0);
 	return res;
 }
+
 
 
 var chartInstance = null; // 声明一个全局变量来存储卡方值图表实例
@@ -309,10 +433,10 @@ function drawChiSquareCurve(chiSquaredValues) {
 					// 使用对数刻度可能更好地显示函数值的变化
 					type: 'logarithmic',
 					// 确保y轴始终显示
-					min: 0.1,
+					min: 0,
 					ticks: {
-						min: 0.1,
-						max: 100
+						min: 0.001,
+						max: 10
 					}
 				}
 			},
@@ -650,47 +774,38 @@ let timer = async(timeout) => {
 			];
 			console.log(p0);
 			// 定义一个包装函数来处理数据类型转换
-			const objectiveWrapper = (params) => {
-				// 确保输入是普通的JavaScript数组
+			const objectiveWrapper = async (params) => {
 				const jsParams = Array.from(params);
-				let ptest = [
-					0,
-					0,
-					0,
-					1,
-					0,
-					jsParams[5],
-					jsParams[6],
-					jsParams[7],
-					jsParams[8],
-					jsParams[9],
-					jsParams[10],
-					jsParams[11],
-				]
-				return chi2_rescale(jsParams);
+				return await chi2_rescale(jsParams);
 			};
 
 			// 将包装函数暴露给Python
 			pyodide.globals.set("objective_js", objectiveWrapper);
-
-			// 执行优化
 			let result = await pyodide.runPythonAsync(`
 					import numpy as np
 					from scipy import optimize
+					import asyncio
 					# 存储优化过程中的函数值和参数值
 					optimization_history = []
 					# 存储每个参数在每次迭代中的值
 					params_history = []
-					def objective(x):
+					
+					async def objective_async(x):
 						try:
 							x_list = x.tolist() if hasattr(x, 'tolist') else list(x)
-							val = float(objective_js(x_list))
+							# 使用await调用异步JavaScript函数
+							val = float(await objective_js(x_list))
 							optimization_history.append(val)
 							params_history.append(x_list.copy())
 							return val
 						except Exception as e:
 							print(f"目标函数错误: {str(e)}")
 							raise
+					
+					def objective(x):
+						# 同步包装器，用于scipy.optimize.minimize
+						return asyncio.run(objective_async(x))
+					
 					bounds = [
 							(-1, 1), (-1, 1), (0.1, 10), (1.0, 10), (0, 180),  			   # 透镜参数
 							(-5, 5), (-5, 5), (0.01, 5.0), (1.0, 10), (0, 180),(0.3, 6.0), (0.1, 10.0)    # 源参数
@@ -752,17 +867,12 @@ let timer = async(timeout) => {
 			if (result.params_history && result.params_history.length > 0) {
 				drawParamsTrendChart(result.params_history);
 			}
-			show_res(p1);
+			await show_res(p1);
 			lets.model.components[1].x = p1[0];
 			lets.model.components[1].y = p1[1];
 			lets.model.components[1].theta_e = p1[2];
 			lets.model.components[1].ell = p1[3];
 			lets.model.components[1].ang = p1[4];
-			// lets.model.components[1].x = 0;
-			// lets.model.components[1].y = 0;
-			// lets.model.components[1].theta_e = 0;
-			// lets.model.components[1].ell = 1;
-			// lets.model.components[1].ang = 0;
 			lets.model.components[0].x = p1[5];
 			lets.model.components[0].y = p1[6];
 			lets.model.components[0].size = p1[7];
@@ -784,6 +894,8 @@ let timer = async(timeout) => {
 		}
 	}
 };
+
+
 
 // 优化入口函数
 async function do_fit() {
@@ -835,3 +947,11 @@ function updateCanvas(components) {
 
 // 将show_res函数设置为全局函数，以便在其他模块中调用
 window.drawResiduals = drawResiduals;
+// 将do_fit函数暴露到全局作用域，以便在HTML中直接调用
+window.do_fit = do_fit;
+window.updateCanvas = updateCanvas;
+window.show_res = show_res;
+// 将图表绘制函数暴露到全局作用域
+window.drawChiSquareCurve = drawChiSquareCurve;
+window.drawParamsTrendChart = drawParamsTrendChart;
+window.cleanupCanvas = cleanupCanvas;

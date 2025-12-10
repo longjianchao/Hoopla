@@ -5,6 +5,11 @@
 <link rel="stylesheet" type="text/css" href="style.css">
 <!-- 引入Three.js库 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/ndarray@1.0.19/ndarray.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ndarray-fft@1.0.0/fft.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ndarray-ops@1.2.2/ops.min.js"></script>
+
 <!-- 引入星空粒子背景特效 -->
 <script type="text/javascript" src="starfield-bg.js"></script>
 
@@ -37,13 +42,13 @@
 	let pyodide = null;
 	// 全局变量，用于模块访问
 	window.chartInstance = null;
-	// 初始化函数
+	// 全局PSF变量，用于存储上传的PSF数据
+	var globalPSFData = null;
+// 初始化函数
 	async function initPyodide() {
 		try {
-			console.log("开始初始化Pyodide...");
 			pyodide = await loadPyodide();
 			console.log("Pyodide基础环境加载完成");
-			// 分别加载numpy和scipy，并添加错误处理
 			try {
 				await pyodide.loadPackage('numpy');
 				// console.log("numpy加载完成");
@@ -59,21 +64,60 @@
 			return false;
 		}
 	}
+	// 全局WebGPU变量
+	let webgpuInitialized = false;
+	let webgpuUtils = null;
+	let fftConvolve = null;
+	let psfComputer = null;
 	
+	// 初始化WebGPU
+	async function initWebGPU(width, height) {
+		if (webgpuInitialized) {
+			return;
+		}
+		try {
+			// 确保WebGPU工具类已加载
+			if (typeof WebGPUUtils === 'undefined') {
+				console.error('WebGPUUtils is not defined, make sure webgpu-utils.js is loaded correctly.');
+				webgpuInitialized = false;
+				return;
+			}
+			
+			webgpuUtils = new WebGPUUtils();
+			await webgpuUtils.init();
+			// 初始化FFT卷积
+			fftConvolve = new WebGPUFFTConvolve(webgpuUtils);
+			await fftConvolve.init(width, height);
+			// 初始化PSF计算
+			psfComputer = new PSFComputer(webgpuUtils);
+			await psfComputer.init(width, height);
+			
+			webgpuInitialized = true;
+			console.log('WebGPU initialization completed successfully.');
+		} catch (error) {
+			console.error('Failed to initialize WebGPU:', error);
+			// 回退到CPU实现
+			webgpuInitialized = false;
+		}
+	}
 	// 初始化工作，包括对象的生成及赋值，以及一些函数操作
-	function setup(){
+	async function setup(){
 		// Create a hoopla object. The ID is that of the <div>
 		lets = new Hoopla({
 			id:'hoopla-srcmodel',
 			srcmodel: 'hoopla-srcmodel',
 			prediction: 'hoopla-prediction',
 			pixscale: 0.025,
+			width: 400,
+			height: 400,
 		});
+		// 初始化WebGPU
+		await initWebGPU(lets.width, lets.height);
 		var bar = document.getElementsByClassName("bar");
 		for (let i=0; i<bar.length;i++){
 			bar[i].style.backgroundImage = "url(" + src + ")";
 		}
-		// Using Brian C's Marking Surface library!!!
+		
 		ms = new MarkingSurface({
 			inputName: 'mass-model',
 			tool: MarkingSurface.EllipseTool,
@@ -215,6 +259,19 @@
 		}
 		img_src.src = src;
 		console.log(src);
+		if(!globalImageData){
+			let c = document.getElementById("myCanvas");
+			c.willReadFrequently = true;
+			let ctx = c.getContext("2d");
+			ctx.drawImage(imgd, 0, 0);
+			let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
+			let data = dstdata.data;
+			//图像存储方式为RGBA，一个像素就是由（R,G,B,A）来存储的，将图像映射到红色通道上，所以长度为原数据长度的1/4
+			globalImageData = new Array(data.length/4);
+			for (let i = 0, n = globalImageData.length; i < n; i ++){
+				globalImageData[i] = data[i*4]/255;
+			}
+		}
 	}
 
 	window.onload = async function (e) {
@@ -223,7 +280,8 @@
 		}catch (e) {
 			console.log("pyoide启动失败,错误:",e);
 		}
-		setup();
+		// 等待setup函数完成，setup函数内部会初始化WebGPU
+		await setup();
 		document.getElementById('imageUpload').onclick = function (e) {
 			document.getElementById("imgURL").innerText = "";
 			document.getElementById("pixel-scale").value = "";
@@ -368,6 +426,8 @@
 				if (window.cleanupCanvas) {
 					window.cleanupCanvas();
 				}
+				// 重置全局PSF数据
+				window.globalPSFData = null;
 				
 			} catch (error) {
 				window.alert("Error processing image: " + error.message);
@@ -399,7 +459,7 @@
 				await fileModule.loadModelFile(
 					modelFile, 
 					updateCanvas,
-					show_res, 
+					window.show_res, 
 					lets,
 					scale
 				);
@@ -407,6 +467,31 @@
 				input.value = '';
 			} catch (error) {
 				window.alert("Error loading model: " + error.message);
+				// 清空文件输入字段，允许重新上传相同或已更改的文件
+				input.value = '';
+			}
+		};
+		
+		// PSF上传事件处理
+		document.getElementById('psfUpload').onchange = async function (e) {
+			let input = e.target;
+			let psfFile = input.files[0];
+			
+			if (!psfFile) {
+				return;
+			}
+			
+			try {
+				// 动态导入模块
+				const fileModule = await import('./fileHandler.js');
+				
+				// 调用文件处理模块处理PSF文件
+				await fileModule.handlePSFUpload(psfFile);
+				window.alert("PSF file uploaded successfully!");
+				// 清空文件输入字段，允许重新上传相同或已更改的文件
+				input.value = '';
+			} catch (error) {
+				window.alert("Error uploading PSF: " + error.message);
 				// 清空文件输入字段，允许重新上传相同或已更改的文件
 				input.value = '';
 			}
@@ -477,7 +562,41 @@ document.addEventListener('DOMContentLoaded', function() {
 			console.log('模型参数对比线功能已' + (this.checked ? '启用' : '禁用'));
 		});
 	}
-	
+
+	 // 初始化卡方曲线图
+    if (typeof drawChiSquareCurve === 'function') {
+      drawChiSquareCurve([]);
+    }
+    // 初始化参数走势图
+    if (typeof drawParamsTrendChart === 'function') {
+      drawParamsTrendChart([]);
+    }
+    
+    // 为图片添加点击事件监听器，触发图片查看器
+    function addImageClickListeners() {
+      // 为result-img添加点击事件
+      const resultImg = document.getElementById('result-img');
+      if (resultImg) {
+        resultImg.addEventListener('click', function() {
+          if (this.src) {
+            window.openImageViewer(this.src);
+          }
+        });
+      }
+      
+      // 为corner-img添加点击事件
+      const cornerImg = document.getElementById('corner-img');
+      if (cornerImg) {
+        cornerImg.addEventListener('click', function() {
+          if (this.src) {
+            window.openImageViewer(this.src);
+          }
+        });
+      }
+    }
+    
+    // 添加图片点击事件监听器
+    addImageClickListeners();
 });
 
 	function applyMask() {
@@ -628,7 +747,7 @@ document.addEventListener('DOMContentLoaded', function() {
 	</div>
 </div>
 
-<div class="container" style="width: 1300px">
+<div class="container" style="width: 1600px">
 	<button class="button" id="saveModel"
 			style="vertical-align:middle;width:193px;"><span>Save Models</span>
 	</button>
@@ -640,6 +759,10 @@ document.addEventListener('DOMContentLoaded', function() {
 	<button class="Uploadbtn"  style="vertical-align:middle;width:193px;">
 		<input class="input-upload" type="button" id="imageUpload"/>
 		<span>Upload Images</span>
+	</button>
+	<button class="Uploadbtn"  style="vertical-align:middle;width:193px;">
+		<input class="input-upload" type="file" id="psfUpload" accept=".fits,.fit,.fts,.h5"/>
+		<span>Upload PSF</span>
 	</button>
 	<button class="button" id="delForeground" onclick="delForeground()"
             style="vertical-align:middle;width:193px;"><span>Extract Lens Arc</span>
@@ -736,10 +859,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- 图片查看器模态窗口 -->
 <div id="image-viewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center;">
   <div style="position:relative; display:inline-block;">
-    <img id="viewer-img" style="max-width:90%; max-height:90vh; transform-origin:center; cursor:grab;"
-         onmousedown="this.style.cursor='grabbing'"
-         onmouseup="this.style.cursor='grab'"
-         onmouseleave="this.style.cursor='grab'">
+    <img id="viewer-img" style="max-width:90%; max-height:90vh; transform-origin:center; cursor:grab;">
     <button onclick="closeImageViewer()" style="position:absolute; top:-40px; right:0; background:none; border:none; color:white; font-size:30px; cursor:pointer;">
       ×
     </button>
@@ -755,37 +875,10 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="text/javascript" src="lib/marking/marking-surface.js"></script>
 <script type="text/javascript" src="lib/marking/tools/ellipse.js"></script>
-<!-- 外部JavaScript模块 -->
-<script type="text/javascript" src="mcmcHandler.js"></script>
+<!-- 图片查看器脚本，需要在其他脚本之前加载 -->
 <script type="text/javascript" src="imageViewer.js"></script>
+<!-- 外部JavaScript模块 -->
+<script type="module" src="webgpu-utils.js"></script>
+<script type="text/javascript" src="mcmcHandler.js"></script>
 <script type="text/javascript" src="optimization.js"></script>
 <script type="text/javascript" src="imageProcessor.js"></script>
-
-<!-- 在函数定义后设置全局变量引用 -->
-<script>
-  // 在相关脚本加载后设置全局函数引用
-  if (typeof drawChiSquareCurve === 'function') {
-    window.drawChiSquareCurve = drawChiSquareCurve;
-  }
-  if (typeof updateCanvas === 'function') {
-    window.updateCanvas = updateCanvas;
-  }
-  if (typeof show_res === 'function') {
-    window.show_res = show_res;
-  }
-  if (typeof getImage === 'function') {
-    window.getImage = getImage;
-  }
-  
-  // 页面加载完成后初始化参数走势图和卡方曲线图
-  document.addEventListener('DOMContentLoaded', function() {
-    // 初始化卡方曲线图
-    if (typeof drawChiSquareCurve === 'function') {
-      drawChiSquareCurve([]);
-    }
-    // 初始化参数走势图
-    if (typeof drawParamsTrendChart === 'function') {
-      drawParamsTrendChart([]);
-    }
-  });
-</script>

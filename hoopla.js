@@ -17,6 +17,17 @@
 (function(exports) {
 	exports.Hoopla = Hoopla;
 
+	// 添加addEvent函数定义，用于兼容不同浏览器的事件监听
+	function addEvent(element, eventName, handler) {
+		if (element.addEventListener) {
+			element.addEventListener(eventName, handler, false);
+		} else if (element.attachEvent) {
+			element.attachEvent('on' + eventName, handler);
+		} else {
+			element['on' + eventName] = handler;
+		}
+	}
+
 	// First we will create the basic function
 	function Hoopla(obj) {
 
@@ -500,7 +511,7 @@
 			}
 
 			let lasso = this.getContours(timage, [0.5]);
-			outline = lasso.contourList();
+			let outline = lasso.contourList();
 			outline = this.downsample(outline);
 			this.drawContours(this.srcmodelPaper, outline, {color:'#66ccff', lw:1.1});
 		}
@@ -516,7 +527,7 @@
 				}
 			}
 			let lasso = this.getContours(pimage, [0.5]);
-			outline = lasso.contourList();
+			let outline = lasso.contourList();
 			outline = this.downsample(outline);
 			this.drawContours(this.predictionPaper, outline, {color: '#66ccff', lw: 1.1});
 		}

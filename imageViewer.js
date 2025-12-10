@@ -10,6 +10,17 @@ let isDragging = false;
 let startX = 0;
 let startY = 0;
 
+// 将所有相关函数暴露到全局作用域
+window.openImageViewer = openImageViewer;
+window.closeImageViewer = closeImageViewer;
+window.handleWheel = handleWheel;
+window.handleBackgroundClick = handleBackgroundClick;
+window.handleMouseDown = handleMouseDown;
+window.handleMouseMove = handleMouseMove;
+window.handleMouseUp = handleMouseUp;
+window.handleKeyDown = handleKeyDown;
+window.updateImageTransform = updateImageTransform;
+
 /**
  * 打开图片查看器
  * @param {string} imgSrc - 图片源URL
@@ -32,10 +43,19 @@ function openImageViewer(imgSrc) {
   viewer.onclick = handleBackgroundClick;
   
   // 添加拖拽相关事件
-  viewerImg.onmousedown = handleMouseDown;
+  viewerImg.onmousedown = function(event) {
+    this.style.cursor = 'grabbing';
+    handleMouseDown(event);
+  };
   viewerImg.onmousemove = handleMouseMove;
-  viewerImg.onmouseup = handleMouseUp;
-  viewerImg.onmouseleave = handleMouseUp;
+  viewerImg.onmouseup = function(event) {
+    this.style.cursor = 'grab';
+    handleMouseUp(event);
+  };
+  viewerImg.onmouseleave = function(event) {
+    this.style.cursor = 'grab';
+    handleMouseUp(event);
+  };
   
   // 添加键盘Esc键监听
   document.addEventListener('keydown', handleKeyDown);

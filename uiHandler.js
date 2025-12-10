@@ -490,5 +490,6 @@ export {
   cleanupCanvas,
   showLoading,
   hideLoading,
-  initializeLoadingOverlay
+  initializeLoadingOverlay,
+  enhanceEventListeners
 };
