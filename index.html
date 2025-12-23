@@ -6,9 +6,6 @@
 <!-- 引入Three.js库 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/ndarray@1.0.19/ndarray.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/ndarray-fft@1.0.0/fft.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/ndarray-ops@1.2.2/ops.min.js"></script>
 
 <!-- 引入星空粒子背景特效 -->
 <script type="text/javascript" src="starfield-bg.js"></script>
@@ -44,6 +41,22 @@
 	window.chartInstance = null;
 	// 全局PSF变量，用于存储上传的PSF数据
 	var globalPSFData = null;
+	
+	// 更新PSF状态标记函数
+	function updatePSFStatus() {
+		const psfStatus = document.getElementById('psfStatus');
+		if (psfStatus) {
+			if (window.globalPSFData && window.globalPSFData.data) {
+				psfStatus.textContent = '✅ PSF已上传';
+				psfStatus.style.color = 'green';
+			} else {
+				psfStatus.textContent = '❌ PSF未上传';
+				psfStatus.style.color = 'red';
+			}
+		}
+	}
+	// 暴露到window对象，以便其他模块调用
+	window.updatePSFStatus = updatePSFStatus;
 // 初始化函数
 	async function initPyodide() {
 		try {
@@ -64,11 +77,41 @@
 			return false;
 		}
 	}
+		
+	async function loadDependencies() {
+		try {
+			// 使用动态 import 从 CDN 加载库
+			const [ndarray, ops, fft, convolve] = await Promise.all([
+				import('https://esm.sh/ndarray'),
+				import('https://esm.sh/ndarray-ops'),
+				import('https://esm.sh/ndarray-fft'),
+				import('https://esm.sh/ndarray-convolve')
+			]);
+
+			// 挂载到全局 window 对象，供 optimization.js 等脚本使用
+			window.ndarray = ndarray.default || ndarray;
+			window.ops = ops.default || ops;
+			window.fft = fft.default || fft;
+			window.convolve = convolve.default || convolve;
+
+			console.log('Dependencies successfully loaded from CDN and attached to window');
+			
+			// 触发一个自定义事件，通知其他脚本（如 optimization.js）库已准备就绪
+			window.dispatchEvent(new CustomEvent('libs-ready'));
+		} catch (error) {
+			console.error('Failed to load libraries from CDN:', error);
+		}
+	}
+
+	// 立即执行加载
+	loadDependencies();
 	// 全局WebGPU变量
 	let webgpuInitialized = false;
 	let webgpuUtils = null;
 	let fftConvolve = null;
 	let psfComputer = null;
+	let webGPUWidth = null;
+	let webGPUHeight = null;
 	
 	// 初始化WebGPU
 	async function initWebGPU(width, height) {
@@ -112,7 +155,9 @@
 			height: 400,
 		});
 		// 初始化WebGPU
-		await initWebGPU(lets.width, lets.height);
+		webGPUWidth = lets.width;
+		webGPUHeight = lets.height;
+		await initWebGPU(webGPUWidth, webGPUHeight);
 		var bar = document.getElementsByClassName("bar");
 		for (let i=0; i<bar.length;i++){
 			bar[i].style.backgroundImage = "url(" + src + ")";
@@ -282,6 +327,8 @@
 		}
 		// 等待setup函数完成，setup函数内部会初始化WebGPU
 		await setup();
+		// 初始化PSF状态标记
+		updatePSFStatus();
 		document.getElementById('imageUpload').onclick = function (e) {
 			document.getElementById("imgURL").innerText = "";
 			document.getElementById("pixel-scale").value = "";
@@ -428,6 +475,8 @@
 				}
 				// 重置全局PSF数据
 				window.globalPSFData = null;
+				// 更新PSF状态标记
+				updatePSFStatus();
 				
 			} catch (error) {
 				window.alert("Error processing image: " + error.message);
@@ -488,6 +537,8 @@
 				// 调用文件处理模块处理PSF文件
 				await fileModule.handlePSFUpload(psfFile);
 				window.alert("PSF file uploaded successfully!");
+				// 更新PSF状态标记
+				updatePSFStatus();
 				// 清空文件输入字段，允许重新上传相同或已更改的文件
 				input.value = '';
 			} catch (error) {
@@ -792,6 +843,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		<input type="checkbox" id="modelComparisonToggle" checked style="margin-right: 5px;">
 		绘制模型参数对比线
 	</label>
+	<span id="psfStatus" style="color: red; font-weight: bold; margin-left: 20px;">❌ PSF未上传</span>
 </div>
 
 <div class="popup-form">

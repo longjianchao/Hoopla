@@ -1,9 +1,7 @@
 // 拟合优化建模相关功能
 
 // 从npm导入ndarray相关库
-import ndarray from 'ndarray';
-import * as ops from 'ndarray-ops';
-import fft from 'ndarray-fft';
+
 
 //计算平均值
 function average(data){
@@ -82,14 +80,10 @@ function calImage(xs, ys, xsc, ysc, size, qs, phs, n, Ie) {
 	let r_ell = Math.sqrt((xnew * xnew) / qs + (ynew * ynew) * qs);
 	// 归一化并代入 Sersic profile
 	let rnorm = r_ell / Re;
-	// 避免数值问题
-	if (rnorm === 0) {
-		return 1.0; // 在中心处返回最大值
-	}
 	try {
 		res = Ie * Math.exp(-b_n * (Math.pow(rnorm, 1/n)-1.0));
 		// 检查结果是否为有效数字
-		return isNaN(res) || !isFinite(res) ? 0 : res;
+		return res;
 	} catch (e) {
 		return 0;
 	}
@@ -120,24 +114,84 @@ function model_lensed_images(p, x1, x2) {
 	return calImage(y1, y2, yc1, yc2, size, qs, phs, n, Ie);
 }
 
+// CPU-based PSF convolution (synchronous) - pure JavaScript implementation
+/**
+ * 执行 PSF 卷积 (纯 JavaScript 空间域实现)
+ * * 注意：如果图像数值非常小 (如 1e-4)，在屏幕上会显示为黑色。
+ * 建议在渲染时使用增益 (Gain) 或自动拉伸。
+ */
+function applyPSFCpu(image, width, height, psf, psfW, psfH) {
+    if (!psf || !psf.length) return image;
+    
+    try {
+        const result = new Float32Array(width * height);
+        
+        // PSF 归一化
+        let psfSum = 0;
+        for (let i = 0; i < psf.length; i++) psfSum += psf[i];
+        if (Math.abs(psfSum) < 1e-12) psfSum = 1.0;
+        
+        // 计算 PSF 中心点
+        const psfCenterX = Math.floor(psfW / 2);
+        const psfCenterY = Math.floor(psfH / 2);
+        
+        // 空间域卷积
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                let sum = 0;
+                
+                // 遍历 PSF
+                for (let py = 0; py < psfH; py++) {
+                    for (let px = 0; px < psfW; px++) {
+                        // 计算图像中对应的像素位置
+                        const ix = x + px - psfCenterX;
+                        const iy = y + py - psfCenterY;
+                        
+                        // 边界检查
+                        if (ix >= 0 && ix < width && iy >= 0 && iy < height) {
+                            const imageIndex = iy * width + ix;
+                            const psfIndex = py * psfW + px;
+                            sum += image[imageIndex] * (psf[psfIndex] / psfSum);
+                        }
+                    }
+                }
+                
+                result[y * width + x] = sum;
+            }
+        }
+        
+        return result;
+        
+    } catch (error) {
+        console.error('CPU PSF Convolution failed:', error);
+        return image;
+    }
+}
+
+
 // FFT-based PSF convolution with WebGPU acceleration
 async function applyPSF(image, width, height, psf, psfW, psfH) {
-	if(!psf || !psf.length){
-		return image;
-	}
-    // 确保WebGPU已初始化
-    await initWebGPU(width, height);
     // 如果WebGPU可用，使用WebGPU加速实现
     if (webgpuInitialized && fftConvolve) {
         try {
-            // 将PSF数据填充到与图像相同大小
+            // 将PSF数据填充到与图像相同大小，确保PSF中心点与图像中心点精确对齐
             let psfData = new Float32Array(width * height);
-            const ox = Math.floor(width / 2 - psfW / 2);
-            const oy = Math.floor(height / 2 - psfH / 2);
+            // 计算PSF的中心点
+            const psfCenterX = Math.floor(psfW / 2);
+            const psfCenterY = Math.floor(psfH / 2);
+            // 计算图像的中心点
+            const imgCenterX = Math.floor(width / 2);
+            const imgCenterY = Math.floor(height / 2);
             
             for (let y = 0; y < psfH; y++) {
                 for (let x = 0; x < psfW; x++) {
-                    psfData[(y + oy) * width + (x + ox)] = psf[y * psfW + x];
+                    // 计算PSF像素相对于PSF中心的偏移
+                    const dx = x - psfCenterX;
+                    const dy = y - psfCenterY;
+                    // 将PSF像素放置到图像中心点对应的位置
+                    const ix = imgCenterX + dx;
+                    const iy = imgCenterY + dy;
+                    psfData[iy * width + ix] = psf[y * psfW + x];
                 }
             }
             // 使用WebGPU执行FFT卷积
@@ -149,91 +203,21 @@ async function applyPSF(image, width, height, psf, psfW, psfH) {
         }
     }
     
-    // CPU实现（回退方案）
-    console.log('Using CPU for PSF convolution.');
-    if(!globalPSFData || !globalPSFData.data){
-        // console.error("PSF数据未加载或无效");
-        return image;
-    }
-
-    // 1. Construct ndarrays
-    const imgArr = ndarray(new Float32Array(width * height), [width, height]);
-    imgArr.data.set(image);
-
-    const psfArr = ndarray(new Float32Array(width * height), [width, height]);
-
-    // put PSF into center of psfArr (zero-pad)
-    const ox = Math.floor(width / 2 - psfW / 2);
-    const oy = Math.floor(height / 2 - psfH / 2);
-
-    for (let y = 0; y < psfH; y++) {
-        for (let x = 0; x < psfW; x++) {
-            psfArr.set(x + ox, y + oy, psf[y * psfW + x]);
-        }
-    }
-
-    // 2. FFT image + FFT PSF
-    const imgFFT_re = ndarray(new Float32Array(width * height), [width, height]);
-    const imgFFT_im = ndarray(new Float32Array(width * height), [width, height]);
-
-    const psfFFT_re = ndarray(new Float32Array(width * height), [width, height]);
-    const psfFFT_im = ndarray(new Float32Array(width * height), [width, height]);
-
-    // copy
-    ops.assign(imgFFT_re, imgArr); ops.assigns(imgFFT_im, 0);
-    ops.assign(psfFFT_re, psfArr); ops.assigns(psfFFT_im, 0);
-
-    // forward FFTs - use the correct fft function syntax
-    fft(1, imgFFT_re, imgFFT_im);
-    fft(1, psfFFT_re, psfFFT_im);
-
-    // 3. Multiply in Fourier domain: (a+bi)*(c+di)
-    // out_re = ac - bd
-    // out_im = ad + bc
-    const out_re = ndarray(new Float32Array(width * height), [width, height]);
-    const out_im = ndarray(new Float32Array(width * height), [width, height]);
-
-    // Initialize output arrays to 0
-    ops.assigns(out_re, 0);
-    ops.assigns(out_im, 0);
-
-    for (let y=0; y<height; y++){
-        for (let x=0; x<width; x++){
-            const a = imgFFT_re.get(x,y);
-            const b = imgFFT_im.get(x,y);
-            const c = psfFFT_re.get(x,y);
-            const d = psfFFT_im.get(x,y);
-            out_re.set(x,y, a*c - b*d);
-            out_im.set(x,y, a*d + b*c);
-        }
-    }
-
-    // 4. Inverse FFT - use the correct fft function syntax
-    fft(-1, out_re, out_im);
-
-    // 5. Normalize by N = width * height
-    const N = width * height;
-    const result = new Float32Array(N);
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            result[y * width + x] = out_re.get(x, y) / N;
-        }
-    }
-
-    return result;
+    // 直接使用CPU实现 - 确保image是Float32Array
+    return applyPSFCpu(image, width, height, psf, psfW, psfH);
 }
 
 
 async function chi2_rescale(p) {
 	//重缩放因子，可以提高采样效率，但数值过大可能会导致图像失真
 	const fscale = 4;
-	const chi = new Array(globalImageData.length / fscale / fscale);
+	const chi = new Array(Math.floor(globalImageData.length / fscale / fscale));
 	const redstd = standardDeviation(globalImageData);
 
 	// 生成模型图像
-	let modelImage = new Float32Array(imgd.width * imgd.height);
-	for(let row = 0 ; row < imgd.height ; row+=fscale){
-		for(let col = 0 ; col < imgd.width ; col+=fscale){
+	let modelImage = new Float32Array(globalImageData.length);
+	for(let row = 0 ; row < imgd.height ; row+=scale){
+		for(let col = 0 ; col < imgd.width ; col+=scale){
 			let i = Math.floor(row/scale) * Math.floor(imgd.width/scale) + Math.floor(col/scale);
 			let x = col * lets.pixscale - lets.pixscale * lets.width / 2 + lets.pixscale / 2;
 			let y = -row * lets.pixscale + lets.pixscale * lets.height / 2 - lets.pixscale / 2;
@@ -243,7 +227,7 @@ async function chi2_rescale(p) {
 	// 应用PSF卷积（WebGPU加速）
 	let convolvedImage;
 	if (globalPSFData && globalPSFData.data) {
-		convolvedImage = await applyPSF(modelImage, imgd.width, imgd.height,
+		convolvedImage = await applyPSF(modelImage, Math.floor(imgd.width/scale), Math.floor(imgd.height/scale),
 			 globalPSFData.data, globalPSFData.width, globalPSFData.height);
 	} else {
 		// 如果没有PSF数据，直接使用模型图像
@@ -266,10 +250,6 @@ async function chi2_rescale(p) {
 	return chi2 / dof;
 }
 
-
-/**
- * 专门用于将imgd的红色通道绘制到myCanvas上的函数
- */
 function drawResiduals() {
 	if(!imgd.complete || imgd.naturalWidth === 0) {
 		imgd.onload = () => {
@@ -284,27 +264,8 @@ function drawResiduals() {
 		// 清除画布
 		ctx.clearRect(0, 0, c.width, c.height);
 		ctx.drawImage(imgd, 0, 0, c.width, c.height);
-		let dstdata = ctx.getImageData(0, 0, c.width, c.height);
-		let data = dstdata.data;
-		let red = new Array(data.length/4);
-		for (let i = 0, n = red.length; i < n; i ++){
-			red[i] = data[i*4]/255; // 提取红色通道值（0-1之间）
-		}
-		for (let x = 0; x < c.height; ++x) {
-			for (let y = 0; y < c.width; ++y) {
-				let index = (x * c.width + y) * 4;   // 4个通道：r,g,b,alpha
-				let index2 = (x * c.width + y);      // 像素索引
-				// 设置红色通道为原始红色值
-				data[index]   = Math.round(red[index2] * 255);    // red
-				data[++index] = 0;    // green
-				data[++index] = 0;    // blue
-				data[++index] = 255;  // alpha
-			}
-		}
-		for (let i = 0; i < data.length; i++) {
-			dstdata.data[i] = data[i];
-		}
-		ctx.putImageData(dstdata, 0, 0);
+		// let dstdata = ctx.getImageData(0, 0, c.width, c.height);
+		// ctx.putImageData(dstdata, 0, 0);
 	} catch (error) {
 		console.error("绘制过程中发生错误:", error);
 	}
@@ -313,71 +274,101 @@ function drawResiduals() {
 async function show_res(p) {
 	let c = document.getElementById("myCanvas");
 	let ctx = c.getContext("2d");
-	ctx.drawImage(imgd, 0, 0);
-	let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
-	let data = dstdata.data;
-	let red = new Array(data.length/4);
-	let maxRed = 0;
-	for (let i = 0, n = red.length; i < n; i ++){
-		red[i] = data[i*4]/255;
-		if(maxRed<red[i]) maxRed=red[i];
+	let canvasWidth = c.width;
+	let canvasHeight = c.height;
+	// 直接使用globalImageData而不是从画布获取像素值
+	if (!globalImageData) {
+		console.error("globalImageData is not initialized");
+		return;
 	}
-	console.log("像素最大值：",maxRed);
-	let chi = new Array(red.length);
-	let testimg = new Array(red.length);
-	let redstd = standardDeviation(red);
-	let i,x,y;
-	let maxValue = 0;
 	
-	// 生成模型图像
-	for (let row = 0; row < lets.height; row++) {
-		for (let col = 0; col < lets.width; col++) {
-			i = row * lets.width + col;
-			x = col * lets.pixscale - lets.pixscale*lets.width/2 ;
-			y = -row * lets.pixscale + lets.pixscale*lets.height/2 ;
+	let i, x, y;
+	let testimg = new Float32Array(globalImageData.length);
+	for (let row = 0; row < imgd.height; row+=scale) {
+		for (let col = 0; col < imgd.width; col+=scale) {
+			i = Math.floor(row/scale) * Math.floor(imgd.width/scale) + Math.floor(col/scale);
+			// 计算对应的坐标
+			x = col * lets.pixscale - lets.pixscale * imgd.width / 2 + lets.pixscale ;
+			y = -row * lets.pixscale + lets.pixscale * imgd.height / 2 - lets.pixscale ;
 			testimg[i] = model_lensed_images(p, x, y);
-			if(maxValue<testimg[i]) maxValue = testimg[i];
 		}
 	}
 	
+	let convolvedImage;
 	// 应用PSF卷积（WebGPU加速）
-	let convolvedImage = await applyPSF(testimg, lets.width, lets.height, null, 0, 0);
-	
-	// 计算残差
-	for (let row = 0; row < lets.height; row++) {
-		for (let col = 0; col < lets.width; col++) {
-			i = row * lets.width + col;
-			chi[i] = (red[i] - convolvedImage[i]) / redstd / redstd;
+	if(globalPSFData && globalPSFData.data) {
+		convolvedImage = await applyPSF(testimg, imgd.width/scale, imgd.height/scale, 
+			 globalPSFData.data, globalPSFData.width, globalPSFData.height);
+	} else {
+		// 如果没有PSF数据，直接使用模型图像
+		convolvedImage = testimg;
+	}
+	// 计算chi-square和残差 - 使用原始图像尺寸
+	let brightnessStd = standardDeviation(globalImageData);
+	let chi = new Array(globalImageData.length);
+	let residualImage = new Array(globalImageData.length);
+	let maxResidual = 0;
+	let maxValue = 0;
+
+	// 计算残差和chi-square - 使用原始图像尺寸
+	for (let row = 0; row < imgd.height; row+=scale) {
+		for (let col = 0; col < imgd.width; col+=scale) {
+			i = Math.round(row/scale) * Math.floor(imgd.width/scale) + Math.floor(col/scale);
+			residualImage[i] = Math.abs(globalImageData[i] - convolvedImage[i]);
+			// 计算chi-square
+			chi[i] = (globalImageData[i] - convolvedImage[i]) / brightnessStd / brightnessStd;
+			if (residualImage[i] > maxResidual) {
+				maxResidual = residualImage[i];
+			}
+			if (convolvedImage[i] > maxValue) {
+				maxValue = convolvedImage[i];
+			}
 		}
 	}
-	
+	console.log("maxResidual:", maxResidual, "maxValue:", maxValue);
 	let res = optimize.vector.dot(chi, chi);
 	if(isNaN(res)) {
 		console.log('Error: NaN result');
 	}
-	console.log('res:'+res/red.length);
+	console.log('res:'+res/chi.length);
 	
-	for (let x = 0; x < imgd.height; ++x) {
-		for (let y = 0; y < imgd.width; ++y) {
-			let index = (x * imgd.width + y) * 4;   //4是image的4个通道r,g,b和透明度
-			let index2 = (x * imgd.width + y);
-			testimg[index2] /= maxValue;
-			// data[index]   = Math.round(testimg[index2]*255);    // red
-			data[index]   = Math.round(Math.abs(convolvedImage[index2]-red[index2])*255);    // red
-			data[++index] = 0;    // green
-			data[++index] = 0;    // blue
-			data[++index] = 255;      // alpha
+	// 清除整个画布
+	ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+	
+	// 创建一个临时canvas用于绘制原始尺寸的残差图
+	let tempCanvas = document.createElement('canvas');
+	let tempWidth = imgd.width;
+	let tempHeight = imgd.height;
+	tempCanvas.width = tempWidth;
+	tempCanvas.height = tempHeight;
+	let tempCtx = tempCanvas.getContext('2d');
+	let tempImageData = tempCtx.createImageData(tempWidth, tempHeight);
+	let tempData = tempImageData.data;
+	
+	// 绘制原始尺寸的残差图到临时canvas
+	for (let row = 0; row < tempHeight; row++) {
+		for (let col = 0; col < tempWidth; col++) {
+			let index = (row * tempWidth + col) * 4;
+			let imgIndex = Math.floor(row/scale) * Math.floor(tempWidth/scale) + Math.floor(col/scale);
+			// 归一化残差到[0, 1]范围
+			let normalizedResidual = maxResidual > 0 ? residualImage[imgIndex] / maxResidual : 0;
+			// 应用热图色标
+			let rgb = hotColormap(normalizedResidual);
+			// 设置RGB通道
+			tempData[index]   = rgb[0];    // red
+			tempData[index+1] = rgb[1];    // green
+			tempData[index+2] = rgb[2];    // blue
+			tempData[index+3] = 255;      // alpha
 		}
 	}
-
-	for (let i = 0; i < data.length; i++) {
-		dstdata.data[i] = data[i];
-	}
-	ctx.putImageData(dstdata, 0, 0);
+	
+	// 将原始尺寸的残差图绘制到临时canvas上
+	tempCtx.putImageData(tempImageData, 0, 0);
+	// 使用drawImage将临时canvas上的图像放大绘制到主画布上
+	// 这将自动处理图像拉伸，确保完整显示
+	ctx.drawImage(tempCanvas, 0, 0, tempWidth, tempHeight, 0, 0, canvasWidth, canvasHeight);
 	return res;
 }
-
-
 
 var chartInstance = null; // 声明一个全局变量来存储卡方值图表实例
 var paramsChartInstances = paramsChartInstances || []; // 声明一个全局变量来存储参数趋势图表实例
@@ -776,6 +767,20 @@ let timer = async(timeout) => {
 			// 定义一个包装函数来处理数据类型转换
 			const objectiveWrapper = async (params) => {
 				const jsParams = Array.from(params);
+				let ptest = [
+					0,
+					0,
+					0,
+					1,
+					0,
+					jsParams[5],
+					jsParams[6],
+					jsParams[7],
+					jsParams[8],
+					jsParams[9],
+					jsParams[10],
+					jsParams[11],
+				]
 				return await chi2_rescale(jsParams);
 			};
 
@@ -873,6 +878,11 @@ let timer = async(timeout) => {
 			lets.model.components[1].theta_e = p1[2];
 			lets.model.components[1].ell = p1[3];
 			lets.model.components[1].ang = p1[4];
+			// lets.model.components[1].x = 0;
+			// lets.model.components[1].y = 0;
+			// lets.model.components[1].theta_e = 0;
+			// lets.model.components[1].ell = 1;
+			// lets.model.components[1].ang = 0;
 			lets.model.components[0].x = p1[5];
 			lets.model.components[0].y = p1[6];
 			lets.model.components[0].size = p1[7];

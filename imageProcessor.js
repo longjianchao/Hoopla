@@ -143,7 +143,39 @@ async function delForeground() {
 		}
 	};
 
-function getImage(imageData, width, height, convert){
+// Hot colormap function (imitates Python's matplotlib hot colormap)
+function hotColormap(intensity) {
+	// Clamp intensity to [0, 1]
+	intensity = Math.max(0, Math.min(1, intensity));
+	
+	let r, g, b;
+	
+	if (intensity < 0.33) {
+		// Black to red: 0.0 → 0.33
+		r = intensity * 3;
+		g = 0;
+		b = 0;
+	} else if (intensity < 0.66) {
+		// Red to yellow: 0.33 → 0.66
+		r = 1;
+		g = (intensity - 0.33) * 3;
+		b = 0;
+	} else {
+		// Yellow to white: 0.66 → 1.0
+		r = 1;
+		g = 1;
+		b = (intensity - 0.66) * 3;
+	}
+	
+	// Scale to 0-255
+	return [
+		Math.round(r * 255),
+		Math.round(g * 255),
+		Math.round(b * 255)
+	];
+}
+
+function getImage(imageData, width, height, convert){  
 	let canvas = document.createElement('canvas');
 	canvas.width = width;
 	canvas.height = height;
@@ -170,10 +202,14 @@ function getImage(imageData, width, height, convert){
 				val = imageData[flipped_i * width + j];
 				globalImageData[i * width + j] = val;
 			}
+			// Normalize intensity to [0, 1]
+			let normalizedIntensity = val / maxval;
+			// Apply hot colormap
+			let rgb = hotColormap(normalizedIntensity);
 			let idx = (i * width + j) * 4;
-			canvasData.data[idx] = val/maxval*255; // R
-			canvasData.data[idx + 1] = 0; // G
-			canvasData.data[idx + 2] = 0; // B
+			canvasData.data[idx] = rgb[0]; // R
+			canvasData.data[idx + 1] = rgb[1]; // G
+			canvasData.data[idx + 2] = rgb[2]; // B
 			canvasData.data[idx + 3] = 255; // A
 		}
 	}
@@ -187,4 +223,5 @@ window.imageProcessor = {
 	delForeground,
 	applyMask,
 	getImage,
+	hotColormap
 };

@@ -4,6 +4,9 @@
 
 // 全局变量引用
 let lets, img0, scale, convert, pixscale;
+// WebGPU相关全局变量
+let webGPUWidth = 400; // 默认宽度
+let webGPUHeight = 400; // 默认高度
 // 暴露scale变量给window对象，供其他模块使用
 window.fileHandlerScale = null;
 
@@ -38,12 +41,38 @@ function processImageFile(imageFile, pixelScale, imageObj, appInstance) {
   lets = appInstance;
   img0 = imageObj;
   return new Promise((resolve, reject) => {
+    const handleImageLoaded = (result) => {
+      // 图像加载完成后，检查是否需要重新初始化WebGPU
+      if (typeof webgpuInitialized === 'undefined') {
+        webgpuInitialized = false;
+      }
+      // 检查图像尺寸是否变化，需要重新初始化WebGPU
+      const currentWidth = typeof window.fftConvolve !== 'undefined' ? window.fftConvolve.width : 0;
+      const currentHeight = typeof window.fftConvolve !== 'undefined' ? window.fftConvolve.height : 0;
+      
+      if (currentWidth !== result.width || currentHeight !== result.height) {
+        webgpuInitialized = false;
+        console.log(`Image loaded with size ${result.width}x${result.height}, reinitializing WebGPU...`);
+        // 重新初始化WebGPU，使用原始图像大小
+        window.initWebGPU(result.width, result.height).then(() => {
+          // WebGPU 初始化完成后的逻辑（如有需要可在此补充）
+          resolve(result);
+        }).catch(err => {
+          console.error('WebGPU 初始化失败:', err);
+          resolve(result);
+        });
+      } else {
+        // 不需要重新初始化WebGPU，直接返回结果
+        resolve(result);
+      }
+    };
+    
     if(imageFile.name.endsWith('.h5')){
-      loadH5File(imageFile, pixelScale).then(resolve).catch(reject);
+      loadH5File(imageFile, pixelScale).then(handleImageLoaded).catch(reject);
     } else if(imageFile.name.match(/\.(fits|fit|fts)$/i)){
-      loadFitsFile(imageFile, pixelScale).then(resolve).catch(reject);
+      loadFitsFile(imageFile, pixelScale).then(handleImageLoaded).catch(reject);
     } else if(imageFile.name.endsWith('.png')){
-      loadPngFile(imageFile, pixelScale).then(resolve).catch(reject);
+      loadPngFile(imageFile, pixelScale).then(handleImageLoaded).catch(reject);
     } else {
       reject(new Error('Unsupported file type'));
     }
@@ -348,6 +377,12 @@ async function handlePSFUpload(psfFile) {
             };
             // 保存到全局变量
             window.globalPSFData = psfInfo;
+            const kernelSize = Math.max(shape[1], shape[0], 17);
+            // 确保fftConvolve使用正确的kernelSize和尺寸
+            if (fftConvolve.kernelSize !== kernelSize) {
+                fftConvolve.init(lets.width/scale, lets.height/scale, kernelSize);
+                console.log(`Initialized FFTConvolve with kernelSize: ${kernelSize}, width: ${shape[1]}, height: ${shape[0]}`);
+            }
             resolve(psfInfo);
           } else {
             // 处理FITS格式
@@ -376,6 +411,13 @@ async function handlePSFUpload(psfFile) {
                     };
                     // 保存到全局变量
                     window.globalPSFData = psfInfo;
+                    // 计算合适的kernelSize - 使用PSF的最大尺寸或17，取较大值
+                    const kernelSize = Math.max(width, height, 17);
+                    // 确保fftConvolve使用正确的kernelSize和尺寸
+                    if (fftConvolve.kernelSize !== kernelSize) {
+                        fftConvolve.init(lets.width/scale, lets.height/scale, kernelSize);
+                        console.log(`Initialized FFTConvolve with kernelSize: ${kernelSize}, width: ${width}, height: ${height}`);
+                    }
                     resolve(psfInfo);
                   } catch (err) {
                     reject(err);

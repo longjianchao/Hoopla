@@ -270,6 +270,38 @@
 	}
 
 
+	// Hot colormap function (imitates Python's matplotlib hot colormap)
+	Hoopla.prototype.hotColormap = function(intensity) {
+		// Clamp intensity to [0, 1]
+		intensity = Math.max(0, Math.min(1, intensity));
+		
+		let r, g, b;
+		
+		if (intensity < 0.33) {
+			// Black to red: 0.0 → 0.33
+			r = intensity * 3;
+			g = 0;
+			b = 0;
+		} else if (intensity < 0.66) {
+			// Red to yellow: 0.33 → 0.66
+			r = 1;
+			g = (intensity - 0.33) * 3;
+			b = 0;
+		} else {
+			// Yellow to white: 0.66 → 1.0
+			r = 1;
+			g = 1;
+			b = (intensity - 0.66) * 3;
+		}
+		
+		// Scale to 0-255
+		return [
+			Math.round(r * 255),
+			Math.round(g * 255),
+			Math.round(b * 255)
+		];
+	}
+
 	// We need to set up.
 	Hoopla.prototype.setup = function(){
 
@@ -505,12 +537,12 @@
 			for(row = 0 ; row < this.lens.h ; row++){
 				timage[row] = new Array(this.lens.w);
 				for(col = 0 ; col < this.lens.w ; col++){
-					i = row + 1 + (col+1)*this.lens.h ;    // pixscale的计算中有一个像素的偏差，在这里将像素向右下角移一位
+					i = row + col * this.lens.h;
 					timage[row][col] = this.lens.trueimage[i];
 				}
 			}
-
-			let lasso = this.getContours(timage, [0.5]);
+			let z = this.lens.source[0].Ie;
+			let lasso = this.getContours(timage, [z]);
 			let outline = lasso.contourList();
 			outline = this.downsample(outline);
 			this.drawContours(this.srcmodelPaper, outline, {color:'#66ccff', lw:1.1});
@@ -526,7 +558,8 @@
 					pimage[row][col] = this.lens.predictedimage[i];
 				}
 			}
-			let lasso = this.getContours(pimage, [0.5]);
+			let z = this.lens.source[0].Ie;
+			let lasso = this.getContours(pimage, [z]);
 			let outline = lasso.contourList();
 			outline = this.downsample(outline);
 			this.drawContours(this.predictionPaper, outline, {color: '#66ccff', lw: 1.1});
