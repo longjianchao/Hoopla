@@ -380,7 +380,7 @@ function resetPixelScale(pixscale, letsInstance, scaleValue) {
     }
     
     console.log('Updated pixel scale:', letsInstance.pixscale);
-    console.log(lets);
+    console.log(letsInstance);
     // 重置标记表面
     if (ms) ms.reset();
     if (ms_src) ms_src.reset();

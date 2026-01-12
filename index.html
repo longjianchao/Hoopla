@@ -41,16 +41,17 @@
 	window.chartInstance = null;
 	// 全局PSF变量，用于存储上传的PSF数据
 	var globalPSFData = null;
+	var globalNoiseData = null;
 	
 	// 更新PSF状态标记函数
 	function updatePSFStatus() {
 		const psfStatus = document.getElementById('psfStatus');
 		if (psfStatus) {
 			if (window.globalPSFData && window.globalPSFData.data) {
-				psfStatus.textContent = '✅ PSF已上传';
+				psfStatus.textContent = '✅ PSF Uploaded';
 				psfStatus.style.color = 'green';
 			} else {
-				psfStatus.textContent = '❌ PSF未上传';
+				psfStatus.textContent = '❌ PSF Not Uploaded';
 				psfStatus.style.color = 'red';
 			}
 		}
@@ -332,6 +333,8 @@
 		document.getElementById('imageUpload').onclick = function (e) {
 			document.getElementById("imgURL").innerText = "";
 			document.getElementById("pixel-scale").value = "";
+			document.getElementById("noiseURL").innerText = "";
+			document.getElementById("psfURL").innerText = "";
 			document.querySelector('.popup-form').classList.add('active');
 		};
 		document.getElementById("close-form-button").onclick = function () {
@@ -344,9 +347,35 @@
 				// 动态导入模块
 				const fileModule = await import('./fileHandler.js');
 				
-				const result = await fileModule.handleImageUpload(imageFile);
+				const result = await fileModule.handleImageUpload(imageFile, "image");
 				document.getElementById("imgURL").innerText = result.url;
 				img_name = result.imgName;
+			} catch (error) {
+				window.alert(error.message);
+			}
+		};
+		document.getElementById("noise-url").onchange = async function () {
+			let noiseFile = this.files[0];
+			try {
+				// 动态导入模块
+				const fileModule = await import('./fileHandler.js');
+				
+				const result = await fileModule.handleImageUpload(noiseFile, "noise");
+				document.getElementById("noiseURL").innerText = result.url;
+				noise_name = result.imgName;
+			} catch (error) {
+				window.alert(error.message);
+			}
+		};
+		document.getElementById("psf-url").onchange = async function () {
+			let psfFile = this.files[0];
+			try {
+				// 动态导入模块
+				const fileModule = await import('./fileHandler.js');
+				
+				const result = await fileModule.handleImageUpload(psfFile, "psf");
+				document.getElementById("psfURL").innerText = result.url;
+				psf_name = result.imgName;
 			} catch (error) {
 				window.alert(error.message);
 			}
@@ -422,6 +451,8 @@
 
 		document.getElementById("confirm").onclick = async function () {
 			let imageFile = window._uploadedImageFile;
+			let noiseFile = window._uploadedNoiseFile;
+			let psfFile = window._uploadedPSFFile;
 			let pixscale = document.getElementById("pixel-scale").value;
 			
 			// 基本验证
@@ -433,6 +464,7 @@
 				window.alert("Please input entire information of image!");
 				return;
 			}
+			
 			try {
 				// 动态导入模块
 				const fileModule = await import('./fileHandler.js');
@@ -475,11 +507,38 @@
 				}
 				// 重置全局PSF数据
 				window.globalPSFData = null;
+				window.globalNoiseData = null;
 				// 更新PSF状态标记
 				updatePSFStatus();
 				
 			} catch (error) {
 				window.alert("Error processing image: " + error.message);
+			}
+			if (noiseFile){
+				try {
+					// 动态导入模块
+					const fileModule = await import('./fileHandler.js');
+					
+					const result = await fileModule.handleNoiseUpload(noiseFile);
+					document.getElementById("noiseURL").innerText = result.url;
+					noise_name = result.imgName;
+				} catch (error) {
+					window.alert(error.message);
+				}
+			}
+			if (psfFile){
+				try {
+					console.log("PSF file:", psfFile);
+					// 动态导入模块
+					const fileModule = await import('./fileHandler.js');
+					// 调用文件处理模块处理PSF文件
+					// console.log('lets.width',lets.width);
+					await fileModule.handlePSFUpload(psfFile);
+					// 更新PSF状态标记
+					updatePSFStatus();
+				} catch (error) {
+					window.alert("Error uploading PSF: " + error.message);
+				}
 			}
 		}
 
@@ -552,7 +611,7 @@
 	// 重置pixel scale
   function reset() {
     // 清理参数趋势图
-    if (window.cleanupCanvas) {
+    if (typeof window.cleanupCanvas === 'function') {
       window.cleanupCanvas();
     }
     
@@ -561,7 +620,7 @@
     
     // 导入uiHandler模块并调用resetPixelScale函数
     import('./uiHandler.js').then(uiModule => {
-      uiModule.resetPixelScale(pixscale, window.lets, window.scale);
+      uiModule.resetPixelScale(pixscale, lets, window.scale);
       pixscaleInput.focus();
     }).catch(error => {
       console.error('Error importing uiHandler module:', error);
@@ -571,16 +630,16 @@
       if(regex.test(pixscale)){
         if (window.lets) {
           const scaleValue = window.fileHandlerScale || 1;
-          window.lets.pixscale = parseFloat(pixscale)/scaleValue;
+          lets.pixscale = parseFloat(pixscale)/scaleValue;
           // 同时更新模型中的像素比例
-          if (window.lets.model) {
-            window.lets.model.pixscale = window.lets.pixscale;
+          if (lets.model) {
+            lets.model.pixscale = lets.pixscale;
           }
-          console.log('Updated pixel scale:', window.lets.pixscale);
+          console.log('Updated pixel scale:', lets.pixscale);
           
           // 重置标记表面（如果可用）
-          if (window.ms) window.ms.reset();
-          if (window.ms_src) window.ms_src.reset();
+          if (ms) ms.reset();
+          if (ms_src) ms_src.reset();
         }
       }else{
         window.alert('Pixel-scale is not a legitimate input!');
@@ -841,31 +900,51 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="container" style="height: 40px; width: 1000px;">
 	<label style="color: white; margin-right: 10px;">
 		<input type="checkbox" id="modelComparisonToggle" checked style="margin-right: 5px;">
-		绘制模型参数对比线
+		Draw Model Comparison Line
 	</label>
-	<span id="psfStatus" style="color: red; font-weight: bold; margin-left: 20px;">❌ PSF未上传</span>
+	<span id="psfStatus" style="color: red; font-weight: bold; margin-left: 20px;">❌ PSF Not Uploaded</span>
 </div>
 
 <div class="popup-form">
 	<h2 style="color: black;text-align: center">Image Settings</h2>
 	<form onsubmit="return false;">
-		<div class="form-item1">
-			<label for="image-url" style="margin-right: 80px;">Image URL:</label>
-			<button class="Uploadbtn" id="img-upload"  style="width:200px;background-color:#1fc0db">
-				<input class="input-upload" type="file"  id="image-url" />
-				<span>Select Image</span>
-			</button>
-			<br/>
-			<span id="imgURL" content="" style="width: 100%;height: 30px;color: black"></span>
+		<div class="form-group">
+			<label for="image-url">Image URL(*):</label>
+			<div class="input-wrapper">
+				<button class="Uploadbtn" id="img-upload">
+					<input class="input-upload" type="file"  id="image-url" />
+					<span>Select Image</span>
+				</button>
+			</div>
+			<span id="imgURL" class="file-info" content=""></span>
 		</div>
-
-		<br/>
-		<div class="form-item">
+		<div class="form-group">
+			<label for="noise-url">Noise URL:</label>
+			<div class="input-wrapper">
+				<button class="Uploadbtn" id="noise-upload">
+					<input class="input-upload" type="file"  id="noise-url" />	
+					<span>Select Noise</span>
+				</button>
+			</div>
+			<span id="noiseURL" class="file-info" content=""></span>
+		</div>
+		<div class="form-group">
+			<label for="psf-url">PSF URL:</label>
+			<div class="input-wrapper">
+				<button class="Uploadbtn" id="psf-upload">
+					<input class="input-upload" type="file"  id="psf-url" />
+					<span>Select PSF</span>
+				</button>
+			</div>
+			<span id="psfURL" class="file-info" content=""></span>
+		</div>
+		<div class="form-group">
 			<label for="pixel-scale">Pixel Scale (px):</label>
-			<input type="text" id="pixel-scale" placeholder="Enter the pixel size of the image">
+			<div class="input-wrapper">
+				<input type="text" id="pixel-scale" placeholder="Enter the pixel size of the image">
+			</div>
 		</div>
-		<br/>
-		<div class="form-item">
+		<div class="form-actions">
 			<button type="submit" id="confirm" >Confirm</button>
 			<button type="button" id="close-form-button" >Close</button>
 		</div>
@@ -886,7 +965,7 @@ document.addEventListener('DOMContentLoaded', function() {
 		</div>
 		<div id="progressText" class="progress-text">0% 完成 (0:00 / 3:00)</div>
 		
-		<h3>模型日志</h3>
+		<h3>MCMC Log</h3>
 		<pre id="log" style="color:rgb(255, 255, 255); padding:10px;width: 800px; height:400px; overflow:auto; font-size:14px;"></pre>
 	</div>
 </div>
@@ -916,7 +995,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ×
     </button>
     <div style="position:absolute; bottom:-40px; left:50%; transform:translateX(-50%); color:white; font-size:14px;">
-      滚轮放大缩小 | 拖拽查看局部 | 点击关闭按钮或背景返回 | Esc键退出
+      Zoom with Mouse Wheel | Drag to View Local Area | Click Close Button or Background to Return | Press Esc to Exit
     </div>
   </div>
 </div>

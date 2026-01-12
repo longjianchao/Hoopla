@@ -92,7 +92,8 @@
 
 	Hoopla.prototype.loadModel = function(components) {
 		console.log('loadModel');
-		this.model.components = components;
+		// 创建components数组的深拷贝，避免修改原始数组
+		this.model.components = JSON.parse(JSON.stringify(components));
 		console.log(this.model.components);
     	this.init();
 	}

@@ -176,7 +176,6 @@ class WebGPUFFTConvolve {
     }
 
     _getComputeShaderCode() {
-        // WGSL: use uniform struct for params and storage arrays for image/psf/output
         return `
 struct Uniforms {
     width: u32,
@@ -246,14 +245,14 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         `;
     }
 
-    // convolve: imageData and psfData are Float32Array with length = width*height
+    // convolve: imageData and psfData are Float64Array with length = width*height
     async convolve(imageData, psfData) {
         // 参数有效性检查
-        if (!imageData || !(imageData instanceof Float32Array)) {
-            throw new Error('imageData must be a Float32Array');
+        if (!imageData || !(imageData instanceof Float64Array)) {
+            throw new Error('imageData must be a Float64Array');
         }
-        if (!psfData || !(psfData instanceof Float32Array)) {
-            throw new Error('psfData must be a Float32Array');
+        if (!psfData || !(psfData instanceof Float64Array)) {
+            throw new Error('psfData must be a Float64Array');
         }
         if (imageData.length !== this.width * this.height) {
             throw new Error(`imageData length ${imageData.length} does not match expected ${this.width * this.height}`);
@@ -281,10 +280,14 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
 
         try {
             const device = this.webgpu.device;
+            
+            // 将Float64Array转换为Float32Array用于WebGPU运算
+            const imageData32 = new Float32Array(imageData);
+            const psfData32 = new Float32Array(psfData);
 
             // create or reuse buffers (image and psf are read-only storage)
-            const imgBuf = this.webgpu.createBuffer(imageData, GPUBufferUsage.STORAGE);
-            const psfBuf = this.webgpu.createBuffer(psfData, GPUBufferUsage.STORAGE);
+            const imgBuf = this.webgpu.createBuffer(imageData32, GPUBufferUsage.STORAGE);
+            const psfBuf = this.webgpu.createBuffer(psfData32, GPUBufferUsage.STORAGE);
 
             const bindGroup = device.createBindGroup({
                 layout: this.bindGroupLayout,
@@ -318,7 +321,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
 
             // await and read
             await readBuf.mapAsync(GPUMapMode.READ);
-            const mapped = new Float32Array(readBuf.getMappedRange()).slice();
+            const mapped32 = new Float32Array(readBuf.getMappedRange());
+            // 将结果转换回Float64Array
+            const mapped64 = new Float64Array(mapped32);
             readBuf.unmap();
 
             // cleanup
@@ -326,7 +331,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
             psfBuf.destroy();
             readBuf.destroy();
 
-            return mapped;
+            return mapped64;
         } catch (error) {
             console.error('WebGPU convolution failed:', error);
             throw error;

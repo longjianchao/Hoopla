@@ -11,20 +11,21 @@ function average(data){
 	return sum / data.length;
 }
 
-//计算标准差
+//计算标准差（使用样本标准差，与numpy.std()默认行为一致）
 function standardDeviation(values){
+	if (values.length <= 1) return 0;
 	let avg = average(values);
 	let squareDiffs = values.map(function(value){
 		let diff = value - avg;
 		return diff * diff;
 	});
-	let avgSquareDiff = average(squareDiffs);
+	// 使用样本标准差，除以N-1而不是N
+	let avgSquareDiff = average(squareDiffs) * (values.length / (values.length - 1));
 	return Math.sqrt(avgSquareDiff);
 }
 
 //计算单个镜头成像对图像（x，y）的弯曲效应
 function calAlpha(xl, yl, xlc, ylc, re, ql, phl) {
-	// console.log('calAlpha');
 	if(ql <1.0){
 		phl = Math.PI * ((90-phl) / 180);
 	}
@@ -80,13 +81,8 @@ function calImage(xs, ys, xsc, ysc, size, qs, phs, n, Ie) {
 	let r_ell = Math.sqrt((xnew * xnew) / qs + (ynew * ynew) * qs);
 	// 归一化并代入 Sersic profile
 	let rnorm = r_ell / Re;
-	try {
-		res = Ie * Math.exp(-b_n * (Math.pow(rnorm, 1/n)-1.0));
-		// 检查结果是否为有效数字
-		return res;
-	} catch (e) {
-		return 0;
-	}
+	res = Ie * Math.exp(-b_n * (Math.pow(rnorm, 1/n)-1.0));
+	return res;
 }
 
 //给定一组镜头参数,对每个图像点调用calAlpha()和calImage()计算预测图像光度值
@@ -124,8 +120,7 @@ function applyPSFCpu(image, width, height, psf, psfW, psfH) {
     if (!psf || !psf.length) return image;
     
     try {
-        const result = new Float32Array(width * height);
-        
+		const result = new Float64Array(width * height);
         // PSF 归一化
         let psfSum = 0;
         for (let i = 0; i < psf.length; i++) psfSum += psf[i];
@@ -175,7 +170,7 @@ async function applyPSF(image, width, height, psf, psfW, psfH) {
     if (webgpuInitialized && fftConvolve) {
         try {
             // 将PSF数据填充到与图像相同大小，确保PSF中心点与图像中心点精确对齐
-            let psfData = new Float32Array(width * height);
+            let psfData = new Float64Array(width * height);
             // 计算PSF的中心点
             const psfCenterX = Math.floor(psfW / 2);
             const psfCenterY = Math.floor(psfH / 2);
@@ -203,7 +198,7 @@ async function applyPSF(image, width, height, psf, psfW, psfH) {
         }
     }
     
-    // 直接使用CPU实现 - 确保image是Float32Array
+    // 直接使用CPU实现 - 确保image是Float64Array
     return applyPSFCpu(image, width, height, psf, psfW, psfH);
 }
 
@@ -212,33 +207,45 @@ async function chi2_rescale(p) {
 	//重缩放因子，可以提高采样效率，但数值过大可能会导致图像失真
 	const fscale = 4;
 	const chi = new Array(Math.floor(globalImageData.length / fscale / fscale));
-	const redstd = standardDeviation(globalImageData);
+	const lightstd = standardDeviation(globalImageData);
 
 	// 生成模型图像
-	let modelImage = new Float32Array(globalImageData.length);
+	// 使用Float64Array提高精度，与Python的float64一致
+	let modelImage = new Float64Array(globalImageData.length);
+	const scaledWidth = imgd.width/scale;
+	const scaledHeight = imgd.height/scale;
+	const originPixscale = lets.pixscale * scale;
 	for(let row = 0 ; row < imgd.height ; row+=scale){
 		for(let col = 0 ; col < imgd.width ; col+=scale){
-			let i = Math.floor(row/scale) * Math.floor(imgd.width/scale) + Math.floor(col/scale);
-			let x = col * lets.pixscale - lets.pixscale * lets.width / 2 + lets.pixscale / 2;
-			let y = -row * lets.pixscale + lets.pixscale * lets.height / 2 - lets.pixscale / 2;
+			let rowScaled = row/scale;
+			let colScaled = col/scale;
+			let i = Math.floor(rowScaled) * Math.floor(scaledWidth) + Math.floor(colScaled);
+			let x = (colScaled + 0.5 - scaledWidth/2) * originPixscale;
+			let y = - (rowScaled + 0.5 - scaledHeight/2) * originPixscale;
 			modelImage[i] = model_lensed_images(p, x, y);
 		}
 	}
-	// 应用PSF卷积（WebGPU加速）
+	// 应用PSF卷积
 	let convolvedImage;
 	if (globalPSFData && globalPSFData.data) {
-		convolvedImage = await applyPSF(modelImage, Math.floor(imgd.width/scale), Math.floor(imgd.height/scale),
+		convolvedImage = await applyPSF(modelImage, Math.floor(scaledWidth), Math.floor(scaledHeight),
 			 globalPSFData.data, globalPSFData.width, globalPSFData.height);
 	} else {
 		// 如果没有PSF数据，直接使用模型图像
 		convolvedImage = modelImage;
 	}
+	let sigma;
 	// 计算卡方值
 	for(let row = 0 ; row < imgd.height ; row+=fscale){
 		for(let col = 0 ; col < imgd.width ; col+=fscale){
-			let i = Math.floor(row/scale) * Math.floor(imgd.width/scale) + Math.floor(col/scale);
+			let i = Math.floor(row/scale) * Math.floor(scaledWidth) + Math.floor(col/scale);
 			let i2 = Math.floor(row/fscale) * Math.floor(imgd.width/fscale) + Math.floor(col/fscale);
-			chi[i2] = (globalImageData[i] - convolvedImage[i])/redstd;
+			if(globalNoiseData && globalNoiseData[i] > 0){
+				sigma = globalNoiseData[i];
+			} else {
+				sigma = Math.sqrt(globalImageData[i]+1);
+			}
+			chi[i2] = (globalImageData[i] - convolvedImage[i])/sigma;
 		}
 	}
 	
@@ -281,42 +288,64 @@ async function show_res(p) {
 		console.error("globalImageData is not initialized");
 		return;
 	}
-	
+	const originPixscale = lets.pixscale * scale;
+	const scaledWidth = imgd.width/scale;
+	const scaledHeight = imgd.height/scale;
 	let i, x, y;
-	let testimg = new Float32Array(globalImageData.length);
+	// 使用Float64Array提高精度，与Python的float64一致
+	let testimg = new Float64Array(globalImageData.length);
 	for (let row = 0; row < imgd.height; row+=scale) {
 		for (let col = 0; col < imgd.width; col+=scale) {
-			i = Math.floor(row/scale) * Math.floor(imgd.width/scale) + Math.floor(col/scale);
+			let rowScaled = row/scale;
+			let colScaled = col/scale;
+			i = Math.floor(rowScaled) * Math.floor(scaledWidth) + Math.floor(colScaled);
 			// 计算对应的坐标
-			x = col * lets.pixscale - lets.pixscale * imgd.width / 2 + lets.pixscale ;
-			y = -row * lets.pixscale + lets.pixscale * imgd.height / 2 - lets.pixscale ;
+			// x = col * lets.pixscale - lets.pixscale * imgd.width / 2 + lets.pixscale ;
+			// y = -row * lets.pixscale + lets.pixscale * imgd.height / 2 - lets.pixscale ;
+			x = (colScaled + 0.5 - scaledWidth/2.0) * originPixscale;
+			y = - (rowScaled + 0.5 - scaledHeight/2.0) * originPixscale;
 			testimg[i] = model_lensed_images(p, x, y);
 		}
 	}
-	
+
 	let convolvedImage;
 	// 应用PSF卷积（WebGPU加速）
 	if(globalPSFData && globalPSFData.data) {
-		convolvedImage = await applyPSF(testimg, imgd.width/scale, imgd.height/scale, 
-			 globalPSFData.data, globalPSFData.width, globalPSFData.height);
+		convolvedImage = await applyPSF(testimg, Math.floor(imgd.width/scale), Math.floor(imgd.height/scale), 
+		 globalPSFData.data, globalPSFData.width, globalPSFData.height);
 	} else {
 		// 如果没有PSF数据，直接使用模型图像
 		convolvedImage = testimg;
 	}
+	// 将convolvedImage保存在本地，格式为txt文件
+	// const blob = new Blob([convolvedImage.join('\n')], { type: 'text/plain' });
+	// const url = URL.createObjectURL(blob);
+	// const a = document.createElement('a');
+	// a.href = url;
+	// a.download = 'convolvedImage_data.txt';
+	// document.body.appendChild(a);
+	// a.click();
+	// document.body.removeChild(a);
+	// URL.revokeObjectURL(url);
+	
 	// 计算chi-square和残差 - 使用原始图像尺寸
-	let brightnessStd = standardDeviation(globalImageData);
-	let chi = new Array(globalImageData.length);
-	let residualImage = new Array(globalImageData.length);
+	let chi = new Float64Array(globalImageData.length);
+	let residualImage = new Float64Array(globalImageData.length);
 	let maxResidual = 0;
 	let maxValue = 0;
-
+	let sigma;
 	// 计算残差和chi-square - 使用原始图像尺寸
 	for (let row = 0; row < imgd.height; row+=scale) {
 		for (let col = 0; col < imgd.width; col+=scale) {
-			i = Math.round(row/scale) * Math.floor(imgd.width/scale) + Math.floor(col/scale);
-			residualImage[i] = Math.abs(globalImageData[i] - convolvedImage[i]);
+			i = Math.floor(row/scale) * Math.floor(imgd.width/scale) + Math.floor(col/scale);
+			if(globalNoiseData && globalNoiseData[i] > 0){
+				sigma = globalNoiseData[i];
+			} else {
+				sigma = Math.sqrt(globalImageData[i]+1);
+			}
+			residualImage[i] = Math.abs(globalImageData[i] - convolvedImage[i])/sigma;
 			// 计算chi-square
-			chi[i] = (globalImageData[i] - convolvedImage[i]) / brightnessStd / brightnessStd;
+			chi[i] = (globalImageData[i] - convolvedImage[i]) / sigma;
 			if (residualImage[i] > maxResidual) {
 				maxResidual = residualImage[i];
 			}
@@ -344,7 +373,7 @@ async function show_res(p) {
 	let tempCtx = tempCanvas.getContext('2d');
 	let tempImageData = tempCtx.createImageData(tempWidth, tempHeight);
 	let tempData = tempImageData.data;
-	
+	if(maxResidual<1) maxResidual = 1;
 	// 绘制原始尺寸的残差图到临时canvas
 	for (let row = 0; row < tempHeight; row++) {
 		for (let col = 0; col < tempWidth; col++) {
@@ -537,6 +566,8 @@ function drawParamsTrendChart(paramsHistory) {
 			// 更新现有图表
 			paramsChartInstances[i].data.labels = labels;
 			paramsChartInstances[i].data.datasets[0].data = paramValues;
+			// 更新纵轴变化单位设置
+			paramsChartInstances[i].options.scales.y.ticks.stepSize = ["lens_x", "lens_y"].includes(paramNames[i]) ? 0.01 : undefined;
 			paramsChartInstances[i].update();
 		} else {
 			// 创建新图表，无论数据是否为空
@@ -595,7 +626,9 @@ function drawParamsTrendChart(paramsHistory) {
 								color: '#666',
 								font: {
 									size: 9
-								}
+								},
+								// 为lens_x和lens_y设置纵轴变化单位为0.01
+								stepSize: ["lens_x", "lens_y"].includes(paramNames[i]) ? 0.01 : undefined
 							}
 						}
 					},

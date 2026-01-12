@@ -186,7 +186,8 @@ function getImage(imageData, width, height, convert){
 		}
 	}
 	console.log("maxval:", maxval);
-	globalImageData = new Array(imageData.length);
+	// 使用Float64Array提高精度
+	globalImageData = new Float64Array(imageData.length);
 	// for(let i = 0; i < imageData.length; i++){
 	// 	imageData[i] = (imageData[i] - minval) / (maxval - minval);
 	// }
