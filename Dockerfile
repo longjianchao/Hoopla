@@ -4,7 +4,7 @@ FROM nginx:latest
 # 设置工作目录
 WORKDIR /usr/share/nginx/html
 
-# 复制项目文件到nginx目录
+# 复制整个项目文件到nginx目录
 COPY . /usr/share/nginx/html/
 
 # 暴露端口

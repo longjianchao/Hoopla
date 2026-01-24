@@ -443,7 +443,7 @@ async function handlePSFUpload(psfFile) {
       };
       reader.onerror = reject;
       reader.readAsArrayBuffer(psfFile);
-      window._uploadedPSFFile = null;
+      // window._uploadedPSFFile = null;
     } catch (err) {
       reject(err);
     }
@@ -538,7 +538,7 @@ function handleNoiseUpload(noiseFile) {
       }
       reader.onerror = reject;
       reader.readAsArrayBuffer(noiseFile);
-      window._uploadedNoiseFile = null;
+      // window._uploadedNoiseFile = null;
     } catch (err) {
       reject(err);
     }

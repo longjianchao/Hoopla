@@ -286,7 +286,6 @@ async function startMCMC() {
 			components: window.lets.model.components,
 			pixscale: window.lets.pixscale * window.fileHandlerScale || window.lets.pixscale,
 		};
-		console.log('发送MCMC请求，参数:', modelData);
 		// 清空日志区域
 		const log = document.getElementById("log");
 		if (log) {
@@ -306,13 +305,43 @@ async function startMCMC() {
 		const statusLineRegex = /^Status\s*\|/m;
 		const finishedLineRegex = /^Finished\s*\|/m;
 		const processLineRegex = /^(Sampling|Computing|Bounding|Stopped)\s*\|/m;
+		// 创建FormData对象，用于上传文件和模型数据
+		const formData = new FormData();
+		formData.append('model_data', JSON.stringify(modelData));
+		let imageFile = window._uploadedImageFile;
+		let noiseFile = window._uploadedNoiseFile;
+		let psfFile = window._uploadedPSFFile;
+		console.log('noiseFile:', noiseFile);
+		console.log('psfFile:', psfFile);
+		// 添加FITS文件（如果存在）
+		if (imageFile) {
+			formData.append('image_file', imageFile);
+		}
+		if (noiseFile) {
+			formData.append('noise_file', noiseFile);
+		}
+		if (psfFile) {
+			formData.append('psf_file', psfFile);
+		}
+		// 调试：打印FormData内容
+		console.log('=== FormData 内容 ===');
+		formData.forEach((value, key) => {
+			if (value instanceof File) {
+				console.log(`${key}:`, {
+					name: value.name,
+					size: value.size,
+					type: value.type,
+					lastModified: new Date(value.lastModified)
+				});
+			} else {
+				console.log(`${key}:`, value);
+			}
+		});
+		console.log('=== FormData 结束 ===');
 		// 发送到后端
 		const response = await fetch('http://127.0.0.1:8080/mcmc_modeling', {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify(modelData)
+			body: formData
 		});
 
 		if (!response.ok) {

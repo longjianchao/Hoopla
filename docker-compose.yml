@@ -1,9 +1,15 @@
-version: '3.8'
-
 services:
-  web:
-    build: .
+  hoopla-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: hoopla-preprocessing:latest
+    container_name: hoopla-preprocessing
     ports:
       - "5050:80"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

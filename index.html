@@ -336,6 +336,10 @@
 			document.getElementById("noiseURL").innerText = "";
 			document.getElementById("psfURL").innerText = "";
 			document.querySelector('.popup-form').classList.add('active');
+			// 清空全局文件变量，确保每次上传都是新的文件
+			window._uploadedImageFile = null;
+			window._uploadedNoiseFile = null;
+			window._uploadedPSFFile = null;
 		};
 		document.getElementById("close-form-button").onclick = function () {
 			document.querySelector('.popup-form').classList.remove('active');
@@ -518,7 +522,7 @@
 				try {
 					// 动态导入模块
 					const fileModule = await import('./fileHandler.js');
-					
+					console.log("Noise file:", noiseFile);
 					const result = await fileModule.handleNoiseUpload(noiseFile);
 					document.getElementById("noiseURL").innerText = result.url;
 					noise_name = result.imgName;

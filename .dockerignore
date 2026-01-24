@@ -65,8 +65,8 @@ test/
 *.test.js
 *.spec.js
 
-# 构建输出
-dist/
+# 构建输出 (仅在开发环境忽略，构建时需要)
+# dist/
 build/
 out/
 
