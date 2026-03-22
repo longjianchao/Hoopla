@@ -3,6 +3,9 @@
  * 包含前景去除、绘制mask等图像处理相关功能
  */
 
+// 全局标志，用于指示是否正在应用掩码
+let isApplyingMask = false;
+
 // 删除前景函数
 async function delForeground() {
 	// 获取上传的fits文件
@@ -90,55 +93,49 @@ async function delForeground() {
 	function applyMask() {
 		const radius = parseInt(document.getElementById('maskRadius').value) || 0;
 		console.log("mask半径:", radius);
-		// 确保img对象存在
-		if (img && img.src) {
-			// 创建新的Image对象，以img为模板
-			const newImg = new Image();
-			newImg.onload = function() {
-				const width = newImg.width;
-				const height = newImg.height;
-				console.log("图像尺寸:", width, height);
-				// 创建临时画布并绘制图像
-				const tempCanvas = document.createElement('canvas');
-				tempCanvas.width = width;
-				tempCanvas.height = height;
-				const tempCtx = tempCanvas.getContext('2d');
-				tempCtx.drawImage(newImg, 0, 0, width, height);
-				// 获取图像数据
-				const imageData = tempCtx.getImageData(0, 0, width, height);
-				const data = imageData.data;
-				// 计算图像中心点
-				const centerX = width / 2;
-				const centerY = height / 2;
-				// 遍历所有像素，应用掩码
-				for (let y = 0; y < height; y++) {
-					for (let x = 0; x < width; x++) {
-						// 计算当前像素到中心点的距离
-						const dx = x - centerX;
-						const dy = y - centerY;
-						const distance = Math.sqrt(dx * dx + dy * dy);
-						// 计算像素在数据数组中的索引
-						const index = (y * width + x) * 4;
-						// 如果像素在掩码外，设置为黑色
-						if (distance > radius) {
-							data[index] = 0;     // 红色通道
-							data[index + 1] = 0; // 绿色通道
-							data[index + 2] = 0; // 蓝色通道
-							data[index + 3] = 255; // 透明度通道(完全不透明)
-						}
-						// 否则保持不变
+		// 确保globalImageData和图像尺寸存在
+		if (globalImageData && globalImageData.length > 0 && imgd && imgd.width > 0 && imgd.height > 0) {
+			// 使用实际图像的尺寸
+			const width = Math.sqrt(globalImageData.length);
+			const height = width;
+			console.log("图像尺寸:", width, height);
+			// 计算图像的实际尺寸与画布尺寸之间的比例
+			const scaleX = width / imgd.width;
+			const scaleY = height / imgd.height;
+			console.log("缩放比例:", scaleX, scaleY);
+			// 根据比例调整掩码的半径
+			const scaledRadius = radius * Math.min(scaleX, scaleY);
+			console.log("缩放后的掩码半径:", scaledRadius);
+			// 计算图像中心点
+			const centerX = width / 2;
+			const centerY = height / 2;
+			// 遍历所有像素，应用掩码到全局数据
+			for (let y = 0; y < height; y++) {
+				for (let x = 0; x < width; x++) {
+					// 计算当前像素到中心点的距离
+					const dx = x - centerX;
+					const dy = y - centerY;
+					const distance = Math.sqrt(dx * dx + dy * dy);
+					// 计算像素在数据数组中的索引
+					const index = y * width + x;
+					// 如果像素在掩码外，设置为0
+					if (distance > scaledRadius) {
+						globalImageData[index] = 0;
 					}
+					// 否则保持不变
 				}
-				// 将修改后的图像数据放回画布
-				tempCtx.putImageData(imageData, 0, 0);
-				// 获取处理后的图像URL
-				const maskedUrl = tempCanvas.toDataURL();
-				img0.src = maskedUrl;
-			};
-			// 设置新图像的源为img的源
-			newImg.src = img.src;
+			}
+			// 设置标志，防止img0.onload中重置标记表面
+			isApplyingMask = true;
+			// 使用更新后的globalImageData重新生成图像
+			const maskedUrl = getImage(Array.from(globalImageData), width, height, false);
+			img0.src = maskedUrl;
+			// 延迟重置标志，确保onload执行完成
+			setTimeout(() => {
+				isApplyingMask = false;
+			}, 100);
 		} else {
-			console.error("无法获取图像，请确保图像已加载。");
+			console.error("无法获取全局图像数据或尺寸，请确保图像已加载。");
 			window.alert("无法应用掩码：图像未加载。");
 		}
 	};

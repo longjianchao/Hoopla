@@ -387,6 +387,11 @@
 		
 		img0 = new Image();
 		img0.onload = function() {
+			// 如果正在应用掩码，跳过重置标记表面的逻辑
+			if (typeof isApplyingMask !== 'undefined' && isApplyingMask) {
+				console.log("应用掩码中，跳过img0.onload中的重置逻辑");
+				return;
+			}
 			// 目标画布大小
 			const targetWidth = 400;
 			const targetHeight = 400;

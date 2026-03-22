@@ -447,7 +447,7 @@ class PSFComputer {
             let centerY = f32(height) / 2.0;
             let x = f32(global_id.x) - centerX;
             let y = f32(global_id.y) - centerY;
-            let sigma = 2.0;
+            let sigma = 1.0;
             let pi = 3.14159;
             let psfValue = exp(-(x*x + y*y) / (2.0 * sigma * sigma)) / (2.0 * pi * sigma * sigma);
             
