@@ -43,7 +43,7 @@ async function delForeground() {
 			console.log("chi2:", chi2);
 			const compressed = base64ToUint8Array(result.image_data);
 			const raw = pako.ungzip(compressed);
-			const floatArray = new Float32Array(raw.buffer);
+			const floatArray = new Float64Array(raw.buffer);
 			let imageData = Array.from(floatArray);
 			let width = result.width;
 			let height = result.height;

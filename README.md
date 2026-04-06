@@ -1,34 +1,127 @@
-Hoopla
-======
+# Hoopla - Interactive Gravitational Lens Modeling
 
-`Hoopla` is a simple javascript app for modeling images of strong gravitational lenses. It allows you to hand-craft a model lens out of elliptically-symmetric mass distributions (representing massive foreground galaxies) and elliptically symmetric light sources (representing faint background galaxies), and then dynamically predict the shape of the resulting gravitationally lensed image features as you tune the model. You can provide your own image to model, and you can save your tuned model's parameters to a shareable JSON file.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-<!-- Insert screenshot here! -->
+**Hoopla** is a simple JavaScript application for modeling images of strong gravitational lenses. It allows you to hand-craft a model lens out of elliptically-symmetric mass distributions (representing massive foreground galaxies) and elliptically symmetric light sources (representing faint background galaxies), and then dynamically predict the shape of the resulting gravitationally lensed image features as you tune the model.
 
-**[Give Hoopla a Try!](http://linan7788626.github.io/pages/Hoopla/index.html)**
+You can provide your own image to model, and you can save your tuned model's parameters to a shareable JSON file.
 
-[![](https://github.com/drphilmarshall/Hoopla/blob/master/images/screenshot.png)](http://linan7788626.github.io/pages/Hoopla/index.html)
+## Download and Installation
 
-[Model parameters for this example](https://raw.githubusercontent.com/linan7788626/Hoopla/master/models/screenshot.JSON)
+### Prerequisites
 
-----
+- Modern web browser (Chrome, Firefox, Edge, Safari)
+- ES6+ compatible JavaScript runtime
 
-### Credits, License, Contact etc
+### Installation Methods
 
-`Hoopla` is based on the["LensWrangler"](http://drphilmarshall.github.com/LensWrangler/) prototype made by Stuart Lowe, Amit Kapadia, Aprajita Verma and Phil Marshall, but with many interesting modifications added by Nan Li. The main function library is "eelens.js" in this repository, which is an updated version of [lens.js](https://github.com/slowe/lensjs). It includes elliptical models of both lenses and sources.
+#### Method 1: Direct Download
 
-`Hoopla` is open source code, free for you to re-use under the MIT License in this repository (which means you can do anything you like with it but you can't blame us if it doesn't work). If you are interested in this project, please get in touch by [writing us an issue]() - we'd love to hear from you! `Hoopla` is scientific software, and research in progress: if you make use of any of the code or ideas in this repo in your own research, please cite us as _"Li et al, in preparation"_ and provide a link to [this repo's URL](https://github.com/linan7788626/Hoopla). 
+```bash
+# Clone from GitHub
+git clone https://github.com/longjianchao/Hoopla.git
 
-### Instructions
+# Or from Gitee
+git clone https://gitee.com/long-jianchao/Hoopla.git
+```
 
-####基本流程
-1. 将鼠标放在Mass Model和Source Model画布上，可以点击鼠标并进行拖动画出一个椭圆，这即是前景天体（星系）和透镜天体（星系）; 需要注意的是，Mass Model的椭圆需要与背景图的爱因斯坦环对应，而Source Model的椭圆位置可以随意摆放。
-2. 绘制好质量模型和源模型后，在Source Plane上移动鼠标会在Image Plane上看到蓝色的圆圈，在Source Plane上移动光标可以发现Image Plane的蓝色圆圈在随之变化。
-3. 你要做的是通过Source Plane上移动鼠标，找到Image Plane中圆圈与透镜图像最相似的点。如果你觉得找到了那个适配度最好的点，在Source Plane上点击鼠标左键，即可冻结Source Plane，此后再移动鼠标时，Image Plane的蓝色圆圈将不会改变。
-4. 一般来说手动调节的模型总是不尽人意，此时可以点击下分的蓝色按钮Optimization，点击按钮后程序会帮助你找到效果更好的模型。在你点击Optimization按钮后，Residual Map和Chi-Square Curve会动态变化，Residual Map是显示模型与透镜天体的残差，而Chi-Square是每次进行最优化运算时的的卡方值，通过这两个图像可以看到动态建模的情况。
-5. 最优模型完成后，可以点击“Save Models”将你得到的模型保存，文件保存形式是JSON格式。
+#### Method 2: Docker Deployment
 
-####其他玩法
-* 你保存了模型后，可以通过点击 “Load Models” 选择文件再次将之前的模型呈现出来，同时，还可以对之前的模型进行二次或多次调整和优化。
-* 你可以点击“Upload Images”按钮，在计算机本地选择一张图片进行建模，流程如上。需要注意的是，选择图片后，建模所需的所有信息必须正确填入，这样才能保证建模过程的顺利进行。
-* 在页面下方还可以改变pixel scale，输入图片对应的pixel scale后点击reset按钮即可改变图片的pixel scale。
+The project includes Docker support for quick deployment:
+
+```bash
+# Pull image and start container
+docker-compose up -d
+
+# Stop container
+docker-compose down
+```
+
+#### Method 3: Local Development Server
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+
+# Or use webpack-dev-server
+npm run dev
+```
+
+## Quick Start
+
+### Basic Workflow
+
+1. **Draw Model Ellipses**
+   - Place your mouse on the `Mass Model` and `Source Model` canvases
+   - Click and drag to draw an ellipse
+   - The ellipse in `Mass Model` represents the foreground lensing galaxy
+   - The ellipse in `Source Model` represents the background source galaxy
+
+2. **Adjust the Model**
+   - Move your mouse on the `Source Plane` - you will see a blue circle appear on the `Image Plane`
+   - As you move the cursor on the `Source Plane`, the blue circle on the `Image Plane` changes accordingly
+   - Find the position where the circle on the `Image Plane` best matches the lensed image
+   - Click the left mouse button on the `Source Plane` to freeze the `Source Plane` - the circle will no longer change when you move your mouse
+
+3. **Optimize the Model**
+   - Click the blue `Optimization` button below
+   - The program will help you find a better-fitting model
+   - The `Residual Map` displays the residuals between the model and the lensed image
+   - The `Chi-Square Curve` shows the chi-square value at each optimization iteration
+
+4. **Save the Model**
+   - Click `Save Models` to save your model
+   - The file is saved in JSON format
+
+### Other Features
+
+- **Load Models**: Click `Load Models` to select and load a previously saved model file, allowing for further adjustment and optimization
+- **Upload Images**: Click `Upload Images` to select an image from your computer for modeling. Note: All required information must be correctly filled in
+- **Adjust Pixel Scale**: Enter the pixel scale at the bottom of the page and click the `Reset` button to change it
+
+## Project Structure
+
+```
+Hoopla/
+├── images/              # Sample images
+├── lib/                 # Third-party libraries
+│   └── marking/        # Marking surface library
+├── index.html           # Main page
+├── hoopla.js            # Core application logic
+├── imageProcessor.js     # Image processing module
+├── optimization.js       # Optimization algorithms
+├── uiHandler.js         # UI interaction handling
+├── fileHandler.js       # File I/O handling
+├── webgpu-utils.js       # WebGPU utilities
+├── style.css            # Stylesheet
+└── package.json         # Project configuration
+```
+
+## Technology Stack
+
+- **Frontend Framework**: Vanilla JavaScript (ES6+)
+- **Graphics Library**: D3.js
+- **Mathematical Computing**: Pyodide (Python in WebAssembly)
+- **Accelerated Computing**: WebGPU
+- **Image Processing**: Canvas API
+
+## Dependencies
+
+- [astro.js](https://github.com/astrofits/astrojs) - FITS file parsing
+- [hdf5.js](https://github.com/NaturalHistoryMuseum/hdf5-js) - HDF5 file support
+- [pako](https://github.com/nodeca/pako) - gzip decompression
+- [D3.js](https://d3js.org/) - Data visualization
+- [pyodide](https://github.com/pyodide/pyodide) - Python WebAssembly runtime
+
+## Notes
+
+1. After uploading an image, all required information must be correctly filled in for the modeling process to proceed
+2. It is recommended to use standard image formats (FITS, HDF5, PNG)
+3. For optimal modeling results, ensure a PSF (Point Spread Function) file is uploaded
+
+## License
+
+MIT License - See [LICENSE](LICENSE) file for details
