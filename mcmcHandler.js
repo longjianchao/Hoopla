@@ -12,6 +12,9 @@ function showLoading() {
 	const overlay = document.getElementById('loadingOverlay');
 	overlay.style.display = 'flex';
 	
+	const closeBtn = document.getElementById('closeLoadingBtn');
+	if (closeBtn) closeBtn.style.display = 'none';
+	
 	// 重置进度条和时间
 	mcmcStartTime = Date.now();
 	currentTimeThreshold = 3 * 60 * 1000; // 重置为3分钟
@@ -271,6 +274,19 @@ function closeMCMCResults() {
 	document.getElementById('mcmcResults').style.display = 'none';
 }
 
+window.closeLoadingCustom = function() {
+	if (window.lastModelingResult) {
+		completeHideLoading(() => {
+			showModelingResults(window.lastModelingResult);
+			window.lastModelingResult = null;
+		});
+	} else {
+		completeHideLoading();
+	}
+	const closeBtn = document.getElementById('closeLoadingBtn');
+	if (closeBtn) closeBtn.style.display = 'none';
+};
+
 // 启动MCMC建模
 async function startMCMC() {
 	if (!window.lets || !window.lets.model || !window.lets.model.components) {
@@ -285,6 +301,7 @@ async function startMCMC() {
 		const modelData = {
 			components: window.lets.model.components,
 			pixscale: window.lets.pixscale * window.fileHandlerScale || window.lets.pixscale,
+			sigma: window.lets.model.sigma || null,
 		};
 		// 清空日志区域
 		const log = document.getElementById("log");
@@ -440,19 +457,40 @@ async function startMCMC() {
 							console.log(window.lets.model.components);
 							
 							// 最终隐藏加载动画并显示成功提示
-							hideLoading(() => {
-								window.alert('MCMC建模成功!');
-								// 用户确认后才显示建模结果图像
-								showModelingResults(result);
-							});
+							// 停止进度条定时器
+							if (progressInterval) {
+								clearInterval(progressInterval);
+								progressInterval = null;
+							}
+							
+							// 显示关闭按钮
+							const closeBtn = document.getElementById('closeLoadingBtn');
+							if (closeBtn) {
+								closeBtn.style.display = 'block';
+							}
+							
+							// 更新文本提示
+							const progressText = document.getElementById('progressText');
+							if (progressText) {
+								progressText.textContent = '✅ 建模完成！请查看日志或点击右上角关闭以查看图像结果';
+							}
+							
+							// 保存结果，供关闭按钮点击后使用
+							window.lastModelingResult = result;
 						}
 						else{
-							throw new Error(result.message||"获取MCMC结果失败");
+							throw new Error(result.message||"获取建模结果失败");
 						}
 					}catch(error){
 						console.error('处理建模时出错:', error);
-						hideLoading();
-						alert(`获取MCMC结果失败: ${error.message}`);
+						if (progressInterval) {
+							clearInterval(progressInterval);
+							progressInterval = null;
+						}
+						const progressText = document.getElementById('progressText');
+						if (progressText) progressText.textContent = '❌ 获取建模结果失败';
+						const closeBtn = document.getElementById('closeLoadingBtn');
+						if (closeBtn) closeBtn.style.display = 'block';
 					} finally {
 						// 确保关闭WebSocket连接
 						ws.close();
@@ -464,10 +502,14 @@ async function startMCMC() {
 				if (!modelingCompleted) {
 					modelingCompleted = true;
 					console.error('建模过程出错');
-					// 隐藏加载动画，然后在进度条动画完成后显示错误提示
-					hideLoading(() => {
-						alert(`MCMC建模失败: ${data}`);
-					});
+					if (progressInterval) {
+						clearInterval(progressInterval);
+						progressInterval = null;
+					}
+					const progressText = document.getElementById('progressText');
+					if (progressText) progressText.textContent = '❌ 建模失败，请查看日志';
+					const closeBtn = document.getElementById('closeLoadingBtn');
+					if (closeBtn) closeBtn.style.display = 'block';
 					// 关闭WebSocket连接
 					if (ws && ws.readyState === WebSocket.OPEN) {
 						ws.close();
@@ -482,11 +524,15 @@ async function startMCMC() {
 			console.log("WebSocket connection closed");
 		};
 	} catch (error) {
-		console.error('MCMC建模失败:', error);
-		// 隐藏加载动画，然后在进度条动画完成后显示错误提示
-		hideLoading(() => {
-			alert(`MCMC建模失败: ${error.message}`);
-		});
+		console.error('建模失败:', error);
+		if (progressInterval) {
+			clearInterval(progressInterval);
+			progressInterval = null;
+		}
+		const progressText = document.getElementById('progressText');
+		if (progressText) progressText.textContent = '❌ 建模失败: ' + error.message;
+		const closeBtn = document.getElementById('closeLoadingBtn');
+		if (closeBtn) closeBtn.style.display = 'block';
 	}
 }
 
