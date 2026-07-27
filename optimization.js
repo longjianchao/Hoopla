@@ -889,8 +889,8 @@ def residual(x):
     return asyncio.run(residual_async(x))
 
 # 参数边界（least_squares格式：(lower, upper) 两个数组）
-lower_bounds = [-5, -5, 0.01, 1.0+1e-6, -np.inf,   -10, -10, 0.01, 1.0, -np.inf,   0.3, 0.001]
-upper_bounds = [ 5,  5, 10,   10,        np.inf,    10,  10, 5.0,  10,  np.inf,    6.0, 10.0]
+lower_bounds = [-5, -5, 0.01, 1.0+1e-6, -180.0,   -10, -10, 0.01, 1.0, -180.0,   0.3, 0.001]
+upper_bounds = [ 5,  5, 10,   10,        180.0,    10,  10, 5.0,  10,  180.0,    6.0, 10.0]
 
 def run_optimization():
     # 设置初始参数并裁剪至有效边界内，避免 x0 is infeasible 错误
@@ -929,243 +929,11 @@ def run_optimization():
         print(f"约化chi2: {reduced_chi2:.6f}")
         print(f"函数评估次数: {result.nfev}")
 
-        # ====== 从Jacobian计算协方差矩阵和参数误差 ======
-        print()
-        print("====== 从Jacobian计算参数误差估计 ======")
-
-        sigma_values = [float('nan')] * n_params
-        covariance_matrix = None
-        error_estimation_success = False
-
-        try:
-            J = result.jac
-            JTJ = J.T @ J
-
-            print(f"数据点数: {n_data}, 参数数: {n_params}, 自由度: {dof}")
-            print(f"约化chi2 (用于缩放协方差): {reduced_chi2:.6f}")
-
-            # 检查JTJ是否可逆
-            eigenvalues = np.linalg.eigvalsh(JTJ)
-            cond_number = eigenvalues.max() / max(eigenvalues.min(), 1e-30)
-
-            if np.all(eigenvalues > 0):
-                # 协方差矩阵 = (J^T J)^(-1) * reduced_chi2
-                covariance = np.linalg.inv(JTJ) * reduced_chi2
-                covariance_matrix = covariance.tolist()
-
-                for k in range(n_params):
-                    if covariance[k, k] > 0:
-                        sigma_values[k] = float(np.sqrt(covariance[k, k]))
-                    else:
-                        sigma_values[k] = float('nan')
-
-                error_estimation_success = True
-            else:
-                print("警告：J^T J 非正定，使用Moore-Penrose伪逆")
-                covariance = np.linalg.pinv(JTJ) * reduced_chi2
-                covariance_matrix = covariance.tolist()
-                for k in range(n_params):
-                    if covariance[k, k] > 0:
-                        sigma_values[k] = float(np.sqrt(covariance[k, k]))
-                    else:
-                        sigma_values[k] = float('nan')
-                error_estimation_success = True
-
-            # 打印误差估计结果
-            param_names = ['lens_x', 'lens_y', 'theta_e', 'lens_ell', 'lens_ang',
-                           'source_x', 'source_y', 'source_size', 'source_ell', 'source_ang', 'n_sersic', 'Ie']
-            print()
-            print("参数误差估计结果（1 sigma）：")
-            for k in range(n_params):
-                name = param_names[k] if k < len(param_names) else f"p{k}"
-                print(f"  {name}: {result.x[k]:.6f} +/- {sigma_values[k]:.6f}")
-
-            # ====== 验证1：检查条件数 ======
-            print()
-            print("====== 误差估计可靠性验证 ======")
-            print(f"条件数 (JTJ矩阵): {cond_number:.2e}")
-            if cond_number < 1e3:
-                print("  ✓ 条件数良好，参数相关性低")
-            elif cond_number < 1e6:
-                print("  ⚠️ 条件数中等，存在一定参数相关性")
-            else:
-                print("  ✗ 条件数较大，参数高度相关，误差估计可能不可靠")
-
-            # ====== 验证2：检查参数相关性矩阵 ======
-            if covariance_matrix is not None:
-                print()
-                print("参数相关性矩阵（绝对值 > 0.5 的强相关）：")
-                cov_np = np.array(covariance_matrix)
-                corr_matrix = np.zeros_like(cov_np)
-                for i in range(n_params):
-                    for j in range(n_params):
-                        denom = np.sqrt(cov_np[i, i]) * np.sqrt(cov_np[j, j])
-                        if denom > 0:
-                            corr_matrix[i, j] = cov_np[i, j] / denom
-                
-                strong_correlations = []
-                for i in range(n_params):
-                    for j in range(i+1, n_params):
-                        if abs(corr_matrix[i, j]) > 0.5:
-                            strong_correlations.append((param_names[i], param_names[j], corr_matrix[i, j]))
-                
-                if len(strong_correlations) == 0:
-                    print("  ✓ 无强相关参数")
-                else:
-                    print("  ⚠️ 存在强相关参数对：")
-                    for p1, p2, corr in strong_correlations:
-                        print(f"    {p1} 与 {p2}: {corr:.3f}")
-
-            # ====== 验证3：残差分布检查 ======
-            print()
-            print("残差分布统计：")
-            residuals = result.fun
-            if len(residuals) > 0:
-                res_mean = np.mean(residuals)
-                res_std = np.std(residuals)
-                res_min = np.min(residuals)
-                res_max = np.max(residuals)
-                print(f"  均值: {res_mean:.4f} (期望: ~0)")
-                print(f"  标准差: {res_std:.4f} (期望: ~1)")
-                print(f"  范围: [{res_min:.2f}, {res_max:.2f}]")
-                
-                if abs(res_mean) < 0.1 and abs(res_std - 1) < 0.1:
-                    print("  ✓ 残差分布符合预期")
-                else:
-                    print("  ⚠️ 残差分布偏离预期，建议检查模型或噪声估计")
-
-            # ====== 验证4：Profile Likelihood 参数不确定性估计 ======
-            print()
-            print("====== Profile Likelihood 参数不确定性估计 ======")
-            print("说明：通过固定单个参数，优化其他参数，测量χ²增加1时的参数范围")
-            print("      这是从数据直接测量不确定性的客观方法")
-            
-            param_names = ['lens_x', 'lens_y', 'theta_e', 'lens_ell', 'lens_ang',
-                          'source_x', 'source_y', 'source_size', 'source_ell', 'source_ang', 'n_sersic', 'Ie']
-            
-            # 定义参数边界（用于Profile Likelihood搜索）
-            search_bounds = [
-                (-0.5, 0.5),     # lens_x
-                (-0.5, 0.5),     # lens_y
-                (0.1, 5.0),      # theta_e
-                (1.0+1e-6, 10),  # lens_ell
-                (-180, 180),     # lens_ang
-                (-1.0, 1.0),     # source_x
-                (-1.0, 1.0),     # source_y
-                (0.01, 2.0),     # source_size
-                (1.0, 10),       # source_ell
-                (-180, 180),     # source_ang
-                (0.3, 6.0),      # n_sersic
-                (0.001, 5.0),    # Ie
-            ]
-            
-            # Profile Likelihood计算函数
-            def profile_likelihood(param_index, param_value):
-                """固定param_index为param_value，优化其他参数"""
-                def constrained_residual(x):
-                    x_fixed = x.copy()
-                    x_fixed[param_index] = param_value
-                    return residual(x_fixed)
-                
-                # 创建除固定参数外的边界
-                lower = np.array(lower_bounds).copy()
-                upper = np.array(upper_bounds).copy()
-                lower[param_index] = param_value
-                upper[param_index] = param_value
-                
-                x0 = result.x.copy()
-                x0[param_index] = param_value
-                
-                res = optimize.least_squares(
-                    constrained_residual,
-                    x0,
-                    method='trf',
-                    bounds=(lower, upper),
-                    max_nfev=100,
-                    ftol=1e-6,
-                    xtol=1e-6
-                )
-                return 2.0 * res.cost  # 返回chi2
-            
-            # 计算每个参数的Profile Likelihood
-            sigma_profile = []
-            chi2_min = 2.0 * result.cost  # 最优chi2
-            
-            for k in range(n_params):
-                best_val = result.x[k]
-                lb, ub = search_bounds[k]
-                
-                # 定义目标函数：找到使得chi2 = chi2_min + 1的参数值
-                def find_bound(direction):
-                    # direction = +1 找上边界，direction = -1 找下边界
-                    target_chi2 = chi2_min + 1.0
-                    
-                    # 初始搜索范围
-                    a, b = best_val, best_val + direction * (ub - lb) * 0.2
-                    
-                    # 二分搜索
-                    for _ in range(20):
-                        mid = (a + b) / 2
-                        if mid < lb or mid > ub:
-                            break
-                        current_chi2 = profile_likelihood(k, mid)
-                        
-                        if current_chi2 < target_chi2:
-                            a = mid  # 需要继续向外搜索
-                        else:
-                            b = mid
-                    
-                    return a
-                
-                try:
-                    lower_bound = find_bound(-1)
-                    upper_bound = find_bound(1)
-                    sigma = (upper_bound - lower_bound) / 2.0
-                    sigma_profile.append(max(sigma, 1e-10))
-                except:
-                    # 如果Profile Likelihood失败，使用Jacobian估计作为后备
-                    sigma_profile.append(sigma_values[k])
-            
-            # 打印Profile Likelihood结果
-            print()
-            print("参数  | 最优值 | Profile误差(1σ) | 相对误差")
-            print("------|--------|----------------|----------")
-            for k in range(n_params):
-                name = param_names[k] if k < len(param_names) else f"p{k}"
-                val = result.x[k]
-                sig = sigma_profile[k]
-                rel = sig / abs(val) * 100 if abs(val) > 1e-10 else float('inf')
-                print(f"{name:6s} | {val:.6f} | {sig:.6f} | {rel:.1f}%")
-            
-            # 与Jacobian估计对比
-            print()
-            print("Jacobian与Profile Likelihood对比：")
-            print("参数  | Jacobian | Profile | 比值")
-            print("------|----------|---------|------")
-            for k in range(n_params):
-                name = param_names[k] if k < len(param_names) else f"p{k}"
-                jac = sigma_values[k]
-                prof = sigma_profile[k]
-                ratio = prof / jac if jac > 0 else float('nan')
-                print(f"{name:6s} | {jac:.6f} | {prof:.6f} | {ratio:.2f}")
-            
-            # 使用Profile Likelihood结果作为最终的误差估计
-            sigma_values = sigma_profile
-            print()
-            print("✓ 已将sigma_values更新为Profile Likelihood误差估计")
-
-        except Exception as cov_err:
-            print(f"协方差矩阵计算失败: {str(cov_err)}")
-            error_estimation_success = False
-
-        print("====== 误差估计完成 ======")
-        print()
-
         # 确保镜头和源的角度始终在 0-180 之间
         result.x[4] = result.x[4] % 180
         result.x[9] = result.x[9] % 180
 
-        # 返回结果（保持与前端兼容的接口格式）
+        # 返回结果
         return {
             'x': result.x.tolist(),
             'fun': float(reduced_chi2),
@@ -1173,10 +941,7 @@ def run_optimization():
             'success': bool(result.success),
             'message': str(result.message),
             'history': optimization_history,
-            'params_history': params_history,
-            'sigma': sigma_values,
-            'covariance': covariance_matrix,
-            'error_estimation_success': error_estimation_success
+            'params_history': params_history
         }
 
     except Exception as e:
@@ -1189,24 +954,6 @@ run_optimization()
 			// 处理结果 将Map转换为普通对象
 			result = Object.fromEntries(result.toJs());
 			console.log("优化结果:", result);
-
-			// 输出参数误差估计结果
-			if (result.error_estimation_success && result.sigma) {
-				window.lets.model.sigma = result.sigma;
-				const paramNames = [
-					'lens_x', 'lens_y', 'theta_e', 'lens_ell', 'lens_ang',
-					'source_x', 'source_y', 'source_size', 'source_ell', 'source_ang', 'n_sersic', 'Ie'
-				];
-				console.log("====== 参数误差估计 (1σ) ======");
-				for (let k = 0; k < result.x.length; k++) {
-					const name = paramNames[k] || `p${k}`;
-					const val = result.x[k];
-					const sig = result.sigma[k];
-					console.log(`  ${name}: ${val.toFixed(6)} ± ${sig.toFixed(6)}`);
-				}
-			} else {
-				console.warn("误差估计未成功，sigma值不可用");
-			}
 
 			if (!result.success) {
 				console.warn("优化未成功收敛:", result.message);

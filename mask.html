@@ -87,6 +87,40 @@
 			</td>
 		</tr>
 	</table>
+	<!-- ====== 图像拉伸控制面板 ====== -->
+	<div id="stretch-panel" style="margin: 10px auto; padding: 12px 18px; background: #1a1a2e; border-radius: 8px; max-width: 820px; display: none;">
+		<div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; font-size: 13px;">
+			<!-- 拉伸模式 -->
+			<label style="display: flex; align-items: center; gap: 6px;">
+				<span>拉伸模式：</span>
+				<select id="stretchMode" onchange="onStretchParamChange()" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #444; background: #16213e; color: #fff;">
+					<option value="linear">Linear（线性）</option>
+					<option value="log" selected>Log（对数）</option>
+					<option value="asinh">Asinh（反双曲正弦）</option>
+					<option value="sqrt">Sqrt（平方根）</option>
+				</select>
+			</label>
+			<!-- 拉伸强度 -->
+			<label style="display: flex; align-items: center; gap: 6px;">
+				<span>强度：</span>
+				<input type="range" id="stretchIntensity" min="1" max="100" value="50" oninput="onStretchParamChange()" style="width: 120px;">
+				<span id="stretchIntensityVal" style="min-width: 28px; text-align: right;">50</span>
+			</label>
+			<!-- 黑点百分位 -->
+			<label style="display: flex; align-items: center; gap: 6px;">
+				<span>Black：</span>
+				<input type="range" id="vminPercent" min="0" max="50" value="1" step="0.5" oninput="onStretchParamChange()" style="width: 100px;">
+				<span id="vminPercentVal" style="min-width: 36px; text-align: right;">1%</span>
+			</label>
+			<!-- 白点百分位 -->
+			<label style="display: flex; align-items: center; gap: 6px;">
+				<span>White：</span>
+				<input type="range" id="vmaxPercent" min="50" max="100" value="99.5" step="0.5" oninput="onStretchParamChange()" style="width: 100px;">
+				<span id="vmaxPercentVal" style="min-width: 42px; text-align: right;">99.5%</span>
+			</label>
+		</div>
+	</div>
+
 	<div id="mode-indicator" style="margin: 10px 0; font-weight: bold; text-align: center; color: #ffffff;">
 		Current mode: <span id="current-mode">maskInner</span>
 	</div>
@@ -184,7 +218,20 @@
 		margin: 5px;
 		border: 1px solid #666666;
 		position: relative;
-		/*background-size: 400px 400px;*/
+		overflow: hidden;
+	}
+
+	/* 让MarkingSurface的SVG铺满bar容器 */
+	.bar .marking-surface {
+		width: 100%;
+		height: 100%;
+		position: relative;
+	}
+
+	.bar svg.marking-surface-svg {
+		width: 100% !important;
+		height: 100% !important;
+		display: block;
 	}
 
 	.barTitle {
@@ -261,6 +308,9 @@
 	var masks = [];
 	var maskMode = 'maskInner';
 	var img;
+
+	// ====== 图像拉伸相关状态 ======
+	var stretchImageData = null;   // { data, width, height, convert } 用于实时重绘
 
 	// ============================================================
 	// 新增：保留原始 FITS 浮点数据（不经任何归一化）
@@ -385,6 +435,43 @@
 		console.log('All masks cleared');
 	}
 
+	// ====== 图像拉伸参数变化回调（带防抖） ======
+	var _stretchTimer = null;
+	function onStretchParamChange() {
+		// 更新数值显示（立即）
+		document.getElementById('stretchIntensityVal').textContent = document.getElementById('stretchIntensity').value;
+		document.getElementById('vminPercentVal').textContent = document.getElementById('vminPercent').value + '%';
+		document.getElementById('vmaxPercentVal').textContent = document.getElementById('vmaxPercent').value + '%';
+		// 防抖：拖动滑块时避免过于频繁的重绘
+		clearTimeout(_stretchTimer);
+		_stretchTimer = setTimeout(redrawImage, 50);
+	}
+
+	// 用当前拉伸参数重新渲染左侧图像（直接操作SVG，绕过img.onload）
+	function redrawImage() {
+		if (!stretchImageData) return;
+		const params = {
+			stretchMode: document.getElementById('stretchMode').value,
+			stretchIntensity: parseInt(document.getElementById('stretchIntensity').value),
+			vminPercent: parseFloat(document.getElementById('vminPercent').value),
+			vmaxPercent: parseFloat(document.getElementById('vmaxPercent').value)
+		};
+		// 生成新的拉伸图像URL
+		const url = window.imageProcessor.applyImageStretch(
+			stretchImageData.data, stretchImageData.width, stretchImageData.height,
+			stretchImageData.convert, params
+		);
+		// 直接找到SVG中的image元素并更新（绕过img.onload）
+		// 使用querySelectorAll取最后一个，因为每次上传新图都会追加新的image元素
+		const svgNode = ms.svg.el;
+		const allImages = svgNode.querySelectorAll('image');
+		const svgImg = allImages.length > 0 ? allImages[allImages.length - 1] : null;
+		if (svgImg) {
+			svgImg.setAttribute('href', url);
+			svgImg.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', url);
+		}
+	}
+
 	// 上传图像函数 - 支持普通图像和FITS文件
 	function uploadImage() {
 		let input = document.createElement('input');
@@ -399,6 +486,8 @@
 				// 新图像加载：清掉旧的 FITS 浮点数据
 				originalFitsData = null;
 				originalFitsHeaderCards = null;
+				stretchImageData = null;
+				document.getElementById('stretch-panel').style.display = 'none';
 				updateFitsStatus();
 
 				if (fileName.endsWith('.fits') || fileName.endsWith('.fit') || fileName.endsWith('.fts')) {
@@ -419,8 +508,35 @@
 
 	// 处理普通图像文件
 	function handleImageFile(file) {
+		// 对普通图片，用 canvas 读取像素数据以支持拉伸
 		let url = window.URL.createObjectURL(file);
-		img.src = url;
+		let tempImg = new Image();
+		tempImg.onload = function() {
+			let c = document.createElement('canvas');
+			c.width = tempImg.width;
+			c.height = tempImg.height;
+			let ctx = c.getContext('2d');
+			ctx.drawImage(tempImg, 0, 0);
+			let imgData = ctx.getImageData(0, 0, c.width, c.height);
+			// 转灰度存入 stretchImageData（取RGB均值）
+			let gray = new Float32Array(c.width * c.height);
+			for (let k = 0; k < gray.length; k++) {
+				gray[k] = (imgData.data[k*4] + imgData.data[k*4+1] + imgData.data[k*4+2]) / 3.0;
+			}
+			stretchImageData = { data: gray, width: c.width, height: c.height, convert: false };
+			// 默认使用 log 模式显示
+			const params = {
+				stretchMode: document.getElementById('stretchMode').value,
+				stretchIntensity: parseInt(document.getElementById('stretchIntensity').value),
+				vminPercent: parseFloat(document.getElementById('vminPercent').value),
+				vmaxPercent: parseFloat(document.getElementById('vmaxPercent').value)
+			};
+			let stretchUrl = window.imageProcessor.applyImageStretch(gray, c.width, c.height, false, params);
+			img.src = stretchUrl;
+			document.getElementById('stretch-panel').style.display = 'block';
+			window.URL.revokeObjectURL(url);
+		};
+		tempImg.src = url;
 	}
 
 	// 处理FITS文件：保留原始浮点数据 + 生成显示用 PNG
@@ -474,9 +590,27 @@
 				}
 				console.log(`FITS loaded: ${width}×${height}, range [${_vmin.toExponential(3)}, ${_vmax.toExponential(3)}]`);
 
-				// 生成显示用 URL（只影响画面，不影响 originalFitsData）
-				const url = getImage(imageData, width, height, convert);
+				// 保存原始数据用于实时拉伸重绘
+				stretchImageData = {
+					data: originalFitsData.data,
+					width: width,
+					height: height,
+					convert: convert
+				};
+
+				// 使用 log 模式生成显示用 URL
+				const params = {
+					stretchMode: document.getElementById('stretchMode').value,
+					stretchIntensity: parseInt(document.getElementById('stretchIntensity').value),
+					vminPercent: parseFloat(document.getElementById('vminPercent').value),
+					vmaxPercent: parseFloat(document.getElementById('vmaxPercent').value)
+				};
+				const url = window.imageProcessor.applyImageStretch(
+					originalFitsData.data, width, height, convert, params
+				);
 				img.src = url;
+				// 显示拉伸控制面板
+				document.getElementById('stretch-panel').style.display = 'block';
 			});
 		});
 	}
@@ -945,98 +1079,87 @@
 			console.log('No masks to apply');
 			return;
 		}
-		// 获取原始图像
-		let originalImg = img;
-		if (!originalImg) {
-			console.error('No image found');
+		// 如果没有FITS数据，使用img元素绘制（普通图片模式）
+		// 如果有FITS数据，使用stretchImageData直接绘制（更准确）
+		if (!stretchImageData) {
+			alert('No image data available. Please upload an image first.');
 			return;
 		}
-		// 获取MaskContainer的尺寸用于对齐
-		let maskContainer = document.getElementById('MaskContainer');
-		let containerRect = maskContainer.getBoundingClientRect();
-		let imgRect = originalImg.getBoundingClientRect();
 
-		// 创建canvas来处理图像，保持与显示图像相同的尺寸
 		let canvas = document.createElement('canvas');
 		let ctx = canvas.getContext('2d');
+		canvas.width = stretchImageData.width;
+		canvas.height = stretchImageData.height;
 
-		// 使用显示图像的实际尺寸，确保对齐
-		let displayWidth = originalImg.clientWidth || originalImg.width;
-		let displayHeight = originalImg.clientHeight || originalImg.height;
+		// 使用applyImageStretch重新生成图像并绘制到canvas
+		const params = {
+			stretchMode: document.getElementById('stretchMode').value,
+			stretchIntensity: parseInt(document.getElementById('stretchIntensity').value),
+			vminPercent: parseFloat(document.getElementById('vminPercent').value),
+			vmaxPercent: parseFloat(document.getElementById('vmaxPercent').value)
+		};
+		const stretchUrl = window.imageProcessor.applyImageStretch(
+			stretchImageData.data, stretchImageData.width, stretchImageData.height,
+			stretchImageData.convert, params
+		);
+		const tempImg = new Image();
+		tempImg.onload = function() {
+			// 绘制拉伸后的图像
+			ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
+			let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+			let data = imageData.data;
 
-		// 设置canvas尺寸与显示图像一致
-		canvas.width = originalImg.naturalWidth || originalImg.width;
-		canvas.height = originalImg.naturalHeight || originalImg.height;
+			// 分类处理mask
+			let innerMasks = masks.filter(m => m.mode === 'maskInner');
+			let outerMasks = masks.filter(m => m.mode === 'maskOuter');
 
-		// 绘制原始图像
-		ctx.drawImage(originalImg, 0, 0);
+			for (let y = 0; y < canvas.height; y++) {
+				for (let x = 0; x < canvas.width; x++) {
+					let index = (y * canvas.width + x) * 4;
 
-		// 获取图像数据
-		let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-		let data = imageData.data;
+					let inAnyInnerCircle = innerMasks.some(mask => {
+						let dx = x - mask.x;
+						let dy = y - mask.y;
+						return Math.sqrt(dx * dx + dy * dy) <= mask.r;
+					});
 
-		// 分类处理mask
-		let innerMasks = masks.filter(m => m.mode === 'maskInner');
-		let outerMasks = masks.filter(m => m.mode === 'maskOuter');
+					let inAnyOuterCircle = outerMasks.some(mask => {
+						let dx = x - mask.x;
+						let dy = y - mask.y;
+						return Math.sqrt(dx * dx + dy * dy) <= mask.r;
+					});
 
-		for (let y = 0; y < canvas.height; y++) {
-			for (let x = 0; x < canvas.width; x++) {
-				let index = (y * canvas.width + x) * 4;
+					let shouldErase = false;
+					if (innerMasks.length > 0 && inAnyInnerCircle) shouldErase = true;
+					if (outerMasks.length > 0 && !inAnyOuterCircle) shouldErase = true;
 
-				// 检查像素位置
-				let inAnyInnerCircle = innerMasks.some(mask => {
-					let dx = x - mask.x;
-					let dy = y - mask.y;
-					return Math.sqrt(dx * dx + dy * dy) <= mask.r;
-				});
-
-				let inAnyOuterCircle = outerMasks.some(mask => {
-					let dx = x - mask.x;
-					let dy = y - mask.y;
-					return Math.sqrt(dx * dx + dy * dy) <= mask.r;
-				});
-
-				// 应用mask规则
-				let shouldErase = false;
-
-				if (innerMasks.length > 0 && inAnyInnerCircle) {
-					// maskInner模式：圆内数据擦除置零
-					shouldErase = true;
-				}
-
-				if (outerMasks.length > 0 && !inAnyOuterCircle) {
-					// maskOuter模式：圆外数据擦除置零
-					shouldErase = true;
-				}
-
-				if (shouldErase) {
-					data[index] = 0;     // R
-					data[index + 1] = 0; // G
-					data[index + 2] = 0; // B
+					if (shouldErase) {
+						data[index] = 0;
+						data[index + 1] = 0;
+						data[index + 2] = 0;
+					}
 				}
 			}
-		}
 
-		// 将处理后的图像数据放回canvas
-		ctx.putImageData(imageData, 0, 0);
+			ctx.putImageData(imageData, 0, 0);
 
-		// 获取已存在的result-container
-		let resultDiv = document.getElementById('result-container');
-		resultDiv.innerHTML = ''; // 清空之前的内容
-		resultDiv.style.padding = '0'; // 移除内边距确保对齐
+			let resultDiv = document.getElementById('result-container');
+			resultDiv.innerHTML = '';
+			resultDiv.style.padding = '0';
 
-		let resultImg = document.createElement('img');
-		resultImg.src = canvas.toDataURL();
-		resultImg.style.maxWidth = '100%';
-		resultImg.style.maxHeight = 'none'; // 移除高度限制
-		resultImg.style.border = 'none'; // 移除边框确保对齐
-		resultImg.style.borderRadius = '0'; // 移除圆角确保对齐
-		resultImg.style.display = 'block'; // 确保图像对齐
+			let resultImg = document.createElement('img');
+			resultImg.src = canvas.toDataURL();
+			resultImg.style.maxWidth = '100%';
+			resultImg.style.maxHeight = 'none';
+			resultImg.style.border = 'none';
+			resultImg.style.borderRadius = '0';
+			resultImg.style.display = 'block';
 
-		resultDiv.appendChild(resultImg);
-
-		console.log('Masks applied successfully');
-		updateMaskStats();
+			resultDiv.appendChild(resultImg);
+			console.log('Masks applied successfully');
+			updateMaskStats();
+		};
+		tempImg.src = stretchUrl;
 	}
 
 </script>

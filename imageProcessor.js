@@ -216,10 +216,102 @@ function getImage(imageData, width, height, convert){
 	return url;
 }
 
+/**
+ * 对图像数据应用各种拉伸变换（线性/log/asinh/sqrt）
+ * @param {Float32Array|Float64Array} data - 原始浮点图像数据
+ * @param {number} width - 图像宽度
+ * @param {number} height - 图像高度
+ * @param {boolean} convert - 是否翻转Y轴
+ * @param {Object} params - 拉伸参数
+ * @param {string} params.stretchMode - 拉伸模式: 'linear'|'log'|'asinh'|'sqrt'
+ * @param {number} params.stretchIntensity - 拉伸强度 (1-100)
+ * @param {number} params.vminPercent - 黑点百分位 (0-100)
+ * @param {number} params.vmaxPercent - 白点百分位 (0-100)
+ * @returns {string} canvas.toDataURL()
+ */
+function applyImageStretch(data, width, height, convert, params) {
+	const stretchMode = params.stretchMode || 'log';
+	const stretchIntensity = params.stretchIntensity || 50;
+	const vminPercent = params.vminPercent || 1;
+	const vmaxPercent = params.vmaxPercent || 99.5;
+
+	// 用百分位计算 vmin/vmax，比固定 min/max 更鲁棒
+	let sortedVals = [];
+	// 为性能只采样部分像素（最多取 50 万个点）
+	const totalPixels = data.length;
+	const sampleStep = Math.max(1, Math.floor(totalPixels / 500000));
+	for (let i = 0; i < totalPixels; i += sampleStep) {
+		if (isFinite(data[i])) sortedVals.push(data[i]);
+	}
+	sortedVals.sort((a, b) => a - b);
+	const idxLo = Math.floor(sortedVals.length * vminPercent / 100);
+	const idxHi = Math.min(Math.floor(sortedVals.length * vmaxPercent / 100), sortedVals.length - 1);
+	let vmin = sortedVals[idxLo] || 0;
+	let vmax = sortedVals[idxHi] || 1;
+	if (vmax <= vmin) vmax = vmin + 1e-10;
+
+	// Asinh 拉伸的 softening 参数：强度越大，线性区越窄，暗部细节越突出
+	const softening = 1.0 / (stretchIntensity * 0.1 + 0.5);
+
+	let canvas = document.createElement('canvas');
+	canvas.width = width;
+	canvas.height = height;
+	let ctx = canvas.getContext('2d');
+	let canvasData = ctx.createImageData(width, height);
+
+	for (let i = 0; i < height; i++) {
+		let srcRow = convert ? (height - 1 - i) : i;
+		for (let j = 0; j < width; j++) {
+			let rawVal = data[srcRow * width + j];
+			if (!isFinite(rawVal)) rawVal = 0;
+
+			// 归一化到 [0, 1]（vmin→0, vmax→1）
+			let normalized = (rawVal - vmin) / (vmax - vmin);
+			normalized = Math.max(0, Math.min(1, normalized));
+
+			let stretched;
+			switch (stretchMode) {
+				case 'linear':
+					stretched = normalized;
+					break;
+				case 'log':
+					// log10 拉伸：需要一个小偏移避免 log(0)
+					// 强度越大，偏移越小，暗部细节越明显
+					const logOffset = 1.0 / (stretchIntensity * 0.5 + 1);
+					stretched = Math.log10(1 + normalized * (1 / logOffset - 1)) /
+					            Math.log10(1 + 1 / logOffset - 1);
+					break;
+				case 'asinh':
+					// asinh 拉伸（天文学标准）：比 log 更平滑地处理极端动态范围
+					stretched = Math.asinh(normalized / softening) /
+					            Math.asinh(1.0 / softening);
+					break;
+				case 'sqrt':
+					stretched = Math.sqrt(normalized);
+					break;
+				default:
+					stretched = normalized;
+			}
+
+			stretched = Math.max(0, Math.min(1, stretched));
+
+			let rgb = hotColormap(stretched);
+			let idx = (i * width + j) * 4;
+			canvasData.data[idx] = rgb[0];
+			canvasData.data[idx + 1] = rgb[1];
+			canvasData.data[idx + 2] = rgb[2];
+			canvasData.data[idx + 3] = 255;
+		}
+	}
+	ctx.putImageData(canvasData, 0, 0);
+	return canvas.toDataURL();
+}
+
 // 公开函数接口
 window.imageProcessor = {
 	delForeground,
 	applyMask,
 	getImage,
-	hotColormap
+	hotColormap,
+	applyImageStretch
 };
