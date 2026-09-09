@@ -1,8 +1,8 @@
 /**
- * 图片查看器功能模块
+ * Image viewer feature module
  */
 
-// 图片查看器状态变量
+// Image viewer state variables
 let currentScale = 1;
 let translateX = 0;
 let translateY = 0;
@@ -10,7 +10,7 @@ let isDragging = false;
 let startX = 0;
 let startY = 0;
 
-// 将所有相关函数暴露到全局作用域
+// Expose all related functions to the global scope
 window.openImageViewer = openImageViewer;
 window.closeImageViewer = closeImageViewer;
 window.handleWheel = handleWheel;
@@ -22,15 +22,15 @@ window.handleKeyDown = handleKeyDown;
 window.updateImageTransform = updateImageTransform;
 
 /**
- * 打开图片查看器
- * @param {string} imgSrc - 图片源URL
+ * Open the image viewer
+ * @param {string} imgSrc - Image source URL
  */
 function openImageViewer(imgSrc) {
   const viewer = document.getElementById('image-viewer');
   const viewerImg = document.getElementById('viewer-img');
   viewerImg.src = imgSrc;
   
-  // 重置状态
+  // Reset the state
   currentScale = 1;
   translateX = 0;
   translateY = 0;
@@ -38,11 +38,11 @@ function openImageViewer(imgSrc) {
   
   viewer.style.display = 'flex';
   
-  // 添加滚轮缩放事件
+  // Add the wheel zoom event
   viewerImg.onwheel = handleWheel;
   viewer.onclick = handleBackgroundClick;
   
-  // 添加拖拽相关事件
+  // Add drag-related events
   viewerImg.onmousedown = function(event) {
     this.style.cursor = 'grabbing';
     handleMouseDown(event);
@@ -57,19 +57,19 @@ function openImageViewer(imgSrc) {
     handleMouseUp(event);
   };
   
-  // 添加键盘Esc键监听
+  // Add keyboard listener for the Esc key
   document.addEventListener('keydown', handleKeyDown);
 }
 
 /**
- * 关闭图片查看器
+ * Close the image viewer
  */
 function closeImageViewer() {
   const viewer = document.getElementById('image-viewer');
   const viewerImg = document.getElementById('viewer-img');
   viewer.style.display = 'none';
   
-  // 清除所有事件监听器
+  // Clear all event listeners
   viewerImg.onwheel = null;
   viewer.onclick = null;
   viewerImg.onmousedown = null;
@@ -77,59 +77,59 @@ function closeImageViewer() {
   viewerImg.onmouseup = null;
   viewerImg.onmouseleave = null;
   
-  // 移除键盘事件监听
+  // Remove the keyboard event listener
   document.removeEventListener('keydown', handleKeyDown);
 }
 
 /**
- * 处理键盘按下事件
- * @param {KeyboardEvent} event - 键盘事件对象
+ * Handle the keydown event
+ * @param {KeyboardEvent} event - Keyboard event object
  */
 function handleKeyDown(event) {
-  // 监听Esc键(键码27)，按下时退出图片查看器
+  // Listen for the Esc key (key code 27); close the viewer when pressed
   if (event.key === 'Escape' || event.keyCode === 27) {
     closeImageViewer();
   }
 }
 
 /**
- * 处理背景点击事件
- * @param {MouseEvent} event - 鼠标事件对象
+ * Handle background click event
+ * @param {MouseEvent} event - Mouse event object
  */
 function handleBackgroundClick(event) {
-  // 只有点击背景区域时才退出，点击图片不退出
+  // Close only when the background area is clicked; do not close when the image is clicked
   if (event.target === document.getElementById('image-viewer')) {
     closeImageViewer();
   }
 }
 
 /**
- * 处理滚轮缩放事件
- * @param {WheelEvent} event - 滚轮事件对象
+ * Handle the wheel zoom event
+ * @param {WheelEvent} event - Wheel event object
  */
 function handleWheel(event) {
   event.preventDefault();
   
-  // 计算鼠标位置在图片上的相对位置（用于以鼠标为中心缩放）
+  // Compute the mouse position relative to the image (used to zoom around the cursor)
   const viewerImg = document.getElementById('viewer-img');
   const rect = viewerImg.getBoundingClientRect();
   const mouseX = event.clientX - rect.left;
   const mouseY = event.clientY - rect.top;
   
-  // 滚轮缩放逻辑
+  // Wheel zoom logic
   const prevScale = currentScale;
   if (event.deltaY < 0) {
-    // 向上滚轮，放大
+    // Scroll up to zoom in
     currentScale *= 1.1;
   } else {
-    // 向下滚轮，缩小
+    // Scroll down to zoom out
     currentScale /= 1.1;
   }
   
-  // 设置缩放比例限制
+  // Set the zoom ratio limits
   currentScale = Math.max(0.1, Math.min(currentScale, 10));
   
-  // 以鼠标位置为中心缩放
+  // Zoom around the mouse position
   const scaleDelta = currentScale - prevScale;
   translateX += mouseX * scaleDelta;
   translateY += mouseY * scaleDelta;
@@ -138,8 +138,8 @@ function handleWheel(event) {
 }
 
 /**
- * 处理鼠标按下事件（开始拖拽）
- * @param {MouseEvent} event - 鼠标事件对象
+ * Handle the mouse-down event (start dragging)
+ * @param {MouseEvent} event - Mouse event object
  */
 function handleMouseDown(event) {
   event.preventDefault();
@@ -149,8 +149,8 @@ function handleMouseDown(event) {
 }
 
 /**
- * 处理鼠标移动事件（拖拽中）
- * @param {MouseEvent} event - 鼠标事件对象
+ * Handle the mouse-move event (while dragging)
+ * @param {MouseEvent} event - Mouse event object
  */
 function handleMouseMove(event) {
   if (!isDragging) return;
@@ -161,14 +161,14 @@ function handleMouseMove(event) {
 }
 
 /**
- * 处理鼠标释放事件（结束拖拽）
+ * Handle the mouse-release event (end dragging)
  */
 function handleMouseUp() {
   isDragging = false;
 }
 
 /**
- * 更新图片的变换样式
+ * Update the transform style of the image
  */
 function updateImageTransform() {
   const viewerImg = document.getElementById('viewer-img');

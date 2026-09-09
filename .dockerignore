@@ -1,16 +1,16 @@
-# Git相关
+# Git-related files
 .git
 .gitignore
 .gitattributes
 
-# IDE和编辑器配置
+# IDE and editor configuration
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# Node.js (如果有的话)
+# Node.js (if any)
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -31,17 +31,17 @@ pip-delete-this-directory.txt
 # Jupyter Notebook
 .ipynb_checkpoints/
 
-# 数据文件和日志
+# Data files and logs
 *.log
 *.csv
 *.xlsx
 *.tmp
 
-# 备份文件
+# Backup files
 *.bak
 *.backup
 
-# OS生成的文件
+# OS-generated files
 .DS_Store
 .DS_Store?
 ._*
@@ -50,26 +50,26 @@ pip-delete-this-directory.txt
 ehthumbs.db
 Thumbs.db
 
-# Docker相关
+# Docker-related files
 Dockerfile*
 docker-compose*
 .dockerignore
 
-# 文档
+# Documentation
 *.md
 docs/
 
-# 测试文件
+# Test files
 tests/
 test/
 *.test.js
 *.spec.js
 
-# 构建输出 (仅在开发环境忽略，构建时需要)
+# Build output (ignored only in development; required for build)
 # dist/
 build/
 out/
 
-# 临时文件
+# Temporary files
 temp/
 tmp/

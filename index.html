@@ -3,11 +3,11 @@
 
 <title>Hoopla</title>
 <link rel="stylesheet" type="text/css" href="style.css">
-<!-- 引入Three.js库 -->
+<!-- Import the Three.js library -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 
-<!-- 引入星空粒子背景特效 -->
+<!-- Import the starfield particle background effect -->
 <script type="text/javascript" src="starfield-bg.js"></script>
 
 <script type="text/javascript" src="lib/underscore.js"></script>
@@ -20,7 +20,7 @@
 <script type="text/javascript" src="lib/hdf5.js"></script>
 <script type="text/javascript" src="lib/fits.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
-<!-- 导入分离的模块 -->
+<!-- Import separated modules -->
 <script type="module" src="fileHandler.js"></script>
 <script type="module" src="uiHandler.js"></script>
 
@@ -35,15 +35,15 @@
 	var scale = 1.0;
 	var globalImageData = null;
 	var lets,ms,ms_src,containerEl,containerEl_src,img,img_src;
-	// 在全局作用域声明
+	// Declare in the global scope
 	let pyodide = null;
-	// 全局变量，用于模块访问
+	// Global variable for module access
 	window.chartInstance = null;
-	// 全局PSF变量，用于存储上传的PSF数据
+	// Global PSF variable to store the uploaded PSF data
 	var globalPSFData = null;
 	var globalNoiseData = null;
 	
-	// 更新PSF状态标记函数
+	// Function to update the PSF status indicator
 	function updatePSFStatus() {
 		const psfStatus = document.getElementById('psfStatus');
 		if (psfStatus) {
@@ -56,32 +56,32 @@
 			}
 		}
 	}
-	// 暴露到window对象，以便其他模块调用
+	// Expose on the window object so that other modules can call it
 	window.updatePSFStatus = updatePSFStatus;
-// 初始化函数
+// Initialization function
 	async function initPyodide() {
 		try {
 			pyodide = await loadPyodide();
-			console.log("Pyodide基础环境加载完成");
+			console.log("Pyodide base environment loaded successfully");
 			try {
 				await pyodide.loadPackage('numpy');
-				// console.log("numpy加载完成");
+				// console.log("numpy loaded successfully");
 				await pyodide.loadPackage('scipy');
-				// console.log("scipy加载完成");
-				console.log("所有Python包加载完成");
+				// console.log("scipy loaded successfully");
+				console.log("All Python packages loaded successfully");
 				return true;
 			} catch (packageError) {
-				throw new Error("Python包加载失败: " + packageError.message);
+				throw new Error("Failed to load Python packages: " + packageError.message);
 			}
 		} catch (error) {
-			console.error("Pyodide初始化失败:", error);
+			console.error("Pyodide initialization failed:", error);
 			return false;
 		}
 	}
 		
 	async function loadDependencies() {
 		try {
-			// 使用动态 import 从 CDN 加载库
+			// Load libraries from CDN using dynamic import
 			const [ndarray, ops, fft, convolve] = await Promise.all([
 				import('https://esm.sh/ndarray'),
 				import('https://esm.sh/ndarray-ops'),
@@ -89,7 +89,7 @@
 				import('https://esm.sh/ndarray-convolve')
 			]);
 
-			// 挂载到全局 window 对象，供 optimization.js 等脚本使用
+			// Mount on the global window object for use by scripts such as optimization.js
 			window.ndarray = ndarray.default || ndarray;
 			window.ops = ops.default || ops;
 			window.fft = fft.default || fft;
@@ -97,16 +97,16 @@
 
 			console.log('Dependencies successfully loaded from CDN and attached to window');
 			
-			// 触发一个自定义事件，通知其他脚本（如 optimization.js）库已准备就绪
+			// Dispatch a custom event to notify other scripts (e.g. optimization.js) that the libraries are ready
 			window.dispatchEvent(new CustomEvent('libs-ready'));
 		} catch (error) {
 			console.error('Failed to load libraries from CDN:', error);
 		}
 	}
 
-	// 立即执行加载
+	// Load immediately
 	loadDependencies();
-	// 全局WebGPU变量
+	// Global WebGPU variables
 	let webgpuInitialized = false;
 	let webgpuUtils = null;
 	let fftConvolve = null;
@@ -114,13 +114,13 @@
 	let webGPUWidth = null;
 	let webGPUHeight = null;
 	
-	// 初始化WebGPU
+	// Initialize WebGPU
 	async function initWebGPU(width, height) {
 		if (webgpuInitialized) {
 			return;
 		}
 		try {
-			// 确保WebGPU工具类已加载
+			// Make sure the WebGPU utility class is loaded
 			if (typeof WebGPUUtils === 'undefined') {
 				console.error('WebGPUUtils is not defined, make sure webgpu-utils.js is loaded correctly.');
 				webgpuInitialized = false;
@@ -129,10 +129,10 @@
 			
 			webgpuUtils = new WebGPUUtils();
 			await webgpuUtils.init();
-			// 初始化FFT卷积
+			// Initialize the FFT convolution
 			fftConvolve = new WebGPUFFTConvolve(webgpuUtils);
 			await fftConvolve.init(width, height);
-			// 初始化PSF计算
+			// Initialize the PSF computation
 			psfComputer = new PSFComputer(webgpuUtils);
 			await psfComputer.init(width, height);
 			
@@ -140,11 +140,11 @@
 			console.log('WebGPU initialization completed successfully.');
 		} catch (error) {
 			console.error('Failed to initialize WebGPU:', error);
-			// 回退到CPU实现
+			// Fall back to the CPU implementation
 			webgpuInitialized = false;
 		}
 	}
-	// 初始化工作，包括对象的生成及赋值，以及一些函数操作
+	// Initialize work: create/assign objects and perform some function operations
 	async function setup(){
 		// Create a hoopla object. The ID is that of the <div>
 		lets = new Hoopla({
@@ -155,7 +155,7 @@
 			width: 400,
 			height: 400,
 		});
-		// 初始化WebGPU
+		// Initialize WebGPU
 		webGPUWidth = lets.width;
 		webGPUHeight = lets.height;
 		await initWebGPU(webGPUWidth, webGPUHeight);
@@ -312,7 +312,7 @@
 			ctx.drawImage(imgd, 0, 0);
 			let dstdata = ctx.getImageData(0, 0, imgd.width, imgd.height);
 			let data = dstdata.data;
-			//图像存储方式为RGBA，一个像素就是由（R,G,B,A）来存储的，将图像映射到红色通道上，所以长度为原数据长度的1/4
+			// Images are stored as RGBA, i.e. each pixel consists of (R,G,B,A); projecting the image onto the red channel, so the length is 1/4 of the raw data length
 			globalImageData = new Array(data.length/4);
 			for (let i = 0, n = globalImageData.length; i < n; i ++){
 				globalImageData[i] = data[i*4]/255;
@@ -322,13 +322,13 @@
 
 	window.onload = async function (e) {
 		try {
-			await initPyodide();  // 先将pyoide启动
+			await initPyodide();  // Start pyodide first
 		}catch (e) {
-			console.log("pyoide启动失败,错误:",e);
+			console.log("Failed to start pyodide, error:", e);
 		}
-		// 等待setup函数完成，setup函数内部会初始化WebGPU
+		// Wait for the setup function to finish; it initializes WebGPU internally
 		await setup();
-		// 初始化PSF状态标记
+		// Initialize the PSF status indicator
 		updatePSFStatus();
 		document.getElementById('imageUpload').onclick = function (e) {
 			document.getElementById("imgURL").innerText = "";
@@ -336,7 +336,7 @@
 			document.getElementById("noiseURL").innerText = "";
 			document.getElementById("psfURL").innerText = "";
 			document.querySelector('.popup-form').classList.add('active');
-			// 清空全局文件变量，确保每次上传都是新的文件
+			// Clear the global file variables so that each upload is treated as a new file
 			window._uploadedImageFile = null;
 			window._uploadedNoiseFile = null;
 			window._uploadedPSFFile = null;
@@ -348,7 +348,7 @@
 		document.getElementById("image-url").onchange = async function () {
 			let imageFile = this.files[0];
 			try {
-				// 动态导入模块
+				// Dynamically import the module
 				const fileModule = await import('./fileHandler.js');
 				
 				const result = await fileModule.handleImageUpload(imageFile, "image");
@@ -361,7 +361,7 @@
 		document.getElementById("noise-url").onchange = async function () {
 			let noiseFile = this.files[0];
 			try {
-				// 动态导入模块
+				// Dynamically import the module
 				const fileModule = await import('./fileHandler.js');
 				
 				const result = await fileModule.handleImageUpload(noiseFile, "noise");
@@ -374,7 +374,7 @@
 		document.getElementById("psf-url").onchange = async function () {
 			let psfFile = this.files[0];
 			try {
-				// 动态导入模块
+				// Dynamically import the module
 				const fileModule = await import('./fileHandler.js');
 				
 				const result = await fileModule.handleImageUpload(psfFile, "psf");
@@ -387,33 +387,33 @@
 		
 		img0 = new Image();
 		img0.onload = function() {
-			// 目标画布大小
+			// Target canvas size
 			const targetWidth = 400;
 			const targetHeight = 400;
-			console.log("原始图片宽度:", img0.width, "高度:", img0.height);
-			console.log("目标画布宽度:", targetWidth, "高度:", targetHeight);
-			// 计算缩放比例
+			console.log("Original image width:", img0.width, "height:", img0.height);
+			console.log("Target canvas width:", targetWidth, "height:", targetHeight);
+			// Compute the scaling ratio
 			const scaleX = targetWidth / img0.width;
 			const scaleY = targetHeight / img0.height;
-			scale = Math.max(scaleX, scaleY); // 取较大的缩放比例以铺满画布
-			console.log("缩放比例:", scale);
-			// 计算缩放后的图像尺寸
+			scale = Math.max(scaleX, scaleY); // Take the larger scaling ratio to cover the canvas
+			console.log("Scaling ratio:", scale);
+			// Compute the scaled image dimensions
 			const scaledWidth = img0.width * scale;
 			const scaledHeight = img0.height * scale;
-			// 创建临时画布进行图像缩放
+			// Create a temporary canvas to scale the image
 			const tempCanvas = document.createElement('canvas');
 			tempCanvas.width = targetWidth;
 			tempCanvas.height = targetHeight;
 			const tempCtx = tempCanvas.getContext('2d');
-			// 清除临时画布
+			// Clear the temporary canvas
 			tempCtx.clearRect(0, 0, targetWidth, targetHeight);
-			// 在临时画布中央绘制缩放后的图像
+			// Draw the scaled image in the center of the temporary canvas
 			const xOffset = (targetWidth - scaledWidth) / 2;
 			const yOffset = (targetHeight - scaledHeight) / 2;
 			tempCtx.drawImage(img0, xOffset, yOffset, scaledWidth, scaledHeight);
-			// 获取缩放后的图像URL
+			// Get the URL of the scaled image
 			const scaledUrl = tempCanvas.toDataURL();
-			// 更新所有图像和画布
+			// Update all images and canvases
 			lets.width = targetWidth;
 			lets.height = targetHeight;
 			img.src = scaledUrl;
@@ -438,13 +438,13 @@
 
 			lets.resetLens(targetWidth, targetHeight, lets.pixscale);
 
-			// 更新所有bar元素
+			// Update all bar elements
 			let bar = document.getElementsByClassName("bar");
 			for (let i = 0; i < bar.length; i++){
 				bar[i].style.backgroundImage = "url(" + scaledUrl + ")";
 				bar[i].style.height= targetHeight + "px";
 				bar[i].style.width = targetWidth + "px";
-				// 确保背景图像覆盖整个bar
+				// Make sure the background image covers the entire bar
 				bar[i].style.backgroundSize = "cover";
 				bar[i].style.backgroundPosition = "center";
 			}
@@ -459,7 +459,7 @@
 			let psfFile = window._uploadedPSFFile;
 			let pixscale = document.getElementById("pixel-scale").value;
 			
-			// 基本验证
+			// Basic validation
 			if (!imageFile) {
 				window.alert('Please select a valid file!');
 				return;
@@ -470,13 +470,13 @@
 			}
 			
 			try {
-				// 动态导入模块
+				// Dynamically import the module
 				const fileModule = await import('./fileHandler.js');
 				const uiModule = await import('./uiHandler.js');
 				
-				// 清理之前的Source和lens组件
+				// Clear the previous Source and lens components
 				if (lets && lets.model) {
-					// 重置模型组件为默认状态
+					// Reset the model components to their default state
 					lets.model.components = [
 						{
 							plane: "source",
@@ -489,30 +489,30 @@
 							Ie: 1.0,
 						}
 					];
-					// 重置冻结状态
+					// Reset the frozen state
 					lets.freezeSrcModel = false;
-					// 重新初始化
+					// Re-initialize
 					lets.init();
 				}
 				
-				// 调用文件处理模块处理图像
+				// Process the image using the file handler module
 				await fileModule.processImageFile(imageFile, pixscale, img0, lets);
 				
-				// 重置标记表面
+				// Reset the marking surfaces
 				ms.reset();
 				ms_src.reset();
-				// 更新像素比例显示
+				// Update the pixel-scale display
 				document.getElementById('newPixelScale').value = pixscale;
-				// 关闭弹窗
+				// Close the popup
 				document.querySelector('.popup-form').classList.remove('active');
-				// 清理卡方曲线图和参数趋势图
+				// Clear the chi-square curve and parameter trending charts
 				if (window.cleanupCanvas) {
 					window.cleanupCanvas();
 				}
-				// 重置全局PSF数据
+				// Reset the global PSF data
 				window.globalPSFData = null;
 				window.globalNoiseData = null;
-				// 更新PSF状态标记
+				// Update the PSF status indicator
 				updatePSFStatus();
 				
 			} catch (error) {
@@ -520,7 +520,7 @@
 			}
 			if (noiseFile){
 				try {
-					// 动态导入模块
+					// Dynamically import the module
 					const fileModule = await import('./fileHandler.js');
 					console.log("Noise file:", noiseFile);
 					const result = await fileModule.handleNoiseUpload(noiseFile);
@@ -533,12 +533,12 @@
 			if (psfFile){
 				try {
 					console.log("PSF file:", psfFile);
-					// 动态导入模块
+					// Dynamically import the module
 					const fileModule = await import('./fileHandler.js');
-					// 调用文件处理模块处理PSF文件
+					// Process the PSF file using the file handler module
 					// console.log('lets.width',lets.width);
 					await fileModule.handlePSFUpload(psfFile);
-					// 更新PSF状态标记
+					// Update the PSF status indicator
 					updatePSFStatus();
 				} catch (error) {
 					window.alert("Error uploading PSF: " + error.message);
@@ -548,10 +548,10 @@
 
 		document.getElementById("saveModel").onclick = async function fun() {
 			try {
-				// 动态导入模块
+				// Dynamically import the module
 				const fileModule = await import('./fileHandler.js');
 				
-				// 调用文件处理模块保存模型
+				// Save the model using the file handler module
 				await fileModule.saveModelToFile(img_src.src, lets);
 			} catch (error) {
 				window.alert("Error saving model: " + error.message);
@@ -564,10 +564,10 @@
 			let modelFile = input.files[0];
 			
 			try {
-				// 动态导入模块
+				// Dynamically import the module
 				const fileModule = await import('./fileHandler.js');
 				
-				// 调用文件处理模块加载模型
+				// Load the model using the file handler module
 				await fileModule.loadModelFile(
 					modelFile, 
 					updateCanvas,
@@ -575,16 +575,16 @@
 					lets,
 					scale
 				);
-				// 无论成功或失败，都清空文件输入字段，允许重新上传相同或已更改的文件
+				// Clear the file input regardless of success or failure, allowing re-upload of the same or a changed file
 				input.value = '';
 			} catch (error) {
 				window.alert("Error loading model: " + error.message);
-				// 清空文件输入字段，允许重新上传相同或已更改的文件
+				// Clear the file input to allow re-uploading the same or a changed file
 				input.value = '';
 			}
 		};
 		
-		// PSF上传事件处理
+		// PSF upload event handling
 		document.getElementById('psfUpload').onchange = async function (e) {
 			let input = e.target;
 			let psfFile = input.files[0];
@@ -594,27 +594,27 @@
 			}
 			
 			try {
-				// 动态导入模块
+				// Dynamically import the module
 				const fileModule = await import('./fileHandler.js');
 				
-				// 调用文件处理模块处理PSF文件
+				// Process the PSF file using the file handler module
 				await fileModule.handlePSFUpload(psfFile);
 				window.alert("PSF file uploaded successfully!");
-				// 更新PSF状态标记
+				// Update the PSF status indicator
 				updatePSFStatus();
-				// 清空文件输入字段，允许重新上传相同或已更改的文件
+				// Clear the file input to allow re-uploading the same or a changed file
 				input.value = '';
 			} catch (error) {
 				window.alert("Error uploading PSF: " + error.message);
-				// 清空文件输入字段，允许重新上传相同或已更改的文件
+				// Clear the file input to allow re-uploading the same or a changed file
 				input.value = '';
 			}
 		};
 	}
 
-	// 重置pixel scale
+	// Reset the pixel scale
   function reset() {
-    // 清理参数趋势图
+    // Clear the parameter trending chart
     if (typeof window.cleanupCanvas === 'function') {
       window.cleanupCanvas();
     }
@@ -622,26 +622,26 @@
     const pixscaleInput = document.getElementById('newPixelScale');
     const pixscale = pixscaleInput.value;
     
-    // 导入uiHandler模块并调用resetPixelScale函数
+    // Import the uiHandler module and call the resetPixelScale function
     import('./uiHandler.js').then(uiModule => {
       uiModule.resetPixelScale(pixscale, lets, window.scale);
       pixscaleInput.focus();
     }).catch(error => {
       console.error('Error importing uiHandler module:', error);
       
-      // 备用实现
+      // Fallback implementation
       const regex = /^\d{0,2}(\.\d{0,6})?$/;
       if(regex.test(pixscale)){
         if (window.lets) {
           const scaleValue = window.fileHandlerScale || 1;
           lets.pixscale = parseFloat(pixscale)/scaleValue;
-          // 同时更新模型中的像素比例
+          // Update the pixel scale in the model as well
           if (lets.model) {
             lets.model.pixscale = lets.pixscale;
           }
           console.log('Updated pixel scale:', lets.pixscale);
           
-          // 重置标记表面（如果可用）
+          // Reset the marking surfaces (if available)
           if (ms) ms.reset();
           if (ms_src) ms_src.reset();
         }
@@ -651,7 +651,7 @@
     });
   }
 	
-	// 仅监听maskRadius输入框的input事件，DOM加载时不执行绘制操作
+	// Only listen to the input event of the maskRadius input; no drawing is performed during DOM load
 document.addEventListener('DOMContentLoaded', function() {
 	const maskRadiusInput = document.getElementById('maskRadius');
 	if (maskRadiusInput) {
@@ -662,33 +662,33 @@ document.addEventListener('DOMContentLoaded', function() {
 		});
 	}
 	
-	// 处理模型参数对比线开关
+	// Handle the model parameter comparison line toggle
 	const modelComparisonToggle = document.getElementById('modelComparisonToggle');
 	if (modelComparisonToggle) {
-		// 初始化开关状态
+		// Initialize the toggle state
 		if (typeof window.drawModelComparisonLine !== 'undefined') {
 			modelComparisonToggle.checked = window.drawModelComparisonLine;
 		}
 		
-		// 添加点击事件监听器
+		// Add a change event listener
 		modelComparisonToggle.addEventListener('change', function() {
 			window.drawModelComparisonLine = this.checked;
-			console.log('模型参数对比线功能已' + (this.checked ? '启用' : '禁用'));
+			console.log('Model parameter comparison line ' + (this.checked ? 'enabled' : 'disabled'));
 		});
 	}
 
-	 // 初始化卡方曲线图
+	 // Initialize the chi-square curve chart
     if (typeof drawChiSquareCurve === 'function') {
       drawChiSquareCurve([]);
     }
-    // 初始化参数走势图
+    // Initialize the parameter trending chart
     if (typeof drawParamsTrendChart === 'function') {
       drawParamsTrendChart([]);
     }
     
-    // 为图片添加点击事件监听器，触发图片查看器
+    // Add click event listeners to images to trigger the image viewer
     function addImageClickListeners() {
-      // 为result-img添加点击事件
+      // Add a click event to result-img
       const resultImg = document.getElementById('result-img');
       if (resultImg) {
         resultImg.addEventListener('click', function() {
@@ -698,7 +698,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       }
       
-      // 为corner-img添加点击事件
+      // Add a click event to corner-img
       const cornerImg = document.getElementById('corner-img');
       if (cornerImg) {
         cornerImg.addEventListener('click', function() {
@@ -709,12 +709,12 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
     
-    // 添加图片点击事件监听器
+    // Add image click event listeners
     addImageClickListeners();
 });
 
 	function applyMask() {
-		// 清理参数趋势图
+		// Clear the parameter trending chart
 		if (window.cleanupCanvas) {
 			window.cleanupCanvas();
 		}
@@ -737,7 +737,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <div style="display: flex; gap: 10px; margin: 10px;">
-	<!-- 现有的6个画布表格 -->
+	<!-- The existing 6 canvas tables -->
 	<div style="flex: 1;">
 		<table>
 	<tr class="container">
@@ -808,15 +808,15 @@ document.addEventListener('DOMContentLoaded', function() {
 		</table>
 	</div>
 	
-	<!-- 参数走势图容器 -->
+	<!-- Parameter trending chart container -->
 	<div style="flex: 1; min-width: 0;">
 		<div class="paramChartTitle">
 			<p>Parameter Trending Charts</p>
 		</div>
 		<div id="paramsTrendContainer" style="flex: 1; min-width: 0;">
-		<!-- 参数走势图容器，4*3布局 -->
+		<!-- Parameter trending chart container, 4*3 layout -->
 		<div style="display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, auto); gap: 4px; padding: 8px;">
-			<!-- 第一行 -->
+			<!-- Row 1 -->
 			<div class="chart-container">
 				<canvas id="paramChart_0" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
 			</div>
@@ -826,7 +826,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<div class="chart-container">
 				<canvas id="paramChart_2" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
 			</div>
-			<!-- 第二行 -->
+			<!-- Row 2 -->
 			<div class="chart-container">
 				<canvas id="paramChart_3" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
 			</div>
@@ -836,7 +836,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<div class="chart-container">
 				<canvas id="paramChart_5" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
 			</div>
-			<!-- 第三行 -->
+			<!-- Row 3 -->
 			<div class="chart-container">
 				<canvas id="paramChart_6" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
 			</div>
@@ -846,7 +846,7 @@ document.addEventListener('DOMContentLoaded', function() {
 			<div class="chart-container">
 				<canvas id="paramChart_8" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
 			</div>
-			<!-- 第四行 -->
+			<!-- Row 4 -->
 			<div class="chart-container">
 				<canvas id="paramChart_9" width="320" height="200" style="width: 100%; height: 100%;"></canvas>
 			</div>
@@ -955,20 +955,20 @@ document.addEventListener('DOMContentLoaded', function() {
 	</form>
 </div>
 
-<!-- MCMC等待特效 -->
+<!-- MCMC waiting effect -->
 <div class="loading-overlay" id="loadingOverlay">
 	<div class="loading-content" style="position: relative;">
 		<span id="closeLoadingBtn" style="position: absolute; top: 10px; right: 20px; font-size: 28px; font-weight: bold; cursor: pointer; color: #ccc; transition: color 0.3s; display: none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'" onclick="closeLoadingCustom()">✕</span>
 		<div class="loading"></div>
-		<!-- MCMC进度条 -->
-		<div id="timeEstimate" class="progress-time">预计建模时间: 3分钟</div>
+		<!-- MCMC progress bar -->
+		<div id="timeEstimate" class="progress-time">Estimated modeling time: 3 min</div>
 		<div class="progress-container">
 			<div id="mcmcProgressBar" class="progress-bar">
 				<div class="progress-fill"></div>
 				<div class="progress-glow"></div>
 			</div>
 		</div>
-		<div id="progressText" class="progress-text">0% 完成 (0:00 / 3:00)</div>
+		<div id="progressText" class="progress-text">0% Complete (0:00 / 3:00)</div>
 		
 		<h3>Sampler Log</h3>
 		<pre id="log" style="color:rgb(255, 255, 255); padding:10px;width: 800px; height:400px; overflow:auto; font-size:14px;"></pre>
@@ -977,7 +977,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <div id="result-container">
   <div class="result-images-container">
-    <!-- 根据原始比例设置相同高度 -->
+    <!-- Set the same height based on the original aspect ratio -->
     <div class="result-image-wrapper">
       <img id="result-img" class="result-image">
     </div>
@@ -992,7 +992,7 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
 </div>
 
-<!-- 图片查看器模态窗口 -->
+<!-- Image viewer modal window -->
 <div id="image-viewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center;">
   <div style="position:relative; display:inline-block;">
     <img id="viewer-img" style="max-width:90%; max-height:90vh; transform-origin:center; cursor:grab;">
@@ -1011,9 +1011,9 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script type="text/javascript" src="lib/marking/marking-surface.js"></script>
 <script type="text/javascript" src="lib/marking/tools/ellipse.js"></script>
-<!-- 图片查看器脚本，需要在其他脚本之前加载 -->
+<!-- Image viewer script, must be loaded before other scripts -->
 <script type="text/javascript" src="imageViewer.js"></script>
-<!-- 外部JavaScript模块 -->
+<!-- External JavaScript modules -->
 <script type="module" src="webgpu-utils.js"></script>
 <script type="text/javascript" src="mcmcHandler.js"></script>
 <script type="text/javascript" src="optimization.js"></script>

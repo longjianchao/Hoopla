@@ -1,30 +1,30 @@
 /**
- * 文件处理模块 - 负责所有文件相关操作
+ * File handling module - responsible for all file-related operations
  */
 
-// 全局变量引用
+// Global variable references
 let  img0, convert, pixscale;
-// WebGPU相关全局变量
-let webGPUWidth = 400; // 默认宽度
-let webGPUHeight = 400; // 默认高度
-// 暴露scale变量给window对象，供其他模块使用
+// WebGPU-related global variables
+let webGPUWidth = 400; // default width
+let webGPUHeight = 400; // default height
+// Expose the scale variable to the window object for use by other modules
 window.fileHandlerScale = null;
 
 /**
- * 处理图像文件上传
- * @param {File} imageFile - 上传的图像文件
- * @returns {Promise} 包含图像URL和名称的Promise
+ * Handle the image file upload
+ * @param {File} imageFile - The uploaded image file
+ * @returns {Promise} A Promise containing the image URL and name
  */
 async function handleImageUpload(imageFile, type) {
   if (!imageFile || (!imageFile.name.endsWith('.h5') && !imageFile.name.match(/\.(fits|fit|fts)$/i) && !imageFile.name.endsWith('.png'))) {
     throw new Error('Only HDF5 (.h5) or Fits(.fits) or PNG files are allowed!');
   }
   if(type === "image"){
-    window._uploadedImageFile = imageFile; // 保存到全局
+    window._uploadedImageFile = imageFile; // Save to global
   } else if(type === "noise"){
-    window._uploadedNoiseFile = imageFile; // 保存到全局
+    window._uploadedNoiseFile = imageFile; // Save to global
   } else if(type === "psf"){
-    window._uploadedPSFFile = imageFile; // 保存到全局
+    window._uploadedPSFFile = imageFile; // Save to global
   }
   const url = window.URL.createObjectURL(imageFile);
   const imgName = imageFile.name.split('.')[0];
@@ -33,41 +33,41 @@ async function handleImageUpload(imageFile, type) {
 }
 
 /**
- * 处理图像文件加载（根据文件类型）
- * @param {File} imageFile - 图像文件
- * @param {number} pixelScale - 像素比例
- * @param {HTMLImageElement} imageObj - 图像对象
- * @param {Object} appInstance - 应用实例对象
- * @returns {Promise} 加载完成的Promise
+ * Handle image file loading (based on file type)
+ * @param {File} imageFile - The image file
+ * @param {number} pixelScale - Pixel scale
+ * @param {HTMLImageElement} imageObj - The image object
+ * @param {Object} appInstance - The app instance object
+ * @returns {Promise} A Promise resolving when loading completes
  */
 function processImageFile(imageFile, pixelScale, imageObj, appInstance) {
-  // 初始化全局变量
+  // Initialize global variables
   globalImageData = null;
   lets = appInstance;
   img0 = imageObj;
   return new Promise((resolve, reject) => {
     const handleImageLoaded = (result) => {
-      // 图像加载完成后，检查是否需要重新初始化WebGPU
+      // After the image is loaded, check whether WebGPU needs to be reinitialized
       if (typeof webgpuInitialized === 'undefined') {
         webgpuInitialized = false;
       }
-      // 检查图像尺寸是否变化，需要重新初始化WebGPU
+      // Check whether the image dimensions changed, requiring WebGPU reinitialization
       const currentWidth = typeof window.fftConvolve !== 'undefined' ? window.fftConvolve.width : 0;
       const currentHeight = typeof window.fftConvolve !== 'undefined' ? window.fftConvolve.height : 0;
       
       if (currentWidth !== result.width || currentHeight !== result.height) {
         webgpuInitialized = false;
         console.log(`Image loaded with size ${result.width}x${result.height}, reinitializing WebGPU...`);
-        // 重新初始化WebGPU，使用原始图像大小
+        // Reinitialize WebGPU using the original image size
         window.initWebGPU(result.width, result.height).then(() => {
-          // WebGPU 初始化完成后的逻辑（如有需要可在此补充）
+          // Logic to run after WebGPU initialization (add here if needed)
           resolve(result);
         }).catch(err => {
-          console.error('WebGPU 初始化失败:', err);
+          console.error('WebGPU initialization failed:', err);
           resolve(result);
         });
       } else {
-        // 不需要重新初始化WebGPU，直接返回结果
+        // No need to reinitialize WebGPU, return the result directly
         resolve(result);
       }
     };
@@ -85,10 +85,10 @@ function processImageFile(imageFile, pixelScale, imageObj, appInstance) {
 }
 
 /**
- * 加载H5格式文件
- * @param {File} imageFile - H5文件
- * @param {number} pixelScale - 像素比例
- * @returns {Promise} 加载完成的Promise
+ * Load an H5 format file
+ * @param {File} imageFile - The H5 file
+ * @param {number} pixelScale - Pixel scale
+ * @returns {Promise} A Promise resolving when loading completes
  */
 function loadH5File(imageFile, pixelScale) {
   return new Promise((resolve, reject) => {
@@ -107,7 +107,7 @@ function loadH5File(imageFile, pixelScale) {
           window.fileHandlerScale = scale;
           convert = false;
           
-          // 使用window.imageProcessor.getImage处理图像数据
+          // Process the image data using window.imageProcessor.getImage
           if (window.imageProcessor && window.imageProcessor.getImage) {
             let url = window.imageProcessor.getImage(imageData, width, height, convert);
             img0.src = url;
@@ -129,10 +129,10 @@ function loadH5File(imageFile, pixelScale) {
 }
 
 /**
- * 加载FITS格式文件
- * @param {File} imageFile - FITS文件
- * @param {number} pixelScale - 像素比例
- * @returns {Promise} 加载完成的Promise
+ * Load a FITS format file
+ * @param {File} imageFile - The FITS file
+ * @param {number} pixelScale - Pixel scale
+ * @returns {Promise} A Promise resolving when loading completes
  */
 function loadFitsFile(imageFile, pixelScale) {
   return new Promise((resolve, reject) => {
@@ -145,18 +145,18 @@ function loadFitsFile(imageFile, pixelScale) {
           let width = header.get('NAXIS1');
           let height = header.get('NAXIS2');
           scale = lets.height/height;
-          console.log("缩放比例是："+scale);
+          console.log("Scale ratio is: " + scale);
           window.fileHandlerScale = scale;
           convert = true;
           
           dataUnit.getFrame(0, function(imageData) {
             try {
-              // 使用window.imageProcessor.getImage处理图像数据
+              // Process the image data using window.imageProcessor.getImage
               if (window.imageProcessor && window.imageProcessor.getImage) {
                 let url = window.imageProcessor.getImage(imageData, width, height, convert);
                 img0.src = url;
                 lets.pixscale = pixelScale/scale;
-                console.log("缩放后的像素 scale 是："+lets.pixscale);
+                console.log("Pixel scale after scaling is: " + lets.pixscale);
                 resolve({ url, width, height });
               } else {
                 reject(new Error('imageProcessor module not available'));
@@ -176,52 +176,52 @@ function loadFitsFile(imageFile, pixelScale) {
 }
 
 /**
- * 加载PNG格式文件
- * @param {File} imageFile - PNG文件
- * @param {number} pixelScale - 像素比例
- * @returns {Promise} 加载完成的Promise
+ * Load a PNG format file
+ * @param {File} imageFile - The PNG file
+ * @param {number} pixelScale - Pixel scale
+ * @returns {Promise} A Promise resolving when loading completes
  */
 function loadPngFile(imageFile, pixelScale) {
   return new Promise((resolve) => {
     const url = document.getElementById("imgURL").innerText;
-    // 创建一个临时图像来获取实际尺寸
+    // Create a temporary image to get the actual dimensions
     const tempImg = new Image();
     tempImg.onload = function() {
-      // 计算缩放比例
+      // Calculate the scale ratio
       scale = lets.height / tempImg.height;
       window.fileHandlerScale = scale;
-      // 按比例调整像素比例
+      // Adjust the pixel scale proportionally
       lets.pixscale = pixelScale / scale;
-      // 更新模型中的像素比例
+      // Update the pixel scale in the model
       if (lets.model) {
         lets.model.pixscale = lets.pixscale;
       }
       
-      // 创建画布来处理PNG图像数据
+      // Create a canvas to process the PNG image data
       const canvas = document.createElement('canvas');
       canvas.width = tempImg.width;
       canvas.height = tempImg.height;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(tempImg, 0, 0);
       
-      // 获取图像数据
+      // Get the image data
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
       
       
-      // 使用Float64Array提高精度，与Python的float64一致
+      // Use Float64Array for higher precision, consistent with Python's float64
       globalImageData = new Float64Array(data.length / 4);
       for (let i = 0, n = globalImageData.length; i < n; i++) {
-        globalImageData[i] = data[i * 4] / 255; // 归一化到0-1范围
+        globalImageData[i] = data[i * 4] / 255; // normalized to the 0-1 range
       }
       
-      // 设置图像源
+      // Set the image source
       img0.src = url;
       
       resolve({ url, width: tempImg.width, height: tempImg.height });
     };
     tempImg.onerror = function() {
-      // 如果图像加载失败，至少设置像素比例
+      // If the image fails to load, at least set the pixel scale
       if (pixelScale && lets) {
         lets.pixscale = pixelScale;
         if (lets.model) {
@@ -235,20 +235,20 @@ function loadPngFile(imageFile, pixelScale) {
 }
 
 /**
- * 加载模型文件
- * @param {File} modelFile - 模型JSON文件
- * @param {Object} ms - 标记表面对象
- * @param {Object} ms_src - 源模型标记表面对象
- * @param {Function} updateCanvas - 更新画布函数
- * @param {Function} showRes - 显示结果函数
- * @param {Object} chartInstance - 图表实例引用
- * @param {Function} drawChiSquareCurve - 绘制卡方曲线函数
- * @param {Object} appInstance - 应用实例对象
- * @param {number} scaleValue - 缩放比例
- * @returns {Promise} 加载完成的Promise
+ * Load a model file
+ * @param {File} modelFile - The model JSON file
+ * @param {Object} ms - Marked surface object
+ * @param {Object} ms_src - Source model marked surface object
+ * @param {Function} updateCanvas - Canvas update function
+ * @param {Function} showRes - Result display function
+ * @param {Object} chartInstance - Chart instance reference
+ * @param {Function} drawChiSquareCurve - Chi-square curve drawing function
+ * @param {Object} appInstance - App instance object
+ * @param {number} scaleValue - Scale value
+ * @returns {Promise} A Promise resolving when loading completes
  */
 function loadModelFile(modelFile, updateCanvas, showRes, appInstance, scaleValue) {
-  // 初始化全局变量
+  // Initialize global variables
   lets = appInstance;
   scale = scaleValue;
   scale = window.fileHandlerScale;
@@ -294,36 +294,18 @@ function loadModelFile(modelFile, updateCanvas, showRes, appInstance, scaleValue
         
         let p = [xc1, xc2, re, ql, phl, yc1, yc2, sig2, qs, phs, n, Ie];
         showRes(p);
-        // console.log("p:", p);
         const x = components[0].x, y = components[0].y;
         const angle = lets.lens.ang2pix({x : x, y : y});  
         lets.update(angle);
-        // console.log("components:", components);
         
-        // 在加载模型后绘制参数对比线
+        // Draw the parameter comparison lines after loading the model
         if (window.drawModelComparisonLines) {
             try {
                 window.drawModelComparisonLines(p);
             } catch (err) {
-                console.warn('绘制模型参数对比线失败:', err);
+                console.warn('Failed to draw model parameter comparison lines:', err);
             }
         }
-        
-        // 导入UI处理模块并调用清理函数
-          // import('./uiHandler.js').then(uiModule => {
-          //   uiModule.cleanupCanvas();
-          // }).catch(error => {
-          //   console.error('Error importing uiHandler module for cleanup:', error);
-          //   // 备用清理逻辑
-          //   if (window.chartInstance) {
-          //     try {
-          //       window.chartInstance.destroy();
-          //       window.chartInstance = null;
-          //     } catch (e) {
-          //       console.warn('Failed to destroy chart instance:', e);
-          //     }
-          //   }
-          // });
         
         lets.setFreezed();
         resolve(data);
@@ -337,9 +319,9 @@ function loadModelFile(modelFile, updateCanvas, showRes, appInstance, scaleValue
 }
 
 /**
- * 保存模型
- * @param {string} imageSrc - 图像源URL
- * @param {Object} appInstance - 应用实例对象
+ * Save the model
+ * @param {string} imageSrc - Image source URL
+ * @param {Object} appInstance - App instance object
  */
 function saveModelToFile(imageSrc, appInstance) {
   if (appInstance) {
@@ -348,9 +330,9 @@ function saveModelToFile(imageSrc, appInstance) {
 }
 
 /**
- * 处理PSF文件上传
- * @param {File} psfFile - 上传的PSF文件
- * @returns {Promise} 包含PSF数据的Promise
+ * Handle the PSF file upload
+ * @param {File} psfFile - The uploaded PSF file
+ * @returns {Promise} A Promise containing the PSF data
  */
 async function handlePSFUpload(psfFile) {
   if (!psfFile || (!psfFile.name.match(/\.(fits|fit|fts)$/i) && !psfFile.name.endsWith('.h5'))) {
@@ -364,13 +346,13 @@ async function handlePSFUpload(psfFile) {
         try {
           let result = evt.target.result;
           if (psfFile.name.endsWith('.h5')) {
-            // 处理HDF5格式
+            // Handle HDF5 format
             let f = new hdf5.File(result, psfFile.name);
             let dataset = f.get('psf');
             let psfData = dataset.value;
             let shape = dataset.shape;
             
-            // 执行PSF归一化
+            // Perform PSF normalization
             const psfSum = psfData.reduce((sum, val) => sum + val, 0);
             let normalizedPsfData = psfData;
             if (psfSum !== 0) {
@@ -383,10 +365,10 @@ async function handlePSFUpload(psfFile) {
               height: shape[0],
               type: 'h5',
             };
-            // 保存到全局变量
+            // Save to a global variable
             window.globalPSFData = psfInfo;
             const kernelSize = Math.max(shape[1], shape[0], 17);
-            // 确保fftConvolve使用正确的kernelSize和尺寸
+            // Ensure fftConvolve uses the correct kernelSize and dimensions
             if (fftConvolve.kernelSize !== kernelSize) {
                 console.log(`lets.width/scale: ${lets.width/scale}, lets.height/scale: ${lets.height/scale}`)
                 fftConvolve.init(Math.floor(lets.width/scale), Math.floor(lets.height/scale), kernelSize);
@@ -394,7 +376,7 @@ async function handlePSFUpload(psfFile) {
             }
             resolve(psfInfo);
           } else {
-            // 处理FITS格式
+            // Handle FITS format
             new astro.FITS(psfFile, function(fits) {
               try {
                 const hdu = fits.getHDU();
@@ -405,7 +387,7 @@ async function handlePSFUpload(psfFile) {
                 
                 dataUnit.getFrame(0, function(psfData) {
                   try {
-                    // 执行PSF归一化
+                    // Perform PSF normalization
                     const psfSum = psfData.reduce((sum, val) => sum + val, 0);
                     let normalizedPsfData = psfData;
                     if (psfSum !== 0) {
@@ -418,11 +400,11 @@ async function handlePSFUpload(psfFile) {
                       height: height,
                       type: 'fits',
                     };
-                    // 保存到全局变量
+                    // Save to a global variable
                     window.globalPSFData = psfInfo;
-                    // 计算合适的kernelSize - 使用PSF的最大尺寸或17，取较大值
+                    // Compute an appropriate kernelSize - the larger of the PSF's maximum dimension or 17
                     const kernelSize = Math.max(width, height, 17);
-                    // 确保fftConvolve使用正确的kernelSize和尺寸
+                    // Ensure fftConvolve uses the correct kernelSize and dimensions
                     if (fftConvolve.kernelSize !== kernelSize) {
                         fftConvolve.init(Math.floor(lets.width/scale), Math.floor(lets.height/scale), kernelSize);
                         console.log(`Initialized FFTConvolve with kernelSize: ${kernelSize}, width: ${width}, height: ${height}`);
@@ -443,7 +425,6 @@ async function handlePSFUpload(psfFile) {
       };
       reader.onerror = reject;
       reader.readAsArrayBuffer(psfFile);
-      // window._uploadedPSFFile = null;
     } catch (err) {
       reject(err);
     }
@@ -451,10 +432,10 @@ async function handlePSFUpload(psfFile) {
 }
 
 /**
- * 处理噪声文件并保存到globalNoiseData数组
- * @param {File} noiseFile - 噪声文件
- * @param {Object} appInstance - 应用实例对象
- * @returns {Promise} 包含噪声数据信息的Promise
+ * Handle a noise file and save it to the globalNoiseData array
+ * @param {File} noiseFile - The noise file
+ * @param {Object} appInstance - App instance object
+ * @returns {Promise} A Promise containing noise data information
  */
 function handleNoiseUpload(noiseFile) {
   globalNoiseData = null;
@@ -471,7 +452,7 @@ function handleNoiseUpload(noiseFile) {
           let result = evt.target.result;
           
           if (noiseFile.name.endsWith('.h5')) {
-            // 处理HDF5格式噪声文件
+            // Handle HDF5 format noise files
             let f = new hdf5.File(result, noiseFile.name);
             let dataset = f.get('noise');
             if (!dataset) {
@@ -480,7 +461,7 @@ function handleNoiseUpload(noiseFile) {
             let noiseData = dataset.value;
             let shape = dataset.shape;
             
-            // 将噪声数据保存到全局变量
+            // Save the noise data to a global variable
             globalNoiseData = new Float64Array(noiseData.length);
             for (let i = 0; i < noiseData.length; i++) {
               globalNoiseData[i] = noiseData[i];
@@ -494,7 +475,7 @@ function handleNoiseUpload(noiseFile) {
               size: globalNoiseData.length
             });
           } else if (noiseFile.name.match(/\.(fits|fit|fts)$/i)) {
-            // 处理FITS格式噪声文件
+            // Handle FITS format noise files
             new astro.FITS(noiseFile, function(fits) {
               try {
                 const hdu = fits.getHDU();
@@ -502,16 +483,16 @@ function handleNoiseUpload(noiseFile) {
                 
                 dataUnit.getFrame(0, function(noiseData) {
                   try {
-                    // 获取噪声数据的形状
+                    // Get the shape of the noise data
                     const width = hdu.header.get('NAXIS1');
                     const height = hdu.header.get('NAXIS2');
                     
-                    // 将噪声数据保存到全局变量
+                    // Save the noise data to a global variable
                     globalNoiseData = new Float64Array(noiseData.length);
                     for (let i = 0; i < height; i++) {
-                      let flipped_i = height - 1 - i;  // 从底部开始读取
+                      let flipped_i = height - 1 - i;  // read from the bottom
                       for (let j = 0; j < width; j++) {
-                        let val = noiseData[flipped_i * width + j]; // 1D数组
+                        let val = noiseData[flipped_i * width + j]; // 1D array
                         globalNoiseData[i * width + j] = val;
                       }
                     }
@@ -538,14 +519,13 @@ function handleNoiseUpload(noiseFile) {
       }
       reader.onerror = reject;
       reader.readAsArrayBuffer(noiseFile);
-      // window._uploadedNoiseFile = null;
     } catch (err) {
       reject(err);
     }
   });
 }
 
-// 导出文件处理模块
+// Export the file handling module
 export {
   handleImageUpload,
   processImageFile,

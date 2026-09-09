@@ -1,24 +1,24 @@
 /**
- * 图像处理模块
- * 包含前景去除、绘制mask等图像处理相关功能
+ * Image processing module
+ * Provides foreground removal and mask drawing functionality.
  */
 
-// 全局标志，用于指示是否正在应用掩码
+// Global flag indicating whether a mask is being applied
 let isApplyingMask = false;
 
-// 删除前景函数
+// Remove foreground function
 async function delForeground() {
-	// 获取上传的fits文件
+	// Get the uploaded FITS file
 	const imageFile = window._uploadedImageFile;
 	if (!imageFile || !imageFile.name.match(/\.(fits|fit|fts)$/i)) {
-		window.alert('请先上传有效的FITS文件！');
+		window.alert('Please upload a valid FITS file first!');
 		return;
 	}
-	// 将fits文件传给后端进行前景去除
+	// Send the FITS file to the backend for foreground removal
 	let formData = new FormData();
 	formData.append('file', imageFile); 
-	console.log("上传的 imageFile:", imageFile);
-	console.log("开始上传文件到后端...");
+	console.log("Uploaded imageFile:", imageFile);
+	console.log("Uploading file to backend...");
 	try {
 		let response = await fetch('http://127.0.0.1:8080/extract_background', {
 			method: 'POST',
@@ -27,7 +27,7 @@ async function delForeground() {
 			cache: 'no-cache'
 		});
 		let result = await response.json();
-		// 解码 image_data（base64+gzip+float32）
+		// Decode image_data (base64+gzip+float32)
 		if (result.image_data) {
 			function base64ToUint8Array(base64) {
 				const binary_string = window.atob(base64);
@@ -47,12 +47,11 @@ async function delForeground() {
 			let imageData = Array.from(floatArray);
 			let width = result.width;
 			let height = result.height;
-			// window._uploadedImageFile = result.fits_file;
 			let url = getImage(imageData, width, height, true);
-			// 创建自定义确认对话框，询问是否下载
-			const shouldDownload = window.confirm('前景去除成功！\n\n是否下载处理后的图像？');
+			// Create a custom confirmation dialog asking whether to download
+			const shouldDownload = window.confirm('Foreground removal succeeded!\n\nDownload the processed image?');
 			if (shouldDownload) {
-				// 创建下载链接并触发下载
+				// Create a download link and trigger the download
 				const downloadLink = document.createElement('a');
 				downloadLink.href = url;
 				downloadLink.download = img_name+'_foreground_removed.png';
@@ -60,28 +59,28 @@ async function delForeground() {
 				downloadLink.click();
 				document.body.removeChild(downloadLink);
 			}
-			// 更新img元素和lets对象
+			// Update the img element and the lets object
 			img0.src = url;
 		} 
 	} catch (error) {
-		console.error('前景去除详细错误:', error);
-		let errorMessage = '前景去除失败:\n';
+		console.error('Foreground removal detailed error:', error);
+		let errorMessage = 'Foreground removal failed:\n';
 		if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
 			if (error.message.includes('CORS')) {
-				errorMessage += 'CORS跨域问题，请检查后端配置:\n';
-				errorMessage += '1. 确保后端添加了CORS头: Access-Control-Allow-Origin: *\n';
-				errorMessage += '2. 或者使用相同的域名和端口\n';
-				errorMessage += '3. 检查后端是否正确处理OPTIONS预检请求';
+				errorMessage += 'CORS cross-origin issue. Please check the backend configuration:\n';
+				errorMessage += '1. Ensure the backend sends the CORS header: Access-Control-Allow-Origin: *\n';
+				errorMessage += '2. Or use the same domain and port\n';
+				errorMessage += '3. Check that the backend handles OPTIONS preflight requests';
 			} else {
-				errorMessage += '网络连接失败，请检查:\n';
-				errorMessage += '1. 后端服务器是否已启动\n';
-				errorMessage += '2. 防火墙是否阻止了连接\n';
-				errorMessage += '3. 服务器地址是否正确';
+				errorMessage += 'Network connection failed. Please check:\n';
+				errorMessage += '1. Whether the backend server is running\n';
+				errorMessage += '2. Whether the firewall is blocking the connection\n';
+				errorMessage += '3. Whether the server address is correct';
 			}
 		} else if (error.message) {
 			errorMessage += error.message;
 		} else {
-			errorMessage += '未知错误，请查看控制台日志';
+			errorMessage += 'Unknown error. Please check the console log';
 		}
 		window.alert(errorMessage);
 	}
@@ -89,54 +88,53 @@ async function delForeground() {
 	ms_src.reset();
 }
 
-// 应用掩码按钮点击事件
+// Apply mask button click handler
 	function applyMask() {
 		const radius = parseInt(document.getElementById('maskRadius').value) || 0;
-		console.log("mask半径:", radius);
-		// 确保globalImageData和图像尺寸存在
+		console.log("Mask radius:", radius);
+		// Ensure globalImageData and image dimensions exist
 		if (globalImageData && globalImageData.length > 0 && imgd && imgd.width > 0 && imgd.height > 0) {
-			// 使用实际图像的尺寸
+			// Use the actual image dimensions
 			const width = Math.sqrt(globalImageData.length);
 			const height = width;
-			console.log("图像尺寸:", width, height);
-			// 计算图像的实际尺寸与画布尺寸之间的比例
+			console.log("Image dimensions:", width, height);
+			// Compute the ratio between the actual image and canvas sizes
 			const scaleX = width / imgd.width;
 			const scaleY = height / imgd.height;
-			console.log("缩放比例:", scaleX, scaleY);
-			// 根据比例调整掩码的半径
+			console.log("Scale ratios:", scaleX, scaleY);
+			// Adjust the mask radius according to the ratio
 			const scaledRadius = radius * Math.min(scaleX, scaleY);
-			console.log("缩放后的掩码半径:", scaledRadius);
-			// 计算图像中心点
+			console.log("Scaled mask radius:", scaledRadius);
+			// Compute the image center
 			const centerX = width / 2;
 			const centerY = height / 2;
-			// 遍历所有像素，应用掩码到全局数据
+			// Iterate over all pixels and apply the mask to the global data
 			for (let y = 0; y < height; y++) {
 				for (let x = 0; x < width; x++) {
-					// 计算当前像素到中心点的距离
+					// Distance from the current pixel to the center
 					const dx = x - centerX;
 					const dy = y - centerY;
 					const distance = Math.sqrt(dx * dx + dy * dy);
-					// 计算像素在数据数组中的索引
+					// Compute the index in the data array
 					const index = y * width + x;
-					// 如果像素在掩码外，设置为0
+					// Zero out pixels outside the mask radius
 					if (distance > scaledRadius) {
 						globalImageData[index] = 0;
 					}
-					// 否则保持不变
 				}
 			}
-			// 设置标志，防止img0.onload中重置标记表面
+			// Set a flag to prevent img0.onload from resetting the marking surface
 			isApplyingMask = true;
-			// 使用更新后的globalImageData重新生成图像
+			// Regenerate the image from the updated globalImageData
 			const maskedUrl = getImage(Array.from(globalImageData), width, height, false);
 			img0.src = maskedUrl;
-			// 延迟重置标志，确保onload执行完成
+			// Delay resetting the flag so the onload handler finishes first
 			setTimeout(() => {
 				isApplyingMask = false;
 			}, 100);
 		} else {
-			console.error("无法获取全局图像数据或尺寸，请确保图像已加载。");
-			window.alert("无法应用掩码：图像未加载。");
+			console.error("Unable to access global image data or dimensions. Please ensure an image is loaded.");
+			window.alert("Unable to apply mask: image not loaded.");
 		}
 	};
 
@@ -176,30 +174,27 @@ function getImage(imageData, width, height, convert){
 	let canvas = document.createElement('canvas');
 	canvas.width = width;
 	canvas.height = height;
-	let maxval = 0;
+	// Initialize to negative infinity so negative-valued data still normalizes correctly
+	let maxval = -Infinity;
 	for(let i = 0; i < imageData.length; i++){
 		if(imageData[i] > maxval){
 			maxval = imageData[i];
 		}
 	}
-	console.log("maxval:", maxval);
-	// 使用Float64Array提高精度
+	// Avoid division by zero for a fully uniform (or all-negative) image
+	if (!isFinite(maxval) || maxval === 0) maxval = 1;
+	// Use Float64Array for higher precision
 	globalImageData = new Float64Array(imageData.length);
-	// for(let i = 0; i < imageData.length; i++){
-	// 	imageData[i] = (imageData[i] - minval) / (maxval - minval);
-	// }
 	
 	let ctx = canvas.getContext('2d');
 	let canvasData = ctx.createImageData(width, height);
 	for (let i = 0; i < height; i++) {
-		let flipped_i = height - 1 - i;  // 从底部开始读取
+		let flipped_i = height - 1 - i;  // read from bottom when flipping Y axis
 		for (let j = 0; j < width; j++) {
-			let val = imageData[i * width + j]; // 1D数组
+			// Apply the Y-axis flip only when convert is requested
+			let src_i = convert ? flipped_i : i;
+			let val = imageData[src_i * width + j]; // 1D array
 			globalImageData[i * width + j] = val;
-			if(convert){
-				val = imageData[flipped_i * width + j];
-				globalImageData[i * width + j] = val;
-			}
 			// Normalize intensity to [0, 1]
 			let normalizedIntensity = val / maxval;
 			// Apply hot colormap
@@ -217,16 +212,16 @@ function getImage(imageData, width, height, convert){
 }
 
 /**
- * 对图像数据应用各种拉伸变换（线性/log/asinh/sqrt）
- * @param {Float32Array|Float64Array} data - 原始浮点图像数据
- * @param {number} width - 图像宽度
- * @param {number} height - 图像高度
- * @param {boolean} convert - 是否翻转Y轴
- * @param {Object} params - 拉伸参数
- * @param {string} params.stretchMode - 拉伸模式: 'linear'|'log'|'asinh'|'sqrt'
- * @param {number} params.stretchIntensity - 拉伸强度 (1-100)
- * @param {number} params.vminPercent - 黑点百分位 (0-100)
- * @param {number} params.vmaxPercent - 白点百分位 (0-100)
+ * Apply various stretch transforms (linear/log/asinh/sqrt) to image data
+ * @param {Float32Array|Float64Array} data - raw floating-point image data
+ * @param {number} width - image width
+ * @param {number} height - image height
+ * @param {boolean} convert - whether to flip the Y axis
+ * @param {Object} params - stretch parameters
+ * @param {string} params.stretchMode - stretch mode: 'linear'|'log'|'asinh'|'sqrt'
+ * @param {number} params.stretchIntensity - stretch intensity (1-100)
+ * @param {number} params.vminPercent - black point percentile (0-100)
+ * @param {number} params.vmaxPercent - white point percentile (0-100)
  * @returns {string} canvas.toDataURL()
  */
 function applyImageStretch(data, width, height, convert, params) {
@@ -235,9 +230,9 @@ function applyImageStretch(data, width, height, convert, params) {
 	const vminPercent = params.vminPercent || 1;
 	const vmaxPercent = params.vmaxPercent || 99.5;
 
-	// 用百分位计算 vmin/vmax，比固定 min/max 更鲁棒
+	// Compute vmin/vmax from percentiles, which is more robust than fixed min/max
 	let sortedVals = [];
-	// 为性能只采样部分像素（最多取 50 万个点）
+	// Sample at most 500k pixels for performance
 	const totalPixels = data.length;
 	const sampleStep = Math.max(1, Math.floor(totalPixels / 500000));
 	for (let i = 0; i < totalPixels; i += sampleStep) {
@@ -250,7 +245,7 @@ function applyImageStretch(data, width, height, convert, params) {
 	let vmax = sortedVals[idxHi] || 1;
 	if (vmax <= vmin) vmax = vmin + 1e-10;
 
-	// Asinh 拉伸的 softening 参数：强度越大，线性区越窄，暗部细节越突出
+	// Asinh softening parameter: higher intensity narrows the linear range, revealing more faint detail
 	const softening = 1.0 / (stretchIntensity * 0.1 + 0.5);
 
 	let canvas = document.createElement('canvas');
@@ -265,7 +260,7 @@ function applyImageStretch(data, width, height, convert, params) {
 			let rawVal = data[srcRow * width + j];
 			if (!isFinite(rawVal)) rawVal = 0;
 
-			// 归一化到 [0, 1]（vmin→0, vmax→1）
+			// Normalize to [0, 1] (vmin→0, vmax→1)
 			let normalized = (rawVal - vmin) / (vmax - vmin);
 			normalized = Math.max(0, Math.min(1, normalized));
 
@@ -275,14 +270,14 @@ function applyImageStretch(data, width, height, convert, params) {
 					stretched = normalized;
 					break;
 				case 'log':
-					// log10 拉伸：需要一个小偏移避免 log(0)
-					// 强度越大，偏移越小，暗部细节越明显
+					// log10 stretch: add a small offset to avoid log(0);
+					// higher intensity yields a smaller offset and reveals more faint detail
 					const logOffset = 1.0 / (stretchIntensity * 0.5 + 1);
 					stretched = Math.log10(1 + normalized * (1 / logOffset - 1)) /
 					            Math.log10(1 + 1 / logOffset - 1);
 					break;
 				case 'asinh':
-					// asinh 拉伸（天文学标准）：比 log 更平滑地处理极端动态范围
+					// asinh stretch (astronomy standard): handles extreme dynamic range more smoothly than log
 					stretched = Math.asinh(normalized / softening) /
 					            Math.asinh(1.0 / softening);
 					break;
@@ -307,7 +302,7 @@ function applyImageStretch(data, width, height, convert, params) {
 	return canvas.toDataURL();
 }
 
-// 公开函数接口
+// Public function interface
 window.imageProcessor = {
 	delForeground,
 	applyMask,

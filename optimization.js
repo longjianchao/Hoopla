@@ -1,9 +1,9 @@
-// 拟合优化建模相关功能
+// Fit optimization modeling related functionality
 
-// 从npm导入ndarray相关库
+// Import ndarray libraries from npm
 
 
-//计算平均值
+// Calculate the mean
 function average(data) {
 	let sum = data.reduce(function (sum, value) {
 		return sum + value;
@@ -11,7 +11,7 @@ function average(data) {
 	return sum / data.length;
 }
 
-//计算标准差（使用样本标准差，与numpy.std()默认行为一致）
+// Calculate the standard deviation (sample standard deviation, matching numpy.std() default behavior)
 function standardDeviation(values) {
 	if (values.length <= 1) return 0;
 	let avg = average(values);
@@ -19,12 +19,12 @@ function standardDeviation(values) {
 		let diff = value - avg;
 		return diff * diff;
 	});
-	// 使用样本标准差，除以N-1而不是N
+	// Use the sample standard deviation, dividing by N-1 instead of N
 	let avgSquareDiff = average(squareDiffs) * (values.length / (values.length - 1));
 	return Math.sqrt(avgSquareDiff);
 }
 
-//计算单个镜头成像对图像（x，y）的弯曲效应
+// Calculate the lensing deflection effect of a single lens on image point (x, y)
 function calAlpha(xl, yl, xlc, ylc, re, ql, phl) {
 	if (ql < 1.0) {
 		phl = Math.PI * ((90 - phl) / 180);
@@ -67,25 +67,23 @@ function calAlpha(xl, yl, xlc, ylc, re, ql, phl) {
 	return alpha;
 }
 
-//根据弯曲后的点(x- αx, y-αy)计算该点在重构图像中的光度值。
+// Calculate the flux at the deflected point (x - αx, y - αy) in the reconstructed source image.
 function calImage(xs, ys, xsc, ysc, size, qs, phs, n, Ie) {
-	// console.log('calImage');
 	let res, phirad;
-	// const n = 1.0;
 	let b_n = 1.9992 * n - 0.3271;
 	const Re = size;
 	phirad = phs / 180 * Math.PI;
-	// 重新进行坐标变换，得到了像素代表的坐标
+	// Re-apply the coordinate transform to obtain the coordinate represented by the pixel
 	let xnew = (xs - xsc) * Math.cos(phirad) + (ys - ysc) * Math.sin(phirad);
 	let ynew = (ys - ysc) * Math.cos(phirad) - (xs - xsc) * Math.sin(phirad);
 	let r_ell = Math.sqrt((xnew * xnew) / qs + (ynew * ynew) * qs);
-	// 归一化并代入 Sersic profile
+	// Normalize and substitute into the Sersic profile
 	let rnorm = r_ell / Re;
 	res = Ie * Math.exp(-b_n * (Math.pow(rnorm, 1 / n) - 1.0));
 	return res;
 }
 
-//给定一组镜头参数,对每个图像点调用calAlpha()和calImage()计算预测图像光度值
+// Given a set of lens parameters, call calAlpha() and calImage() for each image point to compute the predicted image flux
 function model_lensed_images(p, x1, x2) {
 	let xc1, xc2, re, ql, phl;
 	xc1 = p[0];
@@ -93,9 +91,9 @@ function model_lensed_images(p, x1, x2) {
 	re = p[2];
 	ql = p[3];
 	phl = p[4];
-	// 计算得到这个点对应的偏折角
+	// Compute the deflection angle at this point
 	let alpha = calAlpha(x1, x2, xc1, xc2, re, ql, phl);
-	// 计算源星系像的角位置
+	// Compute the angular position of the source galaxy image
 	let y1 = x1 - alpha.x;
 	let y2 = x2 - alpha.y;
 
@@ -112,37 +110,37 @@ function model_lensed_images(p, x1, x2) {
 
 // CPU-based PSF convolution (synchronous) - pure JavaScript implementation
 /**
- * 执行 PSF 卷积 (纯 JavaScript 空间域实现)
- * * 注意：如果图像数值非常小 (如 1e-4)，在屏幕上会显示为黑色。
- * 建议在渲染时使用增益 (Gain) 或自动拉伸。
+ * Perform PSF convolution (pure JavaScript spatial-domain implementation)
+ * * Note: if the image values are very small (e.g. 1e-4), they will appear black on screen.
+ * It is recommended to use Gain or auto-stretching when rendering.
  */
 function applyPSFCpu(image, width, height, psf, psfW, psfH) {
 	if (!psf || !psf.length) return image;
 
 	try {
 		const result = new Float64Array(width * height);
-		// PSF 归一化
+		// PSF normalization
 		let psfSum = 0;
 		for (let i = 0; i < psf.length; i++) psfSum += psf[i];
 		if (Math.abs(psfSum) < 1e-12) psfSum = 1.0;
 
-		// 计算 PSF 中心点
+		// Compute the PSF center
 		const psfCenterX = Math.floor(psfW / 2);
 		const psfCenterY = Math.floor(psfH / 2);
 
-		// 空间域卷积
+		// Spatial-domain convolution
 		for (let y = 0; y < height; y++) {
 			for (let x = 0; x < width; x++) {
 				let sum = 0;
 
-				// 遍历 PSF
+				// Iterate over the PSF
 				for (let py = 0; py < psfH; py++) {
 					for (let px = 0; px < psfW; px++) {
-						// 计算图像中对应的像素位置
+						// Compute the corresponding pixel position in the image
 						const ix = x + px - psfCenterX;
 						const iy = y + py - psfCenterY;
 
-						// 边界检查
+						// Boundary check
 						if (ix >= 0 && ix < width && iy >= 0 && iy < height) {
 							const imageIndex = iy * width + ix;
 							const psfIndex = py * psfW + px;
@@ -166,51 +164,51 @@ function applyPSFCpu(image, width, height, psf, psfW, psfH) {
 
 // FFT-based PSF convolution with WebGPU acceleration
 async function applyPSF(image, width, height, psf, psfW, psfH) {
-	// 如果WebGPU可用，使用WebGPU加速实现
+	// If WebGPU is available, use the WebGPU-accelerated implementation
 	if (webgpuInitialized && fftConvolve) {
 		try {
-			// 将PSF数据填充到与图像相同大小，确保PSF中心点与图像中心点精确对齐
+			// Fill the PSF data to match the image size so that the PSF center is precisely aligned with the image center
 			let psfData = new Float64Array(width * height);
-			// 计算PSF的中心点
+			// Compute the PSF center
 			const psfCenterX = Math.floor(psfW / 2);
 			const psfCenterY = Math.floor(psfH / 2);
-			// 计算图像的中心点
+			// Compute the image center
 			const imgCenterX = Math.floor(width / 2);
 			const imgCenterY = Math.floor(height / 2);
 
 			for (let y = 0; y < psfH; y++) {
 				for (let x = 0; x < psfW; x++) {
-					// 计算PSF像素相对于PSF中心的偏移
+					// Compute the offset of a PSF pixel relative to the PSF center
 					const dx = x - psfCenterX;
 					const dy = y - psfCenterY;
-					// 将PSF像素放置到图像中心点对应的位置
+					// Place the PSF pixel at the position corresponding to the image center
 					const ix = imgCenterX + dx;
 					const iy = imgCenterY + dy;
 					psfData[iy * width + ix] = psf[y * psfW + x];
 				}
 			}
-			// 使用WebGPU执行FFT卷积
+			// Perform FFT convolution using WebGPU
 			const result = await fftConvolve.convolve(image, psfData);
 			return result;
 		} catch (error) {
 			console.error('WebGPU PSF convolution failed, falling back to CPU implementation:', error);
-			// 回退到CPU实现
+			// Fall back to the CPU implementation
 		}
 	}
 
-	// 直接使用CPU实现 - 确保image是Float64Array
+	// Use the CPU implementation directly - ensure image is a Float64Array
 	return applyPSFCpu(image, width, height, psf, psfW, psfH);
 }
 
 
 async function chi2_rescale(p) {
-	//重缩放因子，可以提高采样效率，但数值过大可能会导致图像失真
+	// Rescaling factor that improves sampling efficiency; an overly large value may distort the image
 	const fscale = 4;
 	const chi = new Array(Math.floor(globalImageData.length / fscale / fscale));
 	const lightstd = standardDeviation(globalImageData);
 
-	// 生成模型图像
-	// 使用Float64Array提高精度，与Python的float64一致
+	// Generate the model image
+	// Use Float64Array for higher precision, consistent with Python's float64
 	let modelImage = new Float64Array(globalImageData.length);
 	const scaledWidth = imgd.width / scale;
 	const scaledHeight = imgd.height / scale;
@@ -225,17 +223,17 @@ async function chi2_rescale(p) {
 			modelImage[i] = model_lensed_images(p, x, y);
 		}
 	}
-	// 应用PSF卷积
+	// Apply PSF convolution
 	let convolvedImage;
 	if (globalPSFData && globalPSFData.data) {
 		convolvedImage = await applyPSF(modelImage, Math.floor(scaledWidth), Math.floor(scaledHeight),
 			globalPSFData.data, globalPSFData.width, globalPSFData.height);
 	} else {
-		// 如果没有PSF数据，直接使用模型图像
+		// If no PSF data, use the model image directly
 		convolvedImage = modelImage;
 	}
 	let sigma;
-	// 计算卡方值
+	// Compute the chi-square value
 	for (let row = 0; row < imgd.height; row += fscale) {
 		for (let col = 0; col < imgd.width; col += fscale) {
 			let i = Math.floor(row / scale) * Math.floor(scaledWidth) + Math.floor(col / scale);
@@ -249,22 +247,22 @@ async function chi2_rescale(p) {
 		}
 	}
 
-	// 计算卡方值
+	// Compute the chi-square value
 	const chi2 = optimize.vector.dot(chi, chi);
-	// 计算自由度：数据点数量 - 参数数量
+	// Compute the degrees of freedom: number of data points - number of parameters
 	const dof = chi.length - 12;
-	// 返回约化卡方
+	// Return the reduced chi-square
 	return chi2 / dof;
 }
 
-// 计算残差向量（用于least_squares优化器）
-// 与chi2_rescale类似，但返回残差向量 chi_i = (data_i - model_i)/sigma_i 而不是标量chi2
+// Compute the residual vector (for the least_squares optimizer)
+// Similar to chi2_rescale, but returns the residual vector chi_i = (data_i - model_i)/sigma_i instead of the scalar chi2
 async function chi_residuals(p) {
-	//重缩放因子，与chi2_rescale保持一致
+	// Rescaling factor, kept consistent with chi2_rescale
 	const fscale = 4;
 	const residuals = [];
 
-	// 生成模型图像
+	// Generate the model image
 	let modelImage = new Float64Array(globalImageData.length);
 	const scaledWidth = imgd.width / scale;
 	const scaledHeight = imgd.height / scale;
@@ -279,7 +277,7 @@ async function chi_residuals(p) {
 			modelImage[i] = model_lensed_images(p, x, y);
 		}
 	}
-	// 应用PSF卷积
+	// Apply PSF convolution
 	let convolvedImage;
 	if (globalPSFData && globalPSFData.data) {
 		convolvedImage = await applyPSF(modelImage, Math.floor(scaledWidth), Math.floor(scaledHeight),
@@ -288,7 +286,7 @@ async function chi_residuals(p) {
 		convolvedImage = modelImage;
 	}
 	let sigma;
-	// 计算残差向量 (data - model) / sigma
+	// Compute the residual vector (data - model) / sigma
 	for (let row = 0; row < imgd.height; row += fscale) {
 		for (let col = 0; col < imgd.width; col += fscale) {
 			let i = Math.floor(row / scale) * Math.floor(scaledWidth) + Math.floor(col / scale);
@@ -306,7 +304,7 @@ async function chi_residuals(p) {
 function drawResiduals() {
 	if (!imgd.complete || imgd.naturalWidth === 0) {
 		imgd.onload = () => {
-			console.log("图像加载完成，重新执行drawResiduals");
+			console.log("Image loaded, re-running drawResiduals");
 			drawResiduals();
 		};
 		return;
@@ -314,13 +312,11 @@ function drawResiduals() {
 	let c = document.getElementById("myCanvas");
 	let ctx = c.getContext("2d");
 	try {
-		// 清除画布
+		// Clear the canvas
 		ctx.clearRect(0, 0, c.width, c.height);
 		ctx.drawImage(imgd, 0, 0, c.width, c.height);
-		// let dstdata = ctx.getImageData(0, 0, c.width, c.height);
-		// ctx.putImageData(dstdata, 0, 0);
 	} catch (error) {
-		console.error("绘制过程中发生错误:", error);
+		console.error("Error during drawing:", error);
 	}
 }
 
@@ -329,7 +325,7 @@ async function show_res(p) {
 	let ctx = c.getContext("2d");
 	let canvasWidth = c.width;
 	let canvasHeight = c.height;
-	// 直接使用globalImageData而不是从画布获取像素值
+	// Use globalImageData directly instead of reading pixel values from the canvas
 	if (!globalImageData) {
 		console.error("globalImageData is not initialized");
 		return;
@@ -338,16 +334,14 @@ async function show_res(p) {
 	const scaledWidth = imgd.width / scale;
 	const scaledHeight = imgd.height / scale;
 	let i, x, y;
-	// 使用Float64Array提高精度，与Python的float64一致
+	// Use Float64Array for higher precision, consistent with Python's float64
 	let testimg = new Float64Array(globalImageData.length);
 	for (let row = 0; row < imgd.height; row += scale) {
 		for (let col = 0; col < imgd.width; col += scale) {
 			let rowScaled = row / scale;
 			let colScaled = col / scale;
 			i = Math.floor(rowScaled) * Math.floor(scaledWidth) + Math.floor(colScaled);
-			// 计算对应的坐标
-			// x = col * lets.pixscale - lets.pixscale * imgd.width / 2 + lets.pixscale ;
-			// y = -row * lets.pixscale + lets.pixscale * imgd.height / 2 - lets.pixscale ;
+			// Compute the corresponding coordinates
 			x = (colScaled + 0.5 - scaledWidth / 2.0) * originPixscale;
 			y = - (rowScaled + 0.5 - scaledHeight / 2.0) * originPixscale;
 			testimg[i] = model_lensed_images(p, x, y);
@@ -355,32 +349,22 @@ async function show_res(p) {
 	}
 
 	let convolvedImage;
-	// 应用PSF卷积（WebGPU加速）
+	// Apply PSF convolution (WebGPU acceleration)
 	if (globalPSFData && globalPSFData.data) {
 		convolvedImage = await applyPSF(testimg, Math.floor(imgd.width / scale), Math.floor(imgd.height / scale),
 			globalPSFData.data, globalPSFData.width, globalPSFData.height);
 	} else {
-		// 如果没有PSF数据，直接使用模型图像
+		// If no PSF data, use the model image directly
 		convolvedImage = testimg;
 	}
-	// 将convolvedImage保存在本地，格式为txt文件
-	// const blob = new Blob([convolvedImage.join('\n')], { type: 'text/plain' });
-	// const url = URL.createObjectURL(blob);
-	// const a = document.createElement('a');
-	// a.href = url;
-	// a.download = 'convolvedImage_data.txt';
-	// document.body.appendChild(a);
-	// a.click();
-	// document.body.removeChild(a);
-	// URL.revokeObjectURL(url);
 
-	// 计算chi-square和残差 - 使用原始图像尺寸
+	// Compute chi-square and residuals - using the original image size
 	let chi = new Float64Array(globalImageData.length);
 	let residualImage = new Float64Array(globalImageData.length);
 	let maxResidual = 0;
 	let maxValue = 0;
 	let sigma;
-	// 计算残差和chi-square - 使用原始图像尺寸
+	// Compute the residuals and chi-square - using the original image size
 	for (let row = 0; row < imgd.height; row += scale) {
 		for (let col = 0; col < imgd.width; col += scale) {
 			i = Math.floor(row / scale) * Math.floor(imgd.width / scale) + Math.floor(col / scale);
@@ -390,7 +374,7 @@ async function show_res(p) {
 				sigma = Math.sqrt(globalImageData[i] + 1);
 			}
 			residualImage[i] = Math.abs(globalImageData[i] - convolvedImage[i]) / sigma;
-			// 计算chi-square
+			// Compute chi-square
 			chi[i] = (globalImageData[i] - convolvedImage[i]) / sigma;
 			if (residualImage[i] > maxResidual) {
 				maxResidual = residualImage[i];
@@ -407,10 +391,10 @@ async function show_res(p) {
 	}
 	console.log('res:' + res / chi.length);
 
-	// 清除整个画布
+	// Clear the entire canvas
 	ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-	// 创建一个临时canvas用于绘制原始尺寸的残差图
+	// Create a temporary canvas for drawing the residual map at the original size
 	let tempCanvas = document.createElement('canvas');
 	let tempWidth = imgd.width;
 	let tempHeight = imgd.height;
@@ -420,16 +404,16 @@ async function show_res(p) {
 	let tempImageData = tempCtx.createImageData(tempWidth, tempHeight);
 	let tempData = tempImageData.data;
 	if (maxResidual < 1) maxResidual = 1;
-	// 绘制原始尺寸的残差图到临时canvas
+	// Draw the full-size residual map onto the temporary canvas
 	for (let row = 0; row < tempHeight; row++) {
 		for (let col = 0; col < tempWidth; col++) {
 			let index = (row * tempWidth + col) * 4;
 			let imgIndex = Math.floor(row / scale) * Math.floor(tempWidth / scale) + Math.floor(col / scale);
-			// 归一化残差到[0, 1]范围
+			// Normalize the residual to the [0, 1] range
 			let normalizedResidual = maxResidual > 0 ? residualImage[imgIndex] / maxResidual : 0;
-			// 应用热图色标
+			// Apply the heat-map colormap
 			let rgb = hotColormap(normalizedResidual);
-			// 设置RGB通道
+			// Set the RGB channels
 			tempData[index] = rgb[0];    // red
 			tempData[index + 1] = rgb[1];    // green
 			tempData[index + 2] = rgb[2];    // blue
@@ -437,29 +421,29 @@ async function show_res(p) {
 		}
 	}
 
-	// 将原始尺寸的残差图绘制到临时canvas上
+	// Draw the full-size residual map onto the temporary canvas
 	tempCtx.putImageData(tempImageData, 0, 0);
-	// 使用drawImage将临时canvas上的图像放大绘制到主画布上
-	// 这将自动处理图像拉伸，确保完整显示
+	// Use drawImage to scale up the temporary canvas onto the main canvas
+	// This automatically handles image scaling to ensure it displays completely
 	ctx.drawImage(tempCanvas, 0, 0, tempWidth, tempHeight, 0, 0, canvasWidth, canvasHeight);
 	return res;
 }
 
-var chartInstance = null; // 声明一个全局变量来存储卡方值图表实例
-var paramsChartInstances = paramsChartInstances || []; // 声明一个全局变量来存储参数趋势图表实例
+var chartInstance = null; // global variable to store the chi-square chart instance
+var paramsChartInstances = paramsChartInstances || []; // global variable to store the parameter trend chart instances
 
-// 修改绘制曲线函数，使其更适合显示优化过程
+// Modify the curve-drawing function to better suit the optimization process display
 function drawChiSquareCurve(chiSquaredValues) {
 	let ctx = document.getElementById("Curve");
 	if (chartInstance) {
 		chartInstance.destroy();
-		chartInstance = null;  // 重要：将实例设置为null
+		chartInstance = null;  // Important: set the instance to null
 	}
 
-	// 确保chiSquaredValues是数组
+	// Ensure chiSquaredValues is an array
 	chiSquaredValues = chiSquaredValues || [];
 
-	// 创建新图表，无论数据是否为空
+	// Create a new chart regardless of whether the data is empty
 	chartInstance = new Chart(ctx, {
 		type: 'line',
 		data: {
@@ -475,7 +459,7 @@ function drawChiSquareCurve(chiSquaredValues) {
 		options: {
 			responsive: false,
 			maintainAspectRatio: true,
-			// 确保即使没有数据也显示轴线
+			// Ensure axes are shown even when there is no data
 			scales: {
 				x: {
 					display: true,
@@ -483,7 +467,7 @@ function drawChiSquareCurve(chiSquaredValues) {
 						display: true,
 						text: 'iteration number'
 					},
-					// 确保x轴始终显示
+					// Ensure the x-axis is always shown
 					min: 0,
 					beginAtZero: true,
 					ticks: {
@@ -496,9 +480,9 @@ function drawChiSquareCurve(chiSquaredValues) {
 						display: true,
 						text: 'target function value'
 					},
-					// 使用对数刻度可能更好地显示函数值的变化
+					// A logarithmic scale may better show variations in the function value
 					type: 'logarithmic',
-					// 确保y轴始终显示
+					// Ensure the y-axis is always shown
 					min: 0,
 					ticks: {
 						min: 0.001,
@@ -521,27 +505,27 @@ function drawChiSquareCurve(chiSquaredValues) {
 }
 
 /**
- * 绘制参数趋势图（累加式更新）
- * @param {Array} paramsHistory - 包含每次迭代参数值的数组
+ * Draw the parameter trend chart (accumulative updates)
+ * @param {Array} paramsHistory - array containing the parameter values at each iteration
  */
-// 存储全局参数历史数据和图表实例，用于累加更新
+// Store the global parameter history and chart instances for cumulative updates
 window.globalParamsHistory = window.globalParamsHistory || [];
-// 设置是否在上传模型后绘制对比线的开关
+// Toggle for drawing comparison lines after uploading the model
 window.drawModelComparisonLine = true;
 
 function drawParamsTrendChart(paramsHistory) {
-	// 将新的参数历史数据追加到全局历史中
+	// Append the new parameter history to the global history
 	if (paramsHistory && paramsHistory.length > 0) {
 		window.globalParamsHistory = window.globalParamsHistory.concat(paramsHistory);
 	}
 
-	// 定义参数名称
+	// Define parameter names
 	const paramNames = [
 		'lens_x', 'lens_y', 'theta_e', 'lens_ell', 'lens_ang',
 		'source_x', 'source_y', 'source_size', 'source_ell', 'source_ang', 'n_sersic', 'Ie'
 	];
 
-	// 颜色数组，用于为不同参数分配不同颜色
+	// Color array for assigning different colors to different parameters
 	const colors = [
 		'rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(255, 206, 86)',
 		'rgb(75, 192, 192)', 'rgb(153, 102, 255)', 'rgb(255, 159, 64)',
@@ -549,15 +533,15 @@ function drawParamsTrendChart(paramsHistory) {
 		'rgb(210, 199, 199)', 'rgb(255, 99, 232)', 'rgb(50, 205, 50)'
 	];
 
-	// 获取参数趋势图的容器（在index.html中已预创建）
+	// Get the container for the parameter trend charts (pre-created in index.html)
 	let container = document.getElementById('paramsTrendContainer');
 	if (!container) {
-		// 作为后备，创建容器并确保添加到DOM
+		// Fallback: create the container and ensure it is added to the DOM
 		container = document.createElement('div');
 		container.id = 'paramsTrendContainer';
 		container.style.flex = '1';
 		container.style.minWidth = '0';
-		// 查找flex容器并添加，或者添加到body
+		// Find the flex container and append, or append to the body
 		const flexContainer = document.querySelector('div[style*="display: flex"]');
 		if (flexContainer) {
 			flexContainer.appendChild(container);
@@ -566,10 +550,10 @@ function drawParamsTrendChart(paramsHistory) {
 		}
 	}
 
-	// 查找网格容器（子元素）
+	// Find the grid container (child element)
 	let gridContainer = container.querySelector('div[style*="display: grid"]');
 	if (!gridContainer) {
-		// 如果没有找到，创建网格容器
+		// If not found, create the grid container
 		gridContainer = document.createElement('div');
 		gridContainer.style.display = 'grid';
 		gridContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
@@ -578,45 +562,45 @@ function drawParamsTrendChart(paramsHistory) {
 		gridContainer.style.padding = '8px';
 		container.appendChild(gridContainer);
 	} else {
-		// 更新网格容器的样式，但不改变布局
+		// Update the grid container styles without changing the layout
 		gridContainer.style.gap = '4px';
 		gridContainer.style.padding = '8px';
 	}
 
-	// 直接为每个参数创建或更新图表，无论是否有数据
+	// Create or update a chart for each parameter, regardless of whether there is data
 	for (let i = 0; i < paramNames.length; i++) {
 		let canvas = document.getElementById(`paramChart_${i}`);
 
-		// 如果canvas不存在，输出警告但不创建（应该在HTML中已存在）
+		// If the canvas does not exist, warn but do not create (it should already exist in the HTML)
 		if (!canvas) {
 			console.warn(`Canvas with id paramChart_${i} not found. Please ensure it exists in the HTML.`);
 			continue;
 		}
 
-		// 获取画布上下文
+		// Get the canvas 2D context
 		const ctx = canvas.getContext('2d');
 		if (!ctx) {
 			console.error(`Failed to get context for canvas paramChart_${i}`);
 			continue;
 		}
 
-		// 提取当前参数的所有迭代值，如果全局历史为空则使用空数组
+		// Extract all iteration values for the current parameter; use an empty array if the global history is empty
 		const paramValues = window.globalParamsHistory.length > 0 ?
 			window.globalParamsHistory.map(iteration => iteration[i]) : [];
 		const labels = window.globalParamsHistory.length > 0 ?
 			Array.from({ length: window.globalParamsHistory.length }, (_, idx) => idx + 1) :
-			[1]; // 至少显示一个标签
+			[1]; // Show at least one label
 
-		// 检查是否存在该参数的图表实例
+		// Check whether a chart instance already exists for this parameter
 		if (paramsChartInstances[i]) {
-			// 更新现有图表
+			// Update the existing chart
 			paramsChartInstances[i].data.labels = labels;
 			paramsChartInstances[i].data.datasets[0].data = paramValues;
-			// 更新纵轴变化单位设置
+			// Update the y-axis tick step size
 			paramsChartInstances[i].options.scales.y.ticks.stepSize = ["lens_x", "lens_y"].includes(paramNames[i]) ? 0.01 : undefined;
 			paramsChartInstances[i].update();
 		} else {
-			// 创建新图表，无论数据是否为空
+			// Create a new chart regardless of whether the data is empty
 			const chart = new Chart(ctx, {
 				type: 'line',
 				data: {
@@ -633,7 +617,7 @@ function drawParamsTrendChart(paramsHistory) {
 					responsive: false,
 					maintainAspectRatio: true,
 					backgroundColor: 'white',
-					// 确保即使没有数据也显示轴线
+					// Ensure axes are shown even when there is no data
 					scales: {
 						x: {
 							display: true,
@@ -673,7 +657,7 @@ function drawParamsTrendChart(paramsHistory) {
 								font: {
 									size: 9
 								},
-								// 为lens_x和lens_y设置纵轴变化单位为0.01
+								// Set the y-axis tick step size to 0.01 for lens_x and lens_y
 								stepSize: ["lens_x", "lens_y"].includes(paramNames[i]) ? 0.01 : undefined
 							}
 						}
@@ -696,22 +680,22 @@ function drawParamsTrendChart(paramsHistory) {
 				}
 			});
 
-			// 保存图表实例
+			// Save the chart instance
 			paramsChartInstances[i] = chart;
 		}
 	}
 }
 
 
-// 更新cleanupCanvas函数以清理参数趋势图
+// Update cleanupCanvas to also clear the parameter trend charts
 function cleanupCanvas() {
-	// 清理卡方曲线图
+	// Clear the chi-square curve chart
 	if (chartInstance) {
 		chartInstance.destroy();
 		chartInstance = null;
 	}
 
-	// 清理参数趋势图实例
+	// Clear the parameter trend chart instances
 	if (paramsChartInstances && Array.isArray(paramsChartInstances)) {
 		paramsChartInstances.forEach(instance => {
 			if (instance) {
@@ -721,12 +705,12 @@ function cleanupCanvas() {
 		paramsChartInstances = [];
 	}
 
-	// 清空全局参数历史数据
+	// Clear the global parameter history
 	if (globalParamsHistory) {
 		globalParamsHistory = [];
 	}
 
-	// 重新绘制空的卡方曲线图
+	// Re-draw the empty chi-square curve chart
 	if (typeof drawChiSquareCurve === 'function') {
 		drawChiSquareCurve([]);
 	}
@@ -734,58 +718,58 @@ function cleanupCanvas() {
 		drawParamsTrendChart([]);
 	}
 
-	// 清理mask
+	// Clear the mask
 	if (lets && typeof lets.clearMask === 'function') {
 		lets.clearMask();
 	}
 }
 
-// 在上传模型后绘制参数对比线
+// Draw parameter comparison lines after uploading the model
 function drawModelComparisonLines(modelParams) {
-	// 检查是否启用了对比线功能
+	// Check whether the comparison line feature is enabled
 	if (!window.drawModelComparisonLine) {
 		return;
 	}
 
-	// 检查参数趋势图实例是否存在
+	// Check whether the parameter trend chart instances exist
 	if (!paramsChartInstances || paramsChartInstances.length === 0) {
 		return;
 	}
 
-	// 检查全局参数历史是否为空
+	// Check whether the global parameter history is empty
 	if (!window.globalParamsHistory || window.globalParamsHistory.length === 0) {
 		return;
 	}
 
-	// 定义参数名称
+	// Define parameter names
 	const paramNames = [
 		'lens_x', 'lens_y', 'theta_e', 'lens_ell', 'lens_ang',
 		'source_x', 'source_y', 'source_size', 'source_ell', 'source_ang', 'n_sersic', 'Ie'
 	];
 
-	// 检查模型参数数量是否匹配
+	// Check whether the number of model parameters matches
 	if (!modelParams || modelParams.length !== paramNames.length) {
-		console.warn('模型参数数量不匹配，无法绘制对比线');
+		console.warn('Model parameter count does not match; cannot draw comparison lines');
 		return;
 	}
 
-	// 获取标签数量（迭代次数）
+	// Get the number of labels (iterations)
 	const labelsCount = window.globalParamsHistory.length;
 
-	// 为每个参数绘制对比线
+	// Draw a comparison line for each parameter
 	for (let i = 0; i < modelParams.length; i++) {
-		// 检查该参数的图表实例是否存在
+		// Check whether a chart instance exists for this parameter
 		if (!paramsChartInstances[i]) {
 			continue;
 		}
 
-		// 获取当前图表实例
+		// Get the current chart instance
 		const chart = paramsChartInstances[i];
 
-		// 创建对比线数据集
+		// Create the comparison-line dataset
 		const comparisonData = Array(labelsCount).fill(modelParams[i]);
 
-		// 检查是否已存在对比线数据集，如果存在则更新，不存在则添加
+		// Check whether the comparison dataset already exists; update it if so, otherwise add it
 		let comparisonDatasetIndex = -1;
 		for (let j = 0; j < chart.data.datasets.length; j++) {
 			if (chart.data.datasets[j].label === 'Model Comparison') {
@@ -795,10 +779,10 @@ function drawModelComparisonLines(modelParams) {
 		}
 
 		if (comparisonDatasetIndex !== -1) {
-			// 更新现有对比线
+			// Update the existing comparison line
 			chart.data.datasets[comparisonDatasetIndex].data = comparisonData;
 		} else {
-			// 添加新的对比线数据集
+			// Add a new comparison-line dataset
 			chart.data.datasets.push({
 				label: 'Model Comparison',
 				data: comparisonData,
@@ -808,16 +792,16 @@ function drawModelComparisonLines(modelParams) {
 				pointRadius: 0,
 				fill: false,
 				tension: 0,
-				order: 0 // 确保对比线在原始数据线下显示
+				order: 0 // ensure the comparison line is displayed below the original data line
 			});
 		}
 
-		// 更新图表
+		// Update the chart
 		chart.update();
 	}
 }
 
-// 确保函数在全局作用域中可用，以便其他模块调用
+// Ensure the functions are available in the global scope so other modules can call them
 window.cleanupCanvas = cleanupCanvas;
 window.drawModelComparisonLines = drawModelComparisonLines;
 
@@ -842,16 +826,15 @@ let timer = async (timeout) => {
 				lets.model.components[0].n_sersic,
 				lets.model.components[0].Ie,
 			];
-			console.log(p0);
-			// 定义一个包装函数来处理数据类型转换
+			// Define a wrapper function to handle data type conversion
 			const objectiveWrapper = async (params) => {
 				const jsParams = Array.from(params);
 				return await chi2_rescale(jsParams);
 			};
 
-			// 将包装函数暴露给Python
+			// Expose the wrapper functions to Python
 
-			// 残差向量包装函数（用于least_squares优化器）
+			// Residual vector wrapper function (for the least_squares optimizer)
 			const residualWrapper = async (params) => {
 				const jsParams = Array.from(params);
 				return await chi_residuals(jsParams);
@@ -862,18 +845,18 @@ let timer = async (timeout) => {
 import numpy as np
 from scipy import optimize
 import asyncio
-# 存储优化过程中的约化chi2值和参数值
+# Store the reduced chi2 values and parameter values during optimization
 optimization_history = []
 params_history = []
 
 async def residual_async(x):
-    """异步残差函数：调用JS端计算残差向量"""
+    """Asynchronous residual function: call the JS side to compute the residual vector"""
     try:
         x_list = x.tolist() if hasattr(x, 'tolist') else list(x)
-        # 调用JS端残差函数，返回残差向量 chi_i = (data_i - model_i)/sigma_i
+        # Call the JS residual function, returning the residual vector chi_i = (data_i - model_i)/sigma_i
         result_proxy = await residual_js(x_list)
         r = np.array(list(result_proxy), dtype=float)
-        # 记录约化chi2和参数历史（用于前端绘图）
+        # Record the reduced chi2 and parameter history (for front-end plotting)
         chi2_val = float(np.sum(r**2))
         dof = len(r) - 12
         reduced_chi2 = chi2_val / dof if dof > 0 else chi2_val
@@ -881,30 +864,30 @@ async def residual_async(x):
         params_history.append(x_list.copy())
         return r
     except Exception as e:
-        print(f"残差函数错误: {str(e)}")
+        print(f"Residual function error: {str(e)}")
         raise
 
 def residual(x):
-    """同步包装器，用于scipy.optimize.least_squares"""
+    """Synchronous wrapper for scipy.optimize.least_squares"""
     return asyncio.run(residual_async(x))
 
-# 参数边界（least_squares格式：(lower, upper) 两个数组）
+# Parameter bounds (least_squares format: two arrays (lower, upper))
 lower_bounds = [-5, -5, 0.01, 1.0+1e-6, -180.0,   -10, -10, 0.01, 1.0, -180.0,   0.3, 0.001]
 upper_bounds = [ 5,  5, 10,   10,        180.0,    10,  10, 5.0,  10,  180.0,    6.0, 10.0]
 
 def run_optimization():
-    # 设置初始参数并裁剪至有效边界内，避免 x0 is infeasible 错误
+    # Set the initial parameters and clip them within the valid bounds to avoid "x0 is infeasible" errors
     initial_params = np.array(${JSON.stringify(p0)})
     initial_params = np.clip(initial_params, lower_bounds, upper_bounds)
-    print(f"初始参数(应用边界后): {initial_params}")
+    print(f"Initial params (after clipping): {initial_params}")
 
     try:
-        # ====== 使用least_squares优化器（Trust Region Reflective算法）======
-        # 优势：
-        #   1) 专为非线性最小二乘问题设计，收敛速度远快于Nelder-Mead
-        #   2) 优化过程中自动计算Jacobian矩阵
-        #   3) 从Jacobian直接得到协方差矩阵，无需额外的Hessian计算
-        #   4) 支持参数边界约束
+        # ====== Use the least_squares optimizer (Trust Region Reflective algorithm) ======
+        # Advantages:
+        #   1) Designed for non-linear least-squares problems, converging much faster than Nelder-Mead
+        #   2) Computes the Jacobian matrix automatically during optimization
+        #   3) Obtains the covariance matrix directly from the Jacobian, without extra Hessian computation
+        #   4) Supports parameter bound constraints
         result = optimize.least_squares(
             residual,
             initial_params,
@@ -917,23 +900,23 @@ def run_optimization():
             gtol=1e-8
         )
 
-        # 计算最终的约化chi2
+        # Compute the final reduced chi2
         n_data = len(result.fun)
         n_params = len(result.x)
         dof = n_data - n_params
         chi2 = 2.0 * result.cost  # cost = 0.5 * sum(r^2)
         reduced_chi2 = chi2 / dof if dof > 0 else chi2
 
-        print(f"优化完成: {result.message}")
-        print(f"最终参数: {result.x}")
-        print(f"约化chi2: {reduced_chi2:.6f}")
-        print(f"函数评估次数: {result.nfev}")
+        print(f"Optimization complete: {result.message}")
+        print(f"Final params: {result.x}")
+        print(f"Reduced chi2: {reduced_chi2:.6f}")
+        print(f"Function evaluations: {result.nfev}")
 
-        # 确保镜头和源的角度始终在 0-180 之间
+        # Ensure the lens and source angles always stay within 0-180
         result.x[4] = result.x[4] % 180
         result.x[9] = result.x[9] % 180
 
-        # 返回结果
+        # Return the result
         return {
             'x': result.x.tolist(),
             'fun': float(reduced_chi2),
@@ -945,24 +928,24 @@ def run_optimization():
         }
 
     except Exception as e:
-        print(f"优化过程错误: {str(e)}")
+        print(f"Optimization process error: {str(e)}")
         raise
 
-# 执行函数并返回结果
+# Run the function and return the result
 run_optimization()
-				`);
-			// 处理结果 将Map转换为普通对象
+					`);
+			// Process the result, converting the Map to a plain object
 			result = Object.fromEntries(result.toJs());
-			console.log("优化结果:", result);
+			console.log("Optimization result:", result);
 
 			if (!result.success) {
-				console.warn("优化未成功收敛:", result.message);
+				console.warn("Optimization did not converge successfully:", result.message);
 			}
 
 			let p1 = result.x;
 			chiSquaredValues = chiSquaredValues.concat(result.history);
 			drawChiSquareCurve(chiSquaredValues);
-			// 如果有参数历史数据，绘制参数趋势图
+			// If parameter history exists, draw the parameter trend chart
 			if (result.params_history && result.params_history.length > 0) {
 				drawParamsTrendChart(result.params_history);
 			}
@@ -984,11 +967,10 @@ run_optimization()
 			lets.update(angle);
 			lets.freezeSrcModel = true;
 			updateCanvas(lets.model.components);
-			console.log(lets);
 		} catch (error) {
-			console.error("优化过程出错:", error);
+			console.error("Optimization process error:", error);
 		} finally {
-			// 清理全局变量
+			// Clear global variables
 			pyodide.globals.delete("objective_js");
 			pyodide.globals.delete("residual_js");
 		}
@@ -997,13 +979,13 @@ run_optimization()
 
 
 
-// 优化入口函数
+// Optimization entry function
 async function do_fit() {
 	if (!pyodide) {
-		console.log("Pyodide未初始化，尝试重新初始化...");
+		console.log("Pyodide not initialized, attempting to re-initialize...");
 		const pyodideReady = await initPyodide();
 		if (!pyodideReady) {
-			window.alert('优化器初始化失败，请刷新页面重试！');
+			window.alert('Optimizer initialization failed. Please refresh the page and try again!');
 			return;
 		}
 	}
@@ -1015,13 +997,12 @@ async function do_fit() {
 	tag2.style.display = 'block';
 
 	let timerCallback = async () => {
-		await timer(6); // 执行6次timer函数
-		// console.log(lets.model);
+		await timer(6); // Run the timer function 6 times
 		tag2.style.display = 'none';
 		lets.setFreezed();
 	};
 	try {
-		await timerCallback(); // 将迭代次数作为参数传递给timerCallback函数
+		await timerCallback(); // Pass the iteration count to the timerCallback function
 	} catch (error) {
 		console.log("An error occurred:", error);
 	}
@@ -1045,13 +1026,13 @@ function updateCanvas(components) {
 	ms_src.renderTools();
 }
 
-// 将show_res函数设置为全局函数，以便在其他模块中调用
+// Expose show_res as a global function so other modules can call it
 window.drawResiduals = drawResiduals;
-// 将do_fit函数暴露到全局作用域，以便在HTML中直接调用
+// Expose do_fit in the global scope so it can be called directly from HTML
 window.do_fit = do_fit;
 window.updateCanvas = updateCanvas;
 window.show_res = show_res;
-// 将图表绘制函数暴露到全局作用域
+// Expose the chart-drawing functions in the global scope
 window.drawChiSquareCurve = drawChiSquareCurve;
 window.drawParamsTrendChart = drawParamsTrendChart;
 window.cleanupCanvas = cleanupCanvas;

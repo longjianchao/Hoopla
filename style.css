@@ -338,7 +338,7 @@ h1, h2, h3, h4 { font-family: Arial,serif; }
 	z-index: 2;
 }
 
-/* 参数走势图标题样式 - 参考barTitle但有所区别 */
+/* Param trending chart title style - based on barTitle with some differences */
 .paramChartTitle {
 	font-family: 'Arial', sans-serif;
 	text-align: center;
@@ -507,7 +507,7 @@ input[type="number"]:focus, input[type="text"]:focus {
 	visibility: visible;
 }
 
-/* 加载动画样式 */
+/* Loading animation styles */
 .loading-overlay {
 	position: fixed;
 	top: 0;
@@ -534,7 +534,7 @@ input[type="number"]:focus, input[type="text"]:focus {
 	color: #ecf0f1;
 }
 
-/* MCMC日志区域样式 */
+/* MCMC log area styles */
 #log {
 	width: 100%;
 	height: 300px;
@@ -570,7 +570,7 @@ input[type="number"]:focus, input[type="text"]:focus {
 	background: #6b7280;
 }
 
-/* 日志颜色样式 */
+/* Log color styles */
 .log-status {
 	color: #3498db;
 	font-weight: bold;
@@ -591,7 +591,7 @@ input[type="number"]:focus, input[type="text"]:focus {
 	font-weight: bold;
 }
 
-/* 结果展示容器样式 - 增大面积并优化布局 */
+/* Result display container styles - larger area and optimized layout */
 #result-container {
 	position: fixed;
 	top: 50%;
@@ -608,7 +608,7 @@ input[type="number"]:focus, input[type="text"]:focus {
 	z-index: 1000;
 }
 
-/* 图片容器样式 */
+/* Image container styles */
 .result-images-container {
 	display: flex;
 	justify-content: center;
@@ -617,12 +617,12 @@ input[type="number"]:focus, input[type="text"]:focus {
 	align-items: flex-start;
 }
 
-/* 图片容器高度控制 */
+/* Image container height control */
 .result-image-wrapper {
-	height: 500px; /* 增大图片容器高度 */
+	height: 500px; /* Increase image container height */
 }
 
-/* 图片样式 */
+/* Image styles */
 .result-image {
 	height: 100%;
 	object-fit: contain;
@@ -636,13 +636,13 @@ input[type="number"]:focus, input[type="text"]:focus {
 	transform: scale(1.02);
 }
 
-/* 按钮容器样式 */
+/* Button container styles */
 .result-actions {
 	text-align: center;
 	margin-top: 30px;
 }
 
-/* 保存按钮样式 */
+/* Save button styles */
 #save-btn {
 	margin-right: 20px;
 	padding: 12px 24px;
@@ -659,7 +659,7 @@ input[type="number"]:focus, input[type="text"]:focus {
 	background: #0056b3;
 }
 
-/* 继续按钮样式 */
+/* Continue button styles */
 #continue-btn {
 	padding: 12px 24px;
 	border: none;
@@ -675,7 +675,7 @@ input[type="number"]:focus, input[type="text"]:focus {
 	background: #1e7e34;
 }
 
-/* 原有的结果展示容器样式（备用） */
+/* Original result display container styles (backup) */
 .result-container-original {
 	position: fixed;
 	top: 0;
@@ -690,7 +690,7 @@ input[type="number"]:focus, input[type="text"]:focus {
 }
 
 
-/* 关闭按钮样式 */
+/* Close button styles */
 .close-btn {
 	position: absolute;
 	top: 20px;
@@ -716,7 +716,7 @@ input[type="number"]:focus, input[type="text"]:focus {
 	transform: scale(1.1);
 }
 
-/* 参数走势图容器样式 */
+/* Param trending chart container styles */
 .chart-container {
 	background-color: white;
 	padding: 8px;
@@ -726,7 +726,7 @@ input[type="number"]:focus, input[type="text"]:focus {
 	border: 1px solid #ddd;
 }
 
-/* MCMC进度条样式 */
+/* MCMC progress bar styles */
 .progress-time {
 	color: #b9c3cd;
 	font-size: 24px;
@@ -814,7 +814,7 @@ input[type="number"]:focus, input[type="text"]:focus {
 	letter-spacing: 0.5px;
 }
 
-/* 进度条动画 */
+/* Progress bar animations */
 @keyframes progress-shine {
 	0% { background-position: 200% 0; }
 	100% { background-position: -200% 0; }
@@ -830,7 +830,7 @@ input[type="number"]:focus, input[type="text"]:focus {
 	50% { opacity: 0.6; }
 }
 
-/* 响应式调整 */
+/* Responsive adjustments */
 @media (max-width: 1024px) {
 	.result-content {
 		grid-template-columns: 1fr;

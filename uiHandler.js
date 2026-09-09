@@ -1,17 +1,17 @@
 /**
- * 界面交互处理模块 - 处理用户界面交互逻辑
+ * User interface interaction handler module - handles user interface interaction logic
  */
 
-// 导入文件处理模块
+// Import the file handling module
 import * as fileHandler from './fileHandler.js';
 
-// 全局变量引用
+// Global variable references
 let lets, img0, img, img_src, imgd, ms, ms_src, chartInstance, scale, pixscale;
 
 /**
- * 初始化用户界面处理模块
- * @param {Object} appInstance - 应用实例对象
- * @param {Object} uiElements - 包含UI元素的对象
+ * Initialize the user interface handler module
+ * @param {Object} appInstance - The application instance object
+ * @param {Object} uiElements - An object containing the UI elements
  */
 function initUIHandler(appInstance, uiElements) {
   lets = appInstance;
@@ -23,17 +23,17 @@ function initUIHandler(appInstance, uiElements) {
   ms_src = uiElements.ms_src;
   chartInstance = uiElements.chartInstance;
   
-  // 初始化UI事件监听器
+  // Initialize UI event listeners
   initEventListeners();
   
   console.log('UI Handler initialized');
 }
 
 /**
- * 设置事件监听器
+ * Set up event listeners
  */
 function initEventListeners() {
-  // 绑定图片上传按钮点击事件
+  // Bind the image upload button click event
   const imageUploadBtn = document.getElementById('imageUpload');
   if (imageUploadBtn) {
     imageUploadBtn.addEventListener('click', () => {
@@ -43,7 +43,7 @@ function initEventListeners() {
     });
   }
 
-  // 绑定关闭表单按钮点击事件
+  // Bind the close form button click event
   const closeFormBtn = document.getElementById("close-form-button");
   if (closeFormBtn) {
     closeFormBtn.addEventListener('click', () => {
@@ -51,7 +51,7 @@ function initEventListeners() {
     });
   }
 
-  // 绑定图像选择输入变更事件
+  // Bind the image selection input change event
   const imageUrlInput = document.getElementById("image-url");
   if (imageUrlInput) {
     imageUrlInput.addEventListener('change', async function () {
@@ -59,7 +59,7 @@ function initEventListeners() {
       try {
         const result = await fileHandler.handleImageUpload(imageFile);
         document.getElementById("imgURL").innerText = result.url;
-        // 更新图像名称（全局变量）
+        // Update the image name (global variable)
         if (typeof img_name !== 'undefined') {
           img_name = result.imgName;
         }
@@ -69,7 +69,7 @@ function initEventListeners() {
     });
   }
 
-  // 绑定确认按钮点击事件
+  // Bind the confirm button click event
   const confirmBtn = document.getElementById("confirm");
   if (confirmBtn) {
     confirmBtn.addEventListener('click', async () => {
@@ -82,15 +82,15 @@ function initEventListeners() {
     });
   }
 
-  // 绑定保存模型按钮点击事件
+  // Bind the save model button click event
   const saveModelBtn = document.getElementById("saveModel");
   if (saveModelBtn) {
     saveModelBtn.addEventListener('click', () => {
-      fileHandler.saveModelToFile(img_src.src, lets); // 传递应用实例对象
+      fileHandler.saveModelToFile(img_src.src, lets); // Pass the application instance object
     });
   }
 
-  // 绑定模型上传输入变更事件
+  // Bind the model upload input change event
   const modelUploadBtn = document.getElementById('modelUpload');
   if (modelUploadBtn) {
     modelUploadBtn.addEventListener('change', (e) => {
@@ -100,14 +100,14 @@ function initEventListeners() {
 }
 
 /**
- * 处理确认按钮点击事件
+ * Handle the confirm button click event
  */
 async function handleConfirmButtonClick() {
   let url = document.getElementById("imgURL").innerText;
   let imageFile = window._uploadedImageFile;
   let pixelScaleInput = document.getElementById("pixel-scale").value;
   
-  // 验证输入
+  // Validate inputs
   if (!imageFile) {
     window.alert('Please select a valid file!');
     return;
@@ -118,7 +118,7 @@ async function handleConfirmButtonClick() {
     return;
   }
   
-  // 验证像素比例格式
+  // Validate the pixel scale format
   const regex = /^\d{0,2}(\.\d{0,6})?$/;
   if (!regex.test(pixelScaleInput)) {
     window.alert('Please re-enter the pixel scale of the image correctly!');
@@ -127,20 +127,20 @@ async function handleConfirmButtonClick() {
   
   pixscale = parseFloat(pixelScaleInput);
   
-  // 清理现有图表
+  // Destroy the existing chart
   if (chartInstance) {
     chartInstance.destroy();
     chartInstance = null;
   }
   
-  // 处理图像文件
+  // Process the image file
   try {
     await fileHandler.processImageFile(imageFile, pixscale, img0, lets);
-    // 清空文件输入字段，允许重新上传相同文件
+    // Clear the file input field to allow re-uploading the same file
     if (imageUrlInput) {
       imageUrlInput.value = '';
     }
-    // 重置上传的文件引用
+    // Reset the reference to the uploaded file
     window._uploadedImageFile = null;
   } catch (error) {
     console.error("Error processing image file:", error);
@@ -148,27 +148,27 @@ async function handleConfirmButtonClick() {
     return;
   }
   
-  // 更新模型和界面状态 - 像素比例已在fileHandler.js中根据图像缩放比例正确设置
+  // Update model and UI state - pixel scale has already been set correctly in fileHandler.js based on image scaling
   
-  // 重置标记表面
+  // Reset the marking surfaces
   if (ms) ms.reset();
   if (ms_src) ms_src.reset();
   
-  // 更新像素比例显示
+  // Update the pixel scale display
   document.getElementById('newPixelScale').value = pixelScaleInput;
   
-  // 关闭弹窗
+  // Close the popup
   document.querySelector('.popup-form').classList.remove('active');
   
-  // 清理掩码
+  // Clear the mask
   if (lets && typeof lets.clearMask === 'function') {
     lets.clearMask();
   }
 }
 
 /**
- * 处理模型文件上传
- * @param {Event} e - 事件对象
+ * Handle model file upload
+ * @param {Event} e - The event object
  */
 async function handleModelUpload(e) {
   let input = e.target;
@@ -177,86 +177,82 @@ async function handleModelUpload(e) {
   try {
     await fileHandler.loadModelFile(
       modelFile, 
-      ms, 
-      ms_src, 
       window.updateCanvas || function() {}, 
       window.show_res || function() {}, 
-      chartInstance, 
-      window.drawChiSquareCurve || function() {},
-      lets, // 传递应用实例对象
-      scale || 1 // 传递缩放比例
+      lets, 
+      scale || 1 
     );
-    // 无论成功或失败，都清空文件输入字段，允许重新上传相同文件
+    // Whether it succeeds or fails, clear the file input field to allow re-uploading the same file
     input.value = '';
   } catch (error) {
     window.alert(error.message);
-    input.value = ''; // 清空文件输入
+    input.value = ''; // Clear the file input
   }
 }
 
 /**
- * 图像加载后清理界面
+ * Clean up the UI after the image has loaded
  */
 function cleanupCanvas() {
-  // 清理卡方曲线图
+  // Destroy the chi-square curve chart
   if (chartInstance) {
-    chartInstance.destroy(); // 销毁现有图表实例
-    chartInstance = null; // 将实例设置为null
+    chartInstance.destroy(); // Destroy the existing chart instance
+    chartInstance = null; // Set the instance to null
   }
   
-  // 重新绘制图表或其他逻辑
+  // Redraw the chart or handle other logic
   if (window.drawChiSquareCurve) {
-    window.drawChiSquareCurve([]); // 传入空数组以清空图表
+    window.drawChiSquareCurve([]); // Pass an empty array to clear the chart
   }
-  // 清理mask
+  // Clear the mask
   if (lets && typeof lets.clearMask === 'function') {
     lets.clearMask();
   }
 }
 
 /**
- * 设置图像加载完成后的回调函数
- * @param {HTMLImageElement} imgElement - 图像元素
- * @param {Function} callback - 回调函数
+ * Set the callback for image-loaded events
+ * @param {HTMLImageElement} imgElement - The image element
+ * @param {Function} callback - The callback function
  */
 function setupImageLoadHandler(imgElement, callback) {
   imgElement.onload = function() {
-    // 获取应用实例的目标尺寸
+    // Get the target dimensions of the application instance
     const targetWidth = lets && lets.width ? lets.width : 400;
     const targetHeight = lets && lets.height ? lets.height : 400;
     
-    // 计算缩放比例
+    // Compute the scale factor
     const scaleX = targetWidth / imgElement.naturalWidth;
     const scaleY = targetHeight / imgElement.naturalHeight;
-    const newScale = Math.min(scaleX, scaleY); // 取较小的缩放比例以确保图像完全显示
-    scale = newScale; // 更新全局缩放比例
+    const newScale = Math.min(scaleX, scaleY); // Use the smaller scale factor to ensure the image is fully displayed
+    scale = newScale; // Update the global scale factor
     
-    // 计算缩放后的图像尺寸
+    // Compute the scaled image dimensions
     const scaledWidth = imgElement.naturalWidth * newScale;
     const scaledHeight = imgElement.naturalHeight * newScale;
     
-    // 创建临时画布进行图像缩放
+    // Create a temporary canvas for image scaling
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = targetWidth;
     tempCanvas.height = targetHeight;
     const tempCtx = tempCanvas.getContext('2d');
     
-    // 清除临时画布
+    // Clear the temporary canvas
     tempCtx.clearRect(0, 0, targetWidth, targetHeight);
     
-    // 在临时画布中央绘制缩放后的图像
+    // Draw the scaled image centered on the temporary canvas
     const xOffset = (targetWidth - scaledWidth) / 2;
     const yOffset = (targetHeight - scaledHeight) / 2;
     tempCtx.drawImage(imgElement, xOffset, yOffset, scaledWidth, scaledHeight);
     
-    // 获取缩放后的图像URL
+    // Get the scaled image URL
     const scaledUrl = tempCanvas.toDataURL();
     
-    // 更新标记表面大小
+    // Update the size of the marking surfaces
     if (ms) ms.setSize(targetWidth, targetHeight);
     if (ms_src) ms_src.setSize(targetWidth, targetHeight);
     
-    // 调用回调函数，传递缩放后的URL和尺寸
+    // Invoke the callback with the scaled URL and dimensions
     if (typeof callback === 'function') {
       callback(scaledUrl, targetWidth, targetHeight);
     }
@@ -264,22 +260,22 @@ function setupImageLoadHandler(imgElement, callback) {
 }
 
 /**
- * 更新所有图像和画布元素
- * @param {string} scaledUrl - 缩放后的图像URL
- * @param {number} targetWidth - 目标宽度
- * @param {number} targetHeight - 目标高度
+ * Update all image and canvas elements
+ * @param {string} scaledUrl - The scaled image URL
+ * @param {number} targetWidth - The target width
+ * @param {number} targetHeight - The target height
  */
 function updateImageElements(scaledUrl, targetWidth, targetHeight) {
-  // 更新应用实例尺寸
+  // Update the application instance dimensions
   if (lets) {
     lets.width = targetWidth;
     lets.height = targetHeight;
     
-    // 重置镜头参数
+    // Reset the lens parameters
     lets.resetLens(targetWidth, targetHeight, lets.pixscale);
   }
   
-  // 更新图像元素
+  // Update the image elements
   if (img) img.src = scaledUrl;
   if (img_src) img_src.src = scaledUrl;
   if (imgd) {
@@ -288,7 +284,7 @@ function updateImageElements(scaledUrl, targetWidth, targetHeight) {
     imgd.height = targetHeight;
   }
   
-  // 更新应用实例中的画布
+  // Update the canvas in the application instance
   if (lets) {
     if (lets.srcmodelPaper) {
       lets.srcmodelPaper.clear();
@@ -311,36 +307,36 @@ function updateImageElements(scaledUrl, targetWidth, targetHeight) {
     }
   }
   
-  // 更新所有bar元素
+  // Update all bar elements
   updateBarElements(scaledUrl, targetWidth, targetHeight);
 }
 
 /**
- * 更新所有bar和canvas元素样式
- * @param {string} scaledUrl - 缩放后的图像URL
- * @param {number} targetWidth - 目标宽度
- * @param {number} targetHeight - 目标高度
+ * Update the styles of all bar and canvas elements
+ * @param {string} scaledUrl - The scaled image URL
+ * @param {number} targetWidth - The target width
+ * @param {number} targetHeight - The target height
  */
 function updateBarElements(scaledUrl, targetWidth, targetHeight) {
-  // 更新bar元素
+  // Update bar elements
   let bar = document.getElementsByClassName("bar");
   for (let i = 0; i < bar.length; i++){
     bar[i].style.backgroundImage = "url(" + scaledUrl + ")";
     bar[i].style.height = targetHeight + "px";
     bar[i].style.width = targetWidth + "px";
-    // 确保背景图像覆盖整个bar
+    // Ensure the background image covers the entire bar
     bar[i].style.backgroundSize = "cover";
     bar[i].style.backgroundPosition = "center";
   }
   
-  // 更新canvas元素
+  // Update canvas elements
   let canvas = document.querySelectorAll('canvas');
   for (let i = 0; i < canvas.length; i++){
     canvas[i].height = targetHeight;
     canvas[i].width = targetWidth;
   }
   
-  // 更新barTitle元素
+  // Update the barTitle elements
   let barTitle = document.getElementsByClassName("barTitle");
   for (let i = 0; i < barTitle.length; i++){
     barTitle[i].style.width = targetWidth + "px";
@@ -348,31 +344,31 @@ function updateBarElements(scaledUrl, targetWidth, targetHeight) {
 }
 
 /**
- * 重置像素比例
- * @param {string} pixscale - 像素比例值
- * @param {Object} letsInstance - 应用实例对象
- * @param {number} scaleValue - 缩放比例值
- * @returns {boolean} - 是否成功重置
+ * Reset the pixel scale
+ * @param {string} pixscale - The pixel scale value
+ * @param {Object} letsInstance - The application instance object
+ * @param {number} scaleValue - The scale factor value
+ * @returns {boolean} - Whether the reset succeeded
  */
 function resetPixelScale(pixscale, letsInstance, scaleValue) {
   const regex = /^\d{0,2}(\.\d{0,6})?$/;
   
-  // 参数验证
+  // Validate parameters
   if (!regex.test(pixscale)) {
     window.alert('Please input the pixel scale correctly!');
     return false;
   }
   
-  // 确保letsInstance存在
+  // Ensure letsInstance exists
   if (!letsInstance) {
     console.warn('letsInstance is undefined, cannot update pixel scale');
     return false;
   }
   
-  // 使用传入的scaleValue进行调整（如果提供）
+  // Adjust using the passed scaleValue (if provided)
   const adjustedPixscale = scaleValue ? parseFloat(pixscale) / scaleValue : parseFloat(pixscale);
   
-  // 安全设置像素比例
+  // Set the pixel scale safely
   try {
     letsInstance.pixscale = adjustedPixscale;
     if (letsInstance.model) {
@@ -381,7 +377,7 @@ function resetPixelScale(pixscale, letsInstance, scaleValue) {
     
     console.log('Updated pixel scale:', letsInstance.pixscale);
     console.log(letsInstance);
-    // 重置标记表面
+    // Reset the marking surfaces
     if (ms) ms.reset();
     if (ms_src) ms_src.reset();
     
@@ -392,42 +388,42 @@ function resetPixelScale(pixscale, letsInstance, scaleValue) {
   }
 }
 
-// 初始化加载动画覆盖层
+// Initialize the loading overlay
 function initializeLoadingOverlay() {
-  // 检查是否已存在加载动画容器
+  // Check whether the loading overlay container already exists
   let loadingOverlay = document.getElementById('loading-overlay');
   
   if (!loadingOverlay) {
-    // 创建加载动画容器
+    // Create the loading overlay container
     loadingOverlay = document.createElement('div');
     loadingOverlay.id = 'loading-overlay';
     loadingOverlay.classList.add('loading-overlay');
     loadingOverlay.style.display = 'none';
     
-    // 创建加载内容
+    // Create the loading content
     const loadingContent = document.createElement('div');
     loadingContent.classList.add('loading-content');
     
-    // 创建加载图标
+    // Create the loading spinner
     const loadingSpinner = document.createElement('div');
     loadingSpinner.classList.add('loading-spinner');
     
-    // 创建加载文本
+    // Create the loading text
     const loadingText = document.createElement('p');
     loadingText.classList.add('loading-text');
-    loadingText.textContent = '正在进行MCMC建模，请稍候...';
+    loadingText.textContent = 'Running MCMC modeling, please wait...';
     
-    // 组合元素
+    // Assemble the elements
     loadingContent.appendChild(loadingSpinner);
     loadingContent.appendChild(loadingText);
     loadingOverlay.appendChild(loadingContent);
     
-    // 添加到body
+    // Append to the body
     document.body.appendChild(loadingOverlay);
   }
 }
 
-// 显示加载动画
+// Show the loading animation
 function showLoading() {
   const loadingOverlay = document.getElementById('loading-overlay');
   if (loadingOverlay) {
@@ -435,7 +431,7 @@ function showLoading() {
   }
 }
 
-// 隐藏加载动画
+// Hide the loading animation
 function hideLoading() {
   const loadingOverlay = document.getElementById('loading-overlay');
   if (loadingOverlay) {
@@ -443,43 +439,43 @@ function hideLoading() {
   }
 }
 
-// 处理MCMC按钮点击事件
+// Handle the MCMC button click event
 function startMCMC() {
-  // 显示加载动画
+  // Show the loading animation
   showLoading();
   
-  // 执行MCMC相关逻辑
-  // 这里假设存在window.lets.runMCMC方法
+  // Execute the MCMC-related logic
+  // Assume window.lets.runMCMC exists
   if (window.lets && window.lets.runMCMC) {
     window.lets.runMCMC()
       .then(() => {
-        // MCMC完成后隐藏加载动画
+        // Hide the loading animation after MCMC finishes
         hideLoading();
       })
       .catch(error => {
         console.error('MCMC execution error:', error);
         hideLoading();
-        window.alert('MCMC执行出错: ' + error.message);
+        window.alert('MCMC execution error: ' + error.message);
       });
   } else {
     hideLoading();
-    window.alert('MCMC功能不可用');
+    window.alert('MCMC feature is unavailable');
   }
 }
 
-// 修改initEventListeners以添加MCMC按钮和加载动画支持
+// Modify initEventListeners to add support for the MCMC button and the loading overlay
 function enhanceEventListeners() {
-  // 初始化加载动画
+  // Initialize the loading overlay
   initializeLoadingOverlay();
   
-  // MCMC按钮点击事件
+  // MCMC button click event
   const startMCMCButton = document.getElementById('startMCMCButton');
   if (startMCMCButton) {
     startMCMCButton.addEventListener('click', startMCMC);
   }
 }
 
-// 导出UI处理模块
+// Export the UI handler module
 export {
   initUIHandler,
   setupImageLoadHandler,

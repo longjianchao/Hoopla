@@ -1,6 +1,6 @@
-// WebGPU工具函数和上下文管理
+// WebGPU utility functions and context management.
 
-// ---- WebGPUUtils: 修正 createBuffer 与 remove device.destroy() ----
+// ---- WebGPUUtils: fix createBuffer and remove device.destroy() ----
 class WebGPUUtils {
     constructor() {
         this.device = null;
@@ -25,28 +25,28 @@ class WebGPUUtils {
         return this;
     }
 
-    // 创建并初始化GPU缓冲区；data 可以是 TypedArray、普通数组或 null（创建空 buffer）
+    // Create and initialize a GPU buffer; data may be a TypedArray, a plain array, or null (creating an empty buffer).
     createBuffer(data, usage, mappedAtCreation = false) {
         let typedData;
-        // 确保数据是 TypedArray，以便获取有效的 byteLength
+        // Ensure data is a TypedArray so that a valid byteLength can be obtained.
         if (Array.isArray(data)) {
-            // 普通数组转换为 Float32Array
+            // Convert a plain array to a Float32Array.
             typedData = new Float32Array(data);
         } else if (data && typeof data === 'object' && 'byteLength' in data && typeof data.byteLength === 'number') {
-            // TypedArray 或 ArrayBuffer，确保 byteLength 是数字
+            // TypedArray or ArrayBuffer; ensure byteLength is a number.
             typedData = data;
         } else if (data) {
-            // 其他类型尝试转换为 Float32Array
+            // Try to convert other types to a Float32Array.
             typedData = new Float32Array(data);
         } else {
-            // 空 buffer
+            // Empty buffer.
             typedData = null;
         }
         
-        // 确保 byteLength 至少为 4 字节且为有效数字
+        // Ensure byteLength is a valid number of at least 4 bytes.
         const byteLength = typedData && typeof typedData.byteLength === 'number' ? typedData.byteLength : 4;
         
-        // 确保 size 是有效的正数
+        // Ensure size is a valid positive number.
         const safeSize = Math.max(byteLength, 4);
         
         const buf = this.device.createBuffer({
@@ -61,7 +61,7 @@ class WebGPUUtils {
                 arr.set(new Float32Array(typedData.buffer || typedData));
                 buf.unmap();
             } else {
-                // 若不映射，使用 queue.writeBuffer 更安全
+                // If not mapped at creation, queue.writeBuffer is safer.
                 this.queue.writeBuffer(buf, 0, (typedData.buffer || typedData), (typedData.byteOffset || 0), typedData.byteLength);
             }
         }
@@ -73,9 +73,9 @@ class WebGPUUtils {
         return mod;
     }
 
-    // 注意：device.destroy() 不存在；移除该调用
+    // Note: device.destroy() does not exist; that call has been removed.
     destroy() {
-        // 清理时销毁 buffers/pipelines 在具体类中进行
+        // Destroy buffers/pipelines during cleanup in the specific classes.
         this.device = null;
         this.queue = null;
         this.adapter = null;
@@ -83,7 +83,7 @@ class WebGPUUtils {
 }
 
 
-// WebGPU卷积类 - 使用空间域卷积实现
+// WebGPU convolution class - implemented using spatial-domain convolution.
 class WebGPUFFTConvolve {
     constructor(webgpuUtils) {
         if (!webgpuUtils) {
@@ -103,7 +103,7 @@ class WebGPUFFTConvolve {
     }
 
     async init(width, height, kernelSize = 17) {
-        // 参数有效性检查
+        // Validate the parameters.
         if (typeof width !== 'number' || width <= 0 || !Number.isInteger(width)) {
             throw new Error('width must be a positive integer');
         }
@@ -113,9 +113,9 @@ class WebGPUFFTConvolve {
         if (typeof kernelSize !== 'number' || kernelSize <= 0 || !Number.isInteger(kernelSize)) {
             throw new Error('kernelSize must be a positive integer');
         }
-        // 确保kernelSize是奇数
+        // Ensure kernelSize is odd.
         if (kernelSize % 2 === 0) {
-            kernelSize += 1; // 转换为奇数
+            kernelSize += 1; // Convert to an odd number.
             console.warn(`kernelSize must be odd, using ${kernelSize} instead`);
         }
 
@@ -169,7 +169,7 @@ class WebGPUFFTConvolve {
             return this;
         } catch (error) {
             console.error('Failed to initialize WebGPUFFTConvolve:', error);
-            // 清理可能已经创建的资源
+            // Clean up any resources that may already have been created.
             this.destroy();
             throw error;
         }
@@ -208,15 +208,15 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
 
     var sum : f32 = 0.0;
 
-    // 图像中心位置
+    // Image center position.
     let cx : i32 = i32(width) / 2;
     let cy : i32 = i32(height) / 2;
 
-    // 卷积计算：遍历PSF核
+    // Convolution: iterate over the PSF kernel.
     for (var dy : i32 = -halfKernel; dy <= halfKernel; dy = dy + 1) {
         for (var dx : i32 = -halfKernel; dx <= halfKernel; dx = dx + 1) {
 
-            // 图像中的坐标
+            // Coordinate in the image.
             let ix : i32 = i32(gid.x) + dx;
             let iy : i32 = i32(gid.y) + dy;
 
@@ -225,7 +225,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
 
                 let imgIndex : u32 = u32(iy) * width + u32(ix);
 
-                // PSF中的对应坐标（中心对齐）
+                // Corresponding coordinate in the PSF (center-aligned).
                 let px : i32 = cx + dx;
                 let py : i32 = cy + dy;
 
@@ -247,7 +247,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
 
     // convolve: imageData and psfData are Float64Array with length = width*height
     async convolve(imageData, psfData) {
-        // 参数有效性检查
+        // Validate the parameters.
         if (!imageData || !(imageData instanceof Float64Array)) {
             throw new Error('imageData must be a Float64Array');
         }
@@ -261,7 +261,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
             throw new Error(`psfData length ${psfData.length} does not match expected ${this.width * this.height}`);
         }
         
-        // 检查必要资源是否已初始化
+        // Check that the required resources are initialized.
         if (!this.webgpu || !this.webgpu.device) {
             throw new Error('webgpu device not initialized');
         }
@@ -281,7 +281,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         try {
             const device = this.webgpu.device;
             
-            // 将Float64Array转换为Float32Array用于WebGPU运算
+            // Convert the Float64Array to a Float32Array for WebGPU computation.
             const imageData32 = new Float32Array(imageData);
             const psfData32 = new Float32Array(psfData);
 
@@ -322,7 +322,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
             // await and read
             await readBuf.mapAsync(GPUMapMode.READ);
             const mapped32 = new Float32Array(readBuf.getMappedRange());
-            // 将结果转换回Float64Array
+            // Convert the result back to a Float64Array.
             const mapped64 = new Float64Array(mapped32);
             readBuf.unmap();
 
@@ -339,7 +339,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     }
 
     destroy() {
-        // 销毁所有资源，避免内存泄漏
+        // Destroy all resources to avoid memory leaks.
         if (this.outputBuffer) {
             this.outputBuffer.destroy();
             this.outputBuffer = null;
@@ -348,8 +348,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
             this.uniformBuffer.destroy();
             this.uniformBuffer = null;
         }
-        // 注意：pipeline和bindGroupLayout会在device销毁时自动销毁
-        // 但为了代码完整性，可以考虑添加销毁逻辑
+        // Note: pipeline and bindGroupLayout are destroyed automatically when the device is destroyed.
+        // For code completeness, destruction logic could be added here.
         this.pipeline = null;
         this.bindGroupLayout = null;
         this.width = 0;
@@ -360,7 +360,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
 }
 
 
-// PSF计算类
+// PSF computation class.
 class PSFComputer {
     constructor(webgpuUtils) {
         this.webgpu = webgpuUtils;
@@ -371,16 +371,16 @@ class PSFComputer {
         this.height = 0;
     }
 
-    // 初始化PSF计算
+    // Initialize PSF computation.
     async init(width, height) {
         this.width = width;
         this.height = height;
 
-        // 创建着色器代码
+        // Create the shader code.
         const computeShaderCode = this._getComputeShaderCode();
         const shaderModule = this.webgpu.createShaderModule(computeShaderCode);
 
-        // 创建绑定组布局
+        // Create the bind group layout.
         this.bindGroupLayout = this.webgpu.device.createBindGroupLayout({
             entries: [
                 {
@@ -400,12 +400,12 @@ class PSFComputer {
             ]
         });
 
-        // 创建管道布局
+        // Create the pipeline layout.
         const pipelineLayout = this.webgpu.device.createPipelineLayout({
             bindGroupLayouts: [this.bindGroupLayout]
         });
 
-        // 创建计算管道
+        // Create the compute pipeline.
         this.pipeline = this.webgpu.device.createComputePipeline({
             layout: pipelineLayout,
             compute: {
@@ -414,14 +414,14 @@ class PSFComputer {
             }
         });
 
-        // 创建输出缓冲区
+        // Create the output buffer.
         this.outputBuffer = this.webgpu.device.createBuffer({
             size: width * height * Float32Array.BYTES_PER_ELEMENT,
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
         });
     }
 
-    // 获取计算着色器代码
+    // Get the compute shader code.
     _getComputeShaderCode() {
         return `
         struct Buffer {
@@ -441,8 +441,8 @@ class PSFComputer {
                 return;
             }
 
-            // 简单的PSF计算示例，实际中应该使用更复杂的模型
-            // 这里实现一个高斯PSF
+            // Simple PSF computation example; in practice a more complex model should be used.
+            // A Gaussian PSF is implemented here.
             let centerX = f32(width) / 2.0;
             let centerY = f32(height) / 2.0;
             let x = f32(global_id.x) - centerX;
@@ -456,13 +456,13 @@ class PSFComputer {
         `;
     }
 
-    // 计算PSF
+    // Compute the PSF.
     async computePSF() {
-        // 创建输入缓冲区（这里为空，因为PSF计算通常不需要输入）
+        // Create the input buffer (empty here, since PSF computation usually needs no input).
         const inputData = new Float32Array(this.width * this.height);
         const inputBuffer = this.webgpu.createBuffer(inputData, GPUBufferUsage.STORAGE);
 
-        // 创建绑定组
+        // Create the bind group.
         const bindGroup = this.webgpu.device.createBindGroup({
             layout: this.bindGroupLayout,
             entries: [
@@ -471,29 +471,29 @@ class PSFComputer {
             ]
         });
 
-        // 创建命令编码器
+        // Create the command encoder.
         const encoder = this.webgpu.device.createCommandEncoder();
         
-        // 开始计算通道
+        // Begin the compute pass.
         const pass = encoder.beginComputePass();
         pass.setPipeline(this.pipeline);
         pass.setBindGroup(0, bindGroup);
         
-        // 调度工作组
+        // Dispatch workgroups.
         const workgroupCountX = Math.ceil(this.width / 16);
         const workgroupCountY = Math.ceil(this.height / 16);
         pass.dispatchWorkgroups(workgroupCountX, workgroupCountY);
         
-        // 结束计算通道
+        // End the compute pass.
         pass.end();
 
-        // 创建读取缓冲区
+        // Create the read buffer.
         const readBuffer = this.webgpu.device.createBuffer({
             size: this.width * this.height * Float32Array.BYTES_PER_ELEMENT,
             usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
         });
 
-        // 复制结果到读取缓冲区
+        // Copy the result to the read buffer.
         encoder.copyBufferToBuffer(
             this.outputBuffer,
             0,
@@ -502,23 +502,23 @@ class PSFComputer {
             this.width * this.height * Float32Array.BYTES_PER_ELEMENT
         );
 
-        // 提交命令
+        // Submit the command.
         this.webgpu.queue.submit([encoder.finish()]);
 
-        // 映射读取缓冲区
+        // Map the read buffer.
         await readBuffer.mapAsync(GPUMapMode.READ);
         const result = new Float32Array(readBuffer.getMappedRange());
         const resultCopy = new Float32Array(result);
         readBuffer.unmap();
 
-        // 销毁临时缓冲区
+        // Destroy temporary buffers.
         inputBuffer.destroy();
         readBuffer.destroy();
 
         return resultCopy;
     }
 
-    // 销毁资源
+    // Destroy resources.
     destroy() {
         if (this.outputBuffer) {
             this.outputBuffer.destroy();
@@ -526,10 +526,10 @@ class PSFComputer {
     }
 }
 
-// 导出工具类
+// Export the utility classes.
 export { WebGPUUtils, WebGPUFFTConvolve, PSFComputer };
 
-// 将类暴露到全局作用域，以便非module脚本访问
+// Expose the classes to the global scope so that non-module scripts can access them.
 if (typeof window !== 'undefined') {
     window.WebGPUUtils = WebGPUUtils;
     window.WebGPUFFTConvolve = WebGPUFFTConvolve;

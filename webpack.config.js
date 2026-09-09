@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import { CleanWebpackPlugin } from 'clean-webpack-plugin';
 
-// 获取当前文件的目录名
+// Get the directory name of the current file
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 

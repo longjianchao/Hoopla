@@ -1,13 +1,13 @@
 /**
- * MCMC建模相关功能处理
+ * MCMC modeling related functions
  */
 
-// MCMC进度条相关变量
+// MCMC progress bar related variables
 let mcmcStartTime = null;
 let progressInterval = null;
-let currentTimeThreshold = 3 * 60 * 1000; // 3分钟阈值（毫秒）
+let currentTimeThreshold = 3 * 60 * 1000; // 3-minute threshold (milliseconds)
 
-// 显示加载动画和禁用界面元素
+// Show loading animation and disable UI elements
 function showLoading() {
 	const overlay = document.getElementById('loadingOverlay');
 	overlay.style.display = 'flex';
@@ -15,17 +15,17 @@ function showLoading() {
 	const closeBtn = document.getElementById('closeLoadingBtn');
 	if (closeBtn) closeBtn.style.display = 'none';
 	
-	// 重置进度条和时间
+	// Reset progress bar and time
 	mcmcStartTime = Date.now();
-	currentTimeThreshold = 3 * 60 * 1000; // 重置为3分钟
+	currentTimeThreshold = 3 * 60 * 1000; // Reset to 3 minutes
 	
-	// 创建或更新进度条UI
+	// Create or update the progress bar UI
 	createProgressBar();
 	
-	// 开始时间跟踪
+	// Start time tracking
 	trackProgress();
 	
-	// 禁用所有按钮和输入框
+	// Disable all buttons and input fields
 	document.querySelectorAll('button, input, select').forEach(el => {
 		if (el.id !== 'closeMCMCResults') {
 			el.disabled = true;
@@ -33,9 +33,9 @@ function showLoading() {
 	});
 }
 
-// 创建进度条UI
+// Create the progress bar UI
 function createProgressBar() {
-	// 进度条HTML结构已在index.html中定义，这里只需要初始化样式
+	// The progress bar HTML structure is defined in index.html; only initialization styles are needed here
 	const progressBar = document.getElementById('mcmcProgressBar');
 	const progressFill = progressBar.querySelector('.progress-fill');
 	const progressGlow = progressBar.querySelector('.progress-glow');
@@ -43,18 +43,18 @@ function createProgressBar() {
 	const progressText = document.getElementById('progressText');
 	
 	if (progressFill && progressGlow) {
-		// 确保进度条初始状态
+		// Ensure the progress bar initial state
 		progressBar.style.width = '0%';
 		progressFill.style.width = '0%';
 		
-		// 触发重绘以确保动画效果
+		// Trigger a reflow to ensure the animation takes effect
 		setTimeout(() => {
 			progressFill.style.width = '10%';
 		}, 100);
 	}
 }
 
-// 更新进度条
+// Update the progress bar
 function updateProgressBar(elapsedTime, threshold, customText = null) {
 	const progressBar = document.getElementById('mcmcProgressBar');
 	const progressFill = progressBar?.querySelector('.progress-fill');
@@ -63,90 +63,90 @@ function updateProgressBar(elapsedTime, threshold, customText = null) {
 	
 	if (!progressBar || !progressFill || !timeEstimate || !progressText) return;
 	
-	// 计算进度百分比
+	// Calculate progress percentage
 	let progressPercent = Math.min((elapsedTime / threshold) * 100, 100);
 	
-	// 更新进度条
+	// Update the progress bar
 	const progressWidth = progressPercent + '%';
 	progressBar.style.width = progressWidth;
 	progressFill.style.width = progressWidth;
 	
-	// 更新文本 - 优先使用自定义文本
+	// Update the text - prioritize custom text
 	if (customText) {
 		progressText.textContent = customText;
 	} else {
-		// 格式化时间显示
+		// Format the time display
 		const formatTime = (ms) => {
 			const minutes = Math.floor(ms / 60000);
 			const seconds = Math.floor((ms % 60000) / 1000);
 			return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 		};
 		
-		// 更新文本
+		// Update the text
 		if (progressPercent < 100) {
 			progressText.textContent = 
-				`${Math.round(progressPercent)}% 完成 (${formatTime(elapsedTime)} / ${formatTime(threshold)})`;
+				`${Math.round(progressPercent)}% complete (${formatTime(elapsedTime)} / ${formatTime(threshold)})`;
 		} else {
-			progressText.textContent = '✅ 建模完成！';
+			progressText.textContent = '✅ Modeling complete!';
 		}
 	}
 }
 
-// 跟踪进度
+// Track progress
 function trackProgress() {
 	const updateProgress = () => {
 		if (!mcmcStartTime) return;
 		
 		const elapsedTime = Date.now() - mcmcStartTime;
 		
-		// 检查是否需要调整时间阈值
+		// Check whether the time threshold needs to be adjusted
 		let newThreshold = null;
-		if (elapsedTime > 30 * 60 * 1000) { // 超过30分钟
-			newThreshold = 60 * 60 * 1000; // 1小时
-		} else if (elapsedTime > 20 * 60 * 1000) { // 超过20分钟
-			newThreshold = 30 * 60 * 1000; // 30分钟
-		} else if (elapsedTime > 10 * 60 * 1000) { // 超过10分钟
-			newThreshold = 20 * 60 * 1000; // 20分钟
-		} else if (elapsedTime > 5 * 60 * 1000) { // 超过5分钟
-			newThreshold = 10 * 60 * 1000; // 10分钟
-		} else if (elapsedTime > 3 * 60 * 1000) { // 超过3分钟
-			newThreshold = 5 * 60 * 1000; // 5分钟
+		if (elapsedTime > 30 * 60 * 1000) { // Over 30 minutes
+			newThreshold = 60 * 60 * 1000; // 1 hour
+		} else if (elapsedTime > 20 * 60 * 1000) { // Over 20 minutes
+			newThreshold = 30 * 60 * 1000; // 30 minutes
+		} else if (elapsedTime > 10 * 60 * 1000) { // Over 10 minutes
+			newThreshold = 20 * 60 * 1000; // 20 minutes
+		} else if (elapsedTime > 5 * 60 * 1000) { // Over 5 minutes
+			newThreshold = 10 * 60 * 1000; // 10 minutes
+		} else if (elapsedTime > 3 * 60 * 1000) { // Over 3 minutes
+			newThreshold = 5 * 60 * 1000; // 5 minutes
 		}
 		
-		// 如果阈值发生变化，更新UI
+		// If the threshold changed, update the UI
 		if (newThreshold && newThreshold !== currentTimeThreshold) {
 			currentTimeThreshold = newThreshold;
 			const timeEstimate = document.getElementById('timeEstimate');
 			const totalMinutes = Math.floor(currentTimeThreshold / 60000);
 			const thresholdText = totalMinutes >= 60 ? 
-				`${Math.floor(totalMinutes / 60)}小时${totalMinutes % 60}分钟` : 
-				`${totalMinutes}分钟`;
-			timeEstimate.textContent = `预计建模时间: ${thresholdText}`;
+				`${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m` : 
+				`${totalMinutes}m`;
+			timeEstimate.textContent = `Estimated modeling time: ${thresholdText}`;
 		}
 		
 		updateProgressBar(elapsedTime, currentTimeThreshold);
 	};
 	
-	// 立即更新一次
+	// Update once immediately
 	updateProgress();
 	
-	// 每秒更新进度
+	// Update progress every second
 	progressInterval = setInterval(updateProgress, 1000);
 }
 
-// 隐藏加载动画和启用界面元素
+// Hide loading animation and enable UI elements
 function hideLoading(callback) {
-	// 清理进度条定时器
+	// Clear the progress bar timer
 	if (progressInterval) {
 		clearInterval(progressInterval);
 		progressInterval = null;
 	}
 	
-	// 如果建模时间很短，显示完成动画
+	// If modeling finished in a very short time, show the completion animation
 	if (mcmcStartTime) {
 		const elapsedTime = Date.now() - mcmcStartTime;
 		
-		// 如果建模时间少于5秒，显示完成动画
+		// If modeling took less than 5 seconds, show the completion animation
 		if (elapsedTime < 5000) {
 			animateQuickCompletion(() => {
 				completeHideLoading(callback);
@@ -155,7 +155,7 @@ function hideLoading(callback) {
 		}
 	}
 	
-	// 强制进度条到100%
+	// Force the progress bar to 100%
 	const progressBar = document.getElementById('mcmcProgressBar');
 	const progressFill = progressBar?.querySelector('.progress-fill');
 	const progressText = document.getElementById('progressText');
@@ -164,7 +164,7 @@ function hideLoading(callback) {
 		progressBar.style.width = '100%';
 		progressFill.style.width = '100%';
 		if (progressText) {
-			progressText.textContent = '✅ 建模完成！';
+			progressText.textContent = '✅ Modeling complete!';
 		}
 	}
 	
@@ -173,12 +173,12 @@ function hideLoading(callback) {
 	}, 500);
 }
 
-// 完成隐藏加载动画
+// Complete hiding the loading animation
 function completeHideLoading(callback) {
 	const overlay = document.getElementById('loadingOverlay');
 	overlay.style.display = 'none';
 	
-	// 重置进度条到初始状态
+	// Reset the progress bar to its initial state
 	const progressBar = document.getElementById('mcmcProgressBar');
 	const progressFill = progressBar?.querySelector('.progress-fill');
 	const progressText = document.getElementById('progressText');
@@ -189,25 +189,25 @@ function completeHideLoading(callback) {
 	}
 	
 	if (progressText) {
-		progressText.textContent = '0% 完成 (0:00 / 3:00)';
+		progressText.textContent = '0% complete (0:00 / 3:00)';
 	}
 	
-	// 重置全局变量
+	// Reset global variables
 	mcmcStartTime = null;
 	currentTimeThreshold = 3 * 60 * 1000;
 	
-	// 重新启用所有按钮和输入框
+	// Re-enable all buttons and input fields
 	document.querySelectorAll('button, input, select').forEach(el => {
 		el.disabled = false;
 	});
 	
-	// 执行回调函数（显示提示框等）
+	// Execute the callback function (e.g., show a dialog)
 	if (callback && typeof callback === 'function') {
 		callback();
 	}
 }
 
-// 快速建模完成动画
+// Quick modeling completion animation
 function animateQuickCompletion(callback) {
 	const progressBar = document.getElementById('mcmcProgressBar');
 	const progressFill = progressBar?.querySelector('.progress-fill');
@@ -215,28 +215,28 @@ function animateQuickCompletion(callback) {
 	
 	if (!progressBar || !progressFill || !progressText) return;
 	
-	// 立即设置进度条到100%，不等待过渡动画
-	progressBar.style.transition = 'none'; // 禁用过渡动画
-	progressFill.style.transition = 'none'; // 禁用过渡动画
+	// Immediately set the progress bar to 100% without waiting for the transition animation
+	progressBar.style.transition = 'none'; // Disable transition animation
+	progressFill.style.transition = 'none'; // Disable transition animation
 	progressBar.style.width = '100%';
 	progressFill.style.width = '100%';
 	
-	// 强制回流，确保样式立即应用
-	progressBar.offsetHeight; // 触发回流
+	// Force a reflow to ensure styles are applied immediately
+	progressBar.offsetHeight; // Trigger reflow
 	
-	// 恢复过渡动画
+	// Restore transition animations
 	progressBar.style.transition = '';
 	progressFill.style.transition = '';
 	
-	// 添加完成状态样式
+	// Add the completion state style
 	progressBar.classList.add('completed');
 	
-	// 显示完成文本
+	// Display the completion text
 	if (progressText) {
-		progressText.textContent = '✅ 建模完成！';
+		progressText.textContent = '✅ Modeling complete!';
 	}
 	
-	// 如果有回调函数，则执行回调
+	// If a callback exists, execute it
 	if (callback && typeof callback === 'function') {
 		setTimeout(() => {
 			completeHideLoading(callback);
@@ -244,7 +244,7 @@ function animateQuickCompletion(callback) {
 	}
 }
 
-// 只让进度条显示完成状态，不触发completeHideLoading
+// Only show the progress bar in the completed state without triggering completeHideLoading
 function finishProgressBarDisplay() {
 	const progressBar = document.getElementById('mcmcProgressBar');
 	const progressFill = progressBar?.querySelector('.progress-fill');
@@ -252,24 +252,24 @@ function finishProgressBarDisplay() {
 	
 	if (!progressBar || !progressFill || !progressText) return;
 	
-	// 立即设置进度条到100%，不等待过渡动画
+	// Immediately set the progress bar to 100% without waiting for the transition animation
 	progressBar.style.transition = 'none';
 	progressFill.style.transition = 'none';
 	progressBar.style.width = '100%';
 	progressFill.style.width = '100%';
 	
-	// 强制回流，确保样式立即应用
+	// Force a reflow to ensure styles are applied immediately
 	progressBar.offsetHeight;
 	
-	// 恢复过渡动画
+	// Restore transition animations
 	progressBar.style.transition = '';
 	progressFill.style.transition = '';
 	
-	// 添加完成状态样式
+	// Add the completion state style
 	progressBar.classList.add('completed');
 }
 
-// 关闭MCMC结果显示
+// Close the MCMC results display
 function closeMCMCResults() {
 	document.getElementById('mcmcResults').style.display = 'none';
 }
@@ -287,42 +287,42 @@ window.closeLoadingCustom = function() {
 	if (closeBtn) closeBtn.style.display = 'none';
 };
 
-// 启动MCMC建模
+// Start MCMC modeling
 async function startMCMC() {
 	if (!window.lets || !window.lets.model || !window.lets.model.components) {
-		alert('请先加载模型数据！');
+		alert('Please load model data first!');
 		return;
 	}
 	try {
-		// 显示加载动画
+		// Show the loading animation
 		showLoading();
-		// 获取当前模型参数
-		// 从fileHandler.js中获取scale变量，用于还原pixscale的原始值
+		// Get the current model parameters
+		// Obtain the scale variable from fileHandler.js to restore the original pixscale value
 		const modelData = {
 			components: window.lets.model.components,
 			pixscale: window.lets.pixscale * window.fileHandlerScale || window.lets.pixscale,
 			sigma: window.lets.model.sigma || null,
 		};
-		// 清空日志区域
+		// Clear the log area
 		const log = document.getElementById("log");
 		if (log) {
-			log.textContent = "正在连接到服务器...\n";
+			log.textContent = "Connecting to server...\n";
 		}
-		// 连接WebSocket
+		// Connect to the WebSocket
 		const ws = new WebSocket("ws://127.0.0.1:8080/model_status");
-		// 保存所有非状态行内容
+		// Store all non-status line content
 		let regularLog = '';
-		// 保存Status状态行（只发送一次）
+		// Store the Status status line (sent only once)
 		let statusLine = '';
-		// 保存Finished状态行
+		// Store the Finished status line
 		let finishedLine = '';
-		// 保存最新的处理状态行(Sampling/Computing/Bounding/Stopped)
+		// Store the latest processing status line (Sampling/Computing/Bounding/Stopped)
 		let processStatusLine = '';
-		// 正则表达式匹配不同类型的状态行
+		// Regexes matching different types of status lines
 		const statusLineRegex = /^Status\s*\|/m;
 		const finishedLineRegex = /^Finished\s*\|/m;
 		const processLineRegex = /^(Sampling|Computing|Bounding|Stopped)\s*\|/m;
-		// 创建FormData对象，用于上传文件和模型数据
+		// Create a FormData object for uploading files and model data
 		const formData = new FormData();
 		formData.append('model_data', JSON.stringify(modelData));
 		let imageFile = window._uploadedImageFile;
@@ -330,7 +330,7 @@ async function startMCMC() {
 		let psfFile = window._uploadedPSFFile;
 		console.log('noiseFile:', noiseFile);
 		console.log('psfFile:', psfFile);
-		// 添加FITS文件（如果存在）
+		// Add FITS files (if present)
 		if (imageFile) {
 			formData.append('image_file', imageFile);
 		}
@@ -340,8 +340,8 @@ async function startMCMC() {
 		if (psfFile) {
 			formData.append('psf_file', psfFile);
 		}
-		// 调试：打印FormData内容
-		console.log('=== FormData 内容 ===');
+		// Debug: print the FormData contents
+		console.log('=== FormData contents ===');
 		formData.forEach((value, key) => {
 			if (value instanceof File) {
 				console.log(`${key}:`, {
@@ -354,56 +354,56 @@ async function startMCMC() {
 				console.log(`${key}:`, value);
 			}
 		});
-		console.log('=== FormData 结束 ===');
-		// 发送到后端
+		console.log('=== FormData end ===');
+		// Send to the backend
 		const response = await fetch('http://127.0.0.1:8080/mcmc_modeling', {
 			method: 'POST',
 			body: formData
 		});
 
 		if (!response.ok) {
-			throw new Error(`启动MCMC建模失败: ${response.status}`);
+			throw new Error(`Failed to start MCMC modeling: ${response.status}`);
 		}
 		const mcmcResponseData = await response.json();
-		console.log('MCMC建模任务启动响应:', mcmcResponseData);
-		// 标记是否已处理完成事件
+		console.log('MCMC modeling task start response:', mcmcResponseData);
+		// Flag whether the completion event has been handled
 		let modelingCompleted = false;
 		ws.onmessage = async(event) => {
 			const data = event.data;
 			const log = document.getElementById("log");
-			// 分割消息中的每一行，处理不同的换行符格式
+			// Split each line of the message to handle different newline formats
 			const lines = data.split(/\r?\n/);
 			lines.forEach(line => {
-				// 去除行首尾空白
+				// Trim leading and trailing whitespace
 				const trimmedLine = line.trim();
 				if (trimmedLine) {
-					// 判断行类型并相应处理
+					// Determine the line type and handle accordingly
 					if (statusLineRegex.test(trimmedLine)) {
-						// Status行：保留最新的Status行
+						// Status line: keep the latest Status line
 						statusLine = trimmedLine + '\n';
 					} else if (finishedLineRegex.test(trimmedLine)) {
-						// Finished行：保存Finished行
+						// Finished line: store the Finished line
 						finishedLine = trimmedLine + '\n';
 					} else if (processLineRegex.test(trimmedLine)) {
-						// 处理状态行：实时更新
+						// Processing status line: update in real time
 						processStatusLine = trimmedLine + '\n';
 					} else {
-						// 非状态行：直接追加
+						// Non-status line: append directly
 						regularLog += trimmedLine + '\n';
 					}
 				}
 			});
-			// 构建完整的日志内容
+			// Build the complete log content
 			let displayContent = '';
-			// 先添加非状态行（保持原始顺序）
+			// Add non-status lines first (preserving original order)
 			if (regularLog) {
 				displayContent += regularLog;
 			}
-			// 添加状态行到固定位置（在非状态行之后）
+			// Add status lines to their fixed position (after non-status lines)
 			if (statusLine) {
 				displayContent += statusLine;
 			}
-			// 优先显示Finished行，否则显示处理状态行（在Status行之后）
+			// Prefer showing the Finished line, otherwise show the processing status line (after the Status line)
 			if (finishedLine) {
 				displayContent += finishedLine;
 			} else if (processStatusLine) {
@@ -412,27 +412,30 @@ async function startMCMC() {
 			log.textContent = displayContent;
 			log.scrollTop = log.scrollHeight;
 
-			// 检查是否收到了Finished行
+			// Check whether the Finished line was received
 			if (finishedLine) {
-				// 清除进度条定时器，防止重复拉满
+				// Clear the progress bar timer to prevent repeated filling
 				if (progressInterval) {
 					clearInterval(progressInterval);
 					progressInterval = null;
 				}
 				
-				// 进度条立即拉满，但不触发completeHideLoading
+				// Immediately fill the progress bar without triggering completeHideLoading
 				finishProgressBarDisplay();
-				
-				if (!modelingCompleted && data.includes('✅ 模型运行结束')) {
+			}
+			
+			// The completion marker may arrive in a different WebSocket message than
+			// the "Finished |" line, so check it independently of finishedLine.
+			if (!modelingCompleted && data.includes('✅ Modeling finished.')) {
 					modelingCompleted = true;
-					console.log('建模完成，正在获取结果数据...');
+					console.log('Modeling complete, fetching result data...');
 					try{
 						const resultResponse = await fetch('http://127.0.0.1:8080/modeling_result');
 						if (!resultResponse.ok) {
-							throw new Error(`获取MCMC结果失败: ${resultResponse.status}`);
+							throw new Error(`Failed to get MCMC result: ${resultResponse.status}`);
 						}
 						const result = await resultResponse.json();
-						console.log('收到MCMC结果:', result);
+						console.log('Received MCMC result:', result);
 						if(result.status=='success'){
 							window.lets.setActived();
 							window.lets.model.components = result.components;
@@ -456,61 +459,60 @@ async function startMCMC() {
 							window.lets.setFreezed();
 							console.log(window.lets.model.components);
 							
-							// 最终隐藏加载动画并显示成功提示
-							// 停止进度条定时器
+							// Finally hide the loading animation and show a success prompt
+							// Stop the progress bar timer
 							if (progressInterval) {
 								clearInterval(progressInterval);
 								progressInterval = null;
 							}
 							
-							// 显示关闭按钮
+							// Show the close button
 							const closeBtn = document.getElementById('closeLoadingBtn');
 							if (closeBtn) {
 								closeBtn.style.display = 'block';
 							}
 							
-							// 更新文本提示
+							// Update the text prompt
 							const progressText = document.getElementById('progressText');
 							if (progressText) {
-								progressText.textContent = '✅ 建模完成！请查看日志或点击右上角关闭以查看图像结果';
+								progressText.textContent = '✅ Modeling complete! Please check the log or click Close in the top-right to view the image result.';
 							}
 							
-							// 保存结果，供关闭按钮点击后使用
+							// Save the result for use after the close button is clicked
 							window.lastModelingResult = result;
 						}
 						else{
-							throw new Error(result.message||"获取建模结果失败");
+							throw new Error(result.message||"Failed to get modeling result");
 						}
 					}catch(error){
-						console.error('处理建模时出错:', error);
+						console.error('Error during modeling processing:', error);
 						if (progressInterval) {
 							clearInterval(progressInterval);
 							progressInterval = null;
 						}
 						const progressText = document.getElementById('progressText');
-						if (progressText) progressText.textContent = '❌ 获取建模结果失败';
+						if (progressText) progressText.textContent = '❌ Failed to get modeling result';
 						const closeBtn = document.getElementById('closeLoadingBtn');
 						if (closeBtn) closeBtn.style.display = 'block';
 					} finally {
-						// 确保关闭WebSocket连接
+						// Ensure the WebSocket connection is closed
 						ws.close();
 					}
 				}
-			}
-			// 检查是否有错误发生
-			if (data.includes('❌ 模型运行出错')) {
+			// Check whether an error occurred
+			if (data.includes('❌ Error running the model')) {
 				if (!modelingCompleted) {
 					modelingCompleted = true;
-					console.error('建模过程出错');
+					console.error('Error during modeling process');
 					if (progressInterval) {
 						clearInterval(progressInterval);
 						progressInterval = null;
 					}
 					const progressText = document.getElementById('progressText');
-					if (progressText) progressText.textContent = '❌ 建模失败，请查看日志';
+					if (progressText) progressText.textContent = '❌ Modeling failed, please check the log';
 					const closeBtn = document.getElementById('closeLoadingBtn');
 					if (closeBtn) closeBtn.style.display = 'block';
-					// 关闭WebSocket连接
+					// Close the WebSocket connection
 					if (ws && ws.readyState === WebSocket.OPEN) {
 						ws.close();
 					}
@@ -524,48 +526,48 @@ async function startMCMC() {
 			console.log("WebSocket connection closed");
 		};
 	} catch (error) {
-		console.error('建模失败:', error);
+		console.error('Modeling failed:', error);
 		if (progressInterval) {
 			clearInterval(progressInterval);
 			progressInterval = null;
 		}
 		const progressText = document.getElementById('progressText');
-		if (progressText) progressText.textContent = '❌ 建模失败: ' + error.message;
+		if (progressText) progressText.textContent = '❌ Modeling failed: ' + error.message;
 		const closeBtn = document.getElementById('closeLoadingBtn');
 		if (closeBtn) closeBtn.style.display = 'block';
 	}
 }
 
-// 显示建模结果图像函数 - 只有在用户确认后才调用
+// Function to display the modeling result images - only invoked after user confirmation
 function showModelingResults(result) {
-	// 检查数据有效性和类型
+	// Check data validity and type
 	if (result.model_result && result.model_corner) {
-		// 显示建模结果图像
+		// Show the modeling result images
 		const container = document.getElementById("result-container");
-		// 设置图片源
+		// Set the image sources
 		document.getElementById("result-img").src = "data:image/png;base64," + result.model_result;
 		document.getElementById("corner-img").src = "data:image/png;base64," + result.model_corner;
-		// 显示容器
+		// Show the container
 		container.style.display = "block";
 
-		// 保存按钮逻辑
+		// Save button logic
 		document.getElementById("save-btn").onclick = () => {
 			saveImage(result.model_result, "model_result.png");
 			saveImage(result.model_corner, "model_corner.png");
 			container.style.display = "none";
 		};
 
-		// 继续建模按钮逻辑
+		// Continue modeling button logic
 		document.getElementById("continue-btn").onclick = () => {
 			container.style.display = "none";
 		};
 	} else {
-		// 其他情况显示友好的提示
-		console.log("MCMC结果数据格式错误");
+		// Show a friendly prompt in other cases
+		console.log("Invalid MCMC result data format");
 	}
 }
 
-// 图片下载函数
+// Image download function
 function saveImage(base64Data, filename) {
 	const a = document.createElement("a");
 	a.href = "data:image/png;base64," + base64Data;
