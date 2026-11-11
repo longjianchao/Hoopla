@@ -8,28 +8,28 @@
 
 
 <!-- Import the starfield particle background effect -->
-<script type="text/javascript" src="starfield-bg.js"></script>
+<script type="text/javascript" src="modules/starfield-bg.js"></script>
 
 <script type="text/javascript" src="lib/underscore.js"></script>
 <script type="text/javascript" src="lib/eelens.js"></script>
 <script type="text/javascript" src="lib/canvas.js"></script>
 <script type="text/javascript" src="lib/conrec.js"></script>
 <script type="text/javascript" src="lib/optimize.js"></script>
-<script type="text/javascript" src="hoopla.js"></script>
+<script type="text/javascript" src="modules/hoopla.js"></script>
 <script src="https://cdn.jsdelivr.net/pyodide/v0.28.1/full/pyodide.js"></script>
 <script type="text/javascript" src="lib/hdf5.js"></script>
 <script type="text/javascript" src="lib/fits.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
 <!-- Import separated modules -->
-<script type="module" src="fileHandler.js"></script>
-<script type="module" src="uiHandler.js"></script>
+<script type="module" src="modules/fileHandler.js"></script>
+<script type="module" src="modules/uiHandler.js"></script>
 
 <script type="text/javascript">
-	var src = "images/Figure_26.png";
-	var img_name = "Figure_26.png";
+	// 初始图像由启动时载入的仿真星系提供（见 loadDefaultSimulation），此处不指定静态默认图
+	var src = "";
+	var img_name = "";
 	var imgd = new Image();
 	imgd.crossOrigin="anonymous";
-	imgd.src = src;
 	imgd.width = 400;
 	imgd.height = 400;
 	var scale = 1.0;
@@ -160,8 +160,10 @@
 		webGPUHeight = lets.height;
 		await initWebGPU(webGPUWidth, webGPUHeight);
 		var bar = document.getElementsByClassName("bar");
-		for (let i=0; i<bar.length;i++){
-			bar[i].style.backgroundImage = "url(" + src + ")";
+		if (src) {
+			for (let i=0; i<bar.length;i++){
+				bar[i].style.backgroundImage = "url(" + src + ")";
+			}
 		}
 		
 		ms = new MarkingSurface({
@@ -231,7 +233,7 @@
 			let debouncedUpdateModel = _.debounce(updateModel, 200);
 			ms.on('marking-surface:change', debouncedUpdateModel);
 		}
-		img.src = src;
+		if (src) img.src = src;
 
 		// Source Models
 		ms_src = new MarkingSurface({
@@ -303,9 +305,10 @@
 			let debouncedUpdateModel = _.debounce(updateModel, 200);
 			ms_src.on('marking-surface:change', debouncedUpdateModel);
 		}
-		img_src.src = src;
-		console.log(src);
-		if(!globalImageData){
+		if (src) img_src.src = src;
+		// 默认图像缺失或加载失败时 imgd 会停留在 broken 状态，此时不能执行 drawImage；
+		// 跳过取样，等待启动时的仿真星系或用户上传的图像填充 globalImageData
+		if(!globalImageData && imgd.complete && imgd.naturalWidth > 0){
 			let c = document.getElementById("myCanvas");
 			c.willReadFrequently = true;
 			let ctx = c.getContext("2d");
@@ -349,7 +352,7 @@
 			let imageFile = this.files[0];
 			try {
 				// Dynamically import the module
-				const fileModule = await import('./fileHandler.js');
+				const fileModule = await import('./modules/fileHandler.js');
 				
 				const result = await fileModule.handleImageUpload(imageFile, "image");
 				document.getElementById("imgURL").innerText = result.url;
@@ -362,7 +365,7 @@
 			let noiseFile = this.files[0];
 			try {
 				// Dynamically import the module
-				const fileModule = await import('./fileHandler.js');
+				const fileModule = await import('./modules/fileHandler.js');
 				
 				const result = await fileModule.handleImageUpload(noiseFile, "noise");
 				document.getElementById("noiseURL").innerText = result.url;
@@ -375,7 +378,7 @@
 			let psfFile = this.files[0];
 			try {
 				// Dynamically import the module
-				const fileModule = await import('./fileHandler.js');
+				const fileModule = await import('./modules/fileHandler.js');
 				
 				const result = await fileModule.handleImageUpload(psfFile, "psf");
 				document.getElementById("psfURL").innerText = result.url;
@@ -453,6 +456,31 @@
 			}
 		}
 
+		// 启动时的默认图像：载入仿真数据中的第一个星系，暂不加载噪声图与 PSF
+		loadDefaultSimulation();
+
+		async function loadDefaultSimulation() {
+			const SIMULATION_IMAGE = 'simulations/9/image.fits';
+			const SIMULATION_PIXSCALE = 0.05;
+			try {
+				const response = await fetch(SIMULATION_IMAGE);
+				if (!response.ok) {
+					throw new Error(`HTTP ${response.status} ${response.statusText}`);
+				}
+				const blob = await response.blob();
+				const imageFile = new File([blob], 'image.fits');
+				const fileModule = await import('./modules/fileHandler.js');
+				await fileModule.processImageFile(imageFile, SIMULATION_PIXSCALE, img0, lets);
+				// 与手动上传后的界面状态保持一致
+				document.getElementById('newPixelScale').value = SIMULATION_PIXSCALE;
+				ms.reset();
+				ms_src.reset();
+				console.log('已载入默认仿真星系：' + SIMULATION_IMAGE);
+			} catch (error) {
+				console.warn('默认仿真星系载入失败，请通过 Upload Images 手动选择图像：', error);
+			}
+		}
+
 		document.getElementById("confirm").onclick = async function () {
 			let imageFile = window._uploadedImageFile;
 			let noiseFile = window._uploadedNoiseFile;
@@ -471,8 +499,8 @@
 			
 			try {
 				// Dynamically import the module
-				const fileModule = await import('./fileHandler.js');
-				const uiModule = await import('./uiHandler.js');
+				const fileModule = await import('./modules/fileHandler.js');
+				const uiModule = await import('./modules/uiHandler.js');
 				
 				// Clear the previous Source and lens components
 				if (lets && lets.model) {
@@ -521,7 +549,7 @@
 			if (noiseFile){
 				try {
 					// Dynamically import the module
-					const fileModule = await import('./fileHandler.js');
+					const fileModule = await import('./modules/fileHandler.js');
 					console.log("Noise file:", noiseFile);
 					const result = await fileModule.handleNoiseUpload(noiseFile);
 					document.getElementById("noiseURL").innerText = result.url;
@@ -534,7 +562,7 @@
 				try {
 					console.log("PSF file:", psfFile);
 					// Dynamically import the module
-					const fileModule = await import('./fileHandler.js');
+					const fileModule = await import('./modules/fileHandler.js');
 					// Process the PSF file using the file handler module
 					// console.log('lets.width',lets.width);
 					await fileModule.handlePSFUpload(psfFile);
@@ -549,7 +577,7 @@
 		document.getElementById("saveModel").onclick = async function fun() {
 			try {
 				// Dynamically import the module
-				const fileModule = await import('./fileHandler.js');
+				const fileModule = await import('./modules/fileHandler.js');
 				
 				// Save the model using the file handler module
 				await fileModule.saveModelToFile(img_src.src, lets);
@@ -565,7 +593,7 @@
 			
 			try {
 				// Dynamically import the module
-				const fileModule = await import('./fileHandler.js');
+				const fileModule = await import('./modules/fileHandler.js');
 				
 				// Load the model using the file handler module
 				await fileModule.loadModelFile(
@@ -595,7 +623,7 @@
 			
 			try {
 				// Dynamically import the module
-				const fileModule = await import('./fileHandler.js');
+				const fileModule = await import('./modules/fileHandler.js');
 				
 				// Process the PSF file using the file handler module
 				await fileModule.handlePSFUpload(psfFile);
@@ -623,7 +651,7 @@
     const pixscale = pixscaleInput.value;
     
     // Import the uiHandler module and call the resetPixelScale function
-    import('./uiHandler.js').then(uiModule => {
+    import('./modules/uiHandler.js').then(uiModule => {
       uiModule.resetPixelScale(pixscale, lets, window.scale);
       pixscaleInput.focus();
     }).catch(error => {
@@ -1012,9 +1040,9 @@ document.addEventListener('DOMContentLoaded', function() {
 <script type="text/javascript" src="lib/marking/marking-surface.js"></script>
 <script type="text/javascript" src="lib/marking/tools/ellipse.js"></script>
 <!-- Image viewer script, must be loaded before other scripts -->
-<script type="text/javascript" src="imageViewer.js"></script>
+<script type="text/javascript" src="modules/imageViewer.js"></script>
 <!-- External JavaScript modules -->
-<script type="module" src="webgpu-utils.js"></script>
-<script type="text/javascript" src="mcmcHandler.js"></script>
-<script type="text/javascript" src="optimization.js"></script>
-<script type="text/javascript" src="imageProcessor.js"></script>
+<script type="module" src="modules/webgpu-utils.js"></script>
+<script type="text/javascript" src="modules/mcmcHandler.js"></script>
+<script type="text/javascript" src="modules/optimization.js"></script>
+<script type="text/javascript" src="modules/imageProcessor.js"></script>

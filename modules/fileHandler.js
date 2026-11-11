@@ -250,8 +250,12 @@ function loadPngFile(imageFile, pixelScale) {
 function loadModelFile(modelFile, updateCanvas, showRes, appInstance, scaleValue) {
   // Initialize global variables
   lets = appInstance;
-  scale = scaleValue;
-  scale = window.fileHandlerScale;
+  // 优先采用图像载入时记录的缩放比；尚未载入图像时 window.fileHandlerScale 为 null，
+  // 此时退回调用方传入的缩放比，避免 lets.pixscale 被算成 Infinity
+  scale = window.fileHandlerScale || scaleValue || 1;
+  if (!window.fileHandlerScale) {
+    console.warn('尚未载入图像，模型将按调用方传入的缩放比解析：scale =', scale);
+  }
   return new Promise((resolve, reject) => {
     if (!modelFile) {
       reject(new Error('Please select a valid file.'));

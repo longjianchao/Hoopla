@@ -9,13 +9,13 @@ const __dirname = path.dirname(__filename);
 
 export default {
   entry: {
-    main: './hoopla.js',
-    optimization: './optimization.js',
-    fileHandler: './fileHandler.js',
-    uiHandler: './uiHandler.js',
-    mcmcHandler: './mcmcHandler.js',
-    imageViewer: './imageViewer.js',
-    imageProcessor: './imageProcessor.js'
+    main: './modules/hoopla.js',
+    optimization: './modules/optimization.js',
+    fileHandler: './modules/fileHandler.js',
+    uiHandler: './modules/uiHandler.js',
+    mcmcHandler: './modules/mcmcHandler.js',
+    imageViewer: './modules/imageViewer.js',
+    imageProcessor: './modules/imageProcessor.js'
   },
   output: {
     filename: '[name].[contenthash].js',

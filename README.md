@@ -1,127 +1,87 @@
-# Hoopla - Interactive Gravitational Lens Modeling
+# Hoopla — Interactive Strong Gravitational Lensing Modeling
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+**English** | [简体中文](README.zh-CN.md)
 
-**Hoopla** is a simple JavaScript application for modeling images of strong gravitational lenses. It allows you to hand-craft a model lens out of elliptically-symmetric mass distributions (representing massive foreground galaxies) and elliptically symmetric light sources (representing faint background galaxies), and then dynamically predict the shape of the resulting gravitationally lensed image features as you tune the model.
+Hoopla is a browser-based, human-in-the-loop tool for modelling galaxy-scale strong gravitational lenses. It answers one narrow but practical question: **given a lens image, what lens mass distribution and background source produce the arcs I see?**
 
-You can provide your own image to model, and you can save your tuned model's parameters to a shareable JSON file.
+Rather than repeatedly adjusting the initial parameters to obtain a reasonable range of parameter constraints before running Bayesian sampling, you draw an ellipse on the lens and another on the source, watch the predicted lensed image change in real time, and let a lightweight optimizer fit the model parameters in tens of seconds. The result is a physically sensible parameter set that can be exported as JSON and used as the starting point for full modelling.
 
-## Download and Installation
+Hoopla is not a substitute for a Bayesian solver: it does not produce final parameter constraints with statistical uncertainties. It handles the interactive initialisation stage — what you see is what you get.
 
-### Prerequisites
+## What You Can Do
 
-- Modern web browser (Chrome, Firefox, Edge, Safari)
-- ES6+ compatible JavaScript runtime
+- **Load real or simulated images** — FITS and HDF5, with an optional per-pixel noise map and a PSF, plus the pixel scale in arcsec/pixel.
+- **Build a model by drawing** — drag an ellipse on the `Mass Model` canvas to set the Singular Isothermal Ellipsoid (SIE) parameters (Einstein radius, axis ratio, position angle, centroid); drag on the `Source Model` canvas to set the elliptical Sérsic source (effective radius, axis ratio, position angle, centroid).
+- **See the lensing prediction immediately** — the `Source Plane` canvas shows the source ellipse and the lens caustics; the `Image Plane` canvas shows the predicted lensed image and the critical curves, updated live as you move the source.
+- **Refine the model automatically** — one click on `Optimization` fits all parameters at once by minimising the pixel-level χ², with the χ² curve, the traces of every parameter and the residual map refreshing as it runs.
+- **Restrict the fit region** — `Mask Radius` + `Apply Mask` excludes the outer field (contaminating objects, noisy edges).
+- **Keep and compare models** — `Save Models` writes the parameter set to a `.json` file; `Load Models` restores it and can overlay the loaded parameters on the convergence plots as a reference line.
 
-### Installation Methods
+## Installation
 
-#### Method 1: Direct Download
-
-```bash
-# Clone from GitHub
-git clone https://github.com/longjianchao/Hoopla.git
-
-# Or from Gitee
-git clone https://gitee.com/long-jianchao/Hoopla.git
-```
-
-#### Method 2: Docker Deployment
-
-The project includes Docker support for quick deployment:
+Requirements: Node.js (LTS, ≥ v14), a modern browser, and Python 3 for the `npm start` static server. No GPU is needed for the interactive modelling.
 
 ```bash
-# Pull image and start container
-docker-compose up -d
-
-# Stop container
-docker-compose down
-```
-
-#### Method 3: Local Development Server
-
-```bash
-# Install dependencies
+git clone https://gitee.com/long-jianchao/Hoopla-Preprocessing_input_pics.git
+cd Hoopla-Preprocessing_input_pics
 npm install
-
-# Start development server
 npm start
-
-# Or use webpack-dev-server
-npm run dev
 ```
 
-## Quick Start
+<br />
 
-### Basic Workflow
+Other launch modes:
 
-1. **Draw Model Ellipses**
-   - Place your mouse on the `Mass Model` and `Source Model` canvases
-   - Click and drag to draw an ellipse
-   - The ellipse in `Mass Model` represents the foreground lensing galaxy
-   - The ellipse in `Source Model` represents the background source galaxy
-
-2. **Adjust the Model**
-   - Move your mouse on the `Source Plane` - you will see a blue circle appear on the `Image Plane`
-   - As you move the cursor on the `Source Plane`, the blue circle on the `Image Plane` changes accordingly
-   - Find the position where the circle on the `Image Plane` best matches the lensed image
-   - Click the left mouse button on the `Source Plane` to freeze the `Source Plane` - the circle will no longer change when you move your mouse
-
-3. **Optimize the Model**
-   - Click the blue `Optimization` button below
-   - The program will help you find a better-fitting model
-   - The `Residual Map` displays the residuals between the model and the lensed image
-   - The `Chi-Square Curve` shows the chi-square value at each optimization iteration
-
-4. **Save the Model**
-   - Click `Save Models` to save your model
-   - The file is saved in JSON format
-
-### Other Features
-
-- **Load Models**: Click `Load Models` to select and load a previously saved model file, allowing for further adjustment and optimization
-- **Upload Images**: Click `Upload Images` to select an image from your computer for modeling. Note: All required information must be correctly filled in
-- **Adjust Pixel Scale**: Enter the pixel scale at the bottom of the page and click the `Reset` button to change it
-
-## Project Structure
-
-```
-Hoopla/
-├── images/              # Sample images
-├── lib/                 # Third-party libraries
-│   └── marking/        # Marking surface library
-├── index.html           # Main page
-├── hoopla.js            # Core application logic
-├── imageProcessor.js     # Image processing module
-├── optimization.js       # Optimization algorithms
-├── uiHandler.js         # UI interaction handling
-├── fileHandler.js       # File I/O handling
-├── webgpu-utils.js       # WebGPU utilities
-├── style.css            # Stylesheet
-└── package.json         # Project configuration
+```bash
+npm run dev     # development server with hot reload (port 8070); needs no Python
+npm run build   # static build into ./dist, deployable to any web server
 ```
 
-## Technology Stack
+The page uses ES modules, so it must be served over HTTP — opening `index.html` directly from disk will not work.
 
-- **Frontend Framework**: Vanilla JavaScript (ES6+)
-- **Graphics Library**: D3.js
-- **Mathematical Computing**: Pyodide (Python in WebAssembly)
-- **Accelerated Computing**: WebGPU
-- **Image Processing**: Canvas API
+## Preparing the Input Data
 
-## Dependencies
+The three files must share the same pixel grid; FITS is the preferred format.
 
-- [astro.js](https://github.com/astrofits/astrojs) - FITS file parsing
-- [hdf5.js](https://github.com/NaturalHistoryMuseum/hdf5-js) - HDF5 file support
-- [pako](https://github.com/nodeca/pako) - gzip decompression
-- [D3.js](https://d3js.org/) - Data visualization
-- [pyodide](https://github.com/pyodide/pyodide) - Python WebAssembly runtime
+| File | Required | Requirements |
+| --- | --- | --- |
+| Lens image | Yes | Surface-brightness image of the lens system. It should already be reduced (bias/dark, flat-field, sky subtraction, cosmic-ray rejection); Hoopla does no upstream preprocessing. |
+| Noise map | Recommended | Per-pixel 1σ surface-brightness uncertainty. It must be a smooth description of the noise level, not a noise realisation; values must be positive with no NaN. |
+| PSF | Required for optimisation | Small 2D kernel, normalised to unit sum, peak centred on the central pixel. |
 
-## Notes
+If no noise map is supplied, Hoopla estimates the noise from the image itself with a Poisson-like approximation; this is only rough, so always prefer a real noise map.
 
-1. After uploading an image, all required information must be correctly filled in for the modeling process to proceed
-2. It is recommended to use standard image formats (FITS, HDF5, PNG)
-3. For optimal modeling results, ensure a PSF (Point Spread Function) file is uploaded
+You also need the pixel scale of the observation in arcsec/pixel; it converts the drawn ellipses into angular sizes.
 
-## License
+## How to Use
 
-MIT License - See [LICENSE](LICENSE) file for details
+1. **Upload** — click `Upload Images`, select the lens image, the noise map and the PSF in the dialog, enter the pixel scale, and confirm. The status indicator at the bottom must read `PSF Uploaded` before you optimise.
+2. **Draw the mass model** — click and drag on the `Mass Model` canvas. The ellipse size sets the Einstein radius (it is a scale reference, not a physical boundary); its shape and orientation set the axis ratio and position angle.
+3. **Draw the source** — click and drag on the `Source Model` canvas to define the Sérsic source ellipse.
+4. **Align the arcs** — move the cursor over the `Source Plane` canvas. The source position follows the cursor while the canvas is in `Interactive` mode, and the `Image Plane` re-renders continuously. Adjust it until the predicted blue contours reproduce the position, number and curvature of the observed arcs, then click to toggle to `Freezing`.
+5. **Optimise** — click `Optimization`. The χ² curve should drop and then plateau; the parameter traces show whether each parameter has settled. When it finishes, the `Source Plane` switches to `Freezing` automatically.
+6. **Inspect** — check the `Residual Map`: a noise-like residual is consistent with an adequate fit; coherent structures mean the model is still missing something.
+7. **Save** — click `Save Models` to export the parameters. To compare against a known answer, `Load Models` a reference `.json` and keep `Draw Model Comparison Line` checked.
+
+## Reading the Diagnostics
+
+- **χ² curve** — fluctuations in the early iterations are normal for a derivative-free search; a persistent plateau indicates convergence, sustained large oscillations late in the run indicate failure.
+- **Parameter traces** — 12 panels, one per free parameter. Use them to spot parameters still drifting or pushed to unphysical values.
+- **Residual map** — the primary qualitative check. Judge the fit by whether the arcs are reproduced, not only by the final χ² value.
+
+## Common Questions
+
+**The χ² curve jumps around — is something wrong?**
+Early-stage exploration of the parameter space looks like this. Only large, persistent oscillations in the late phase signal a non-converged model.
+
+**Parameters drift to extreme values (huge axis ratio or Einstein radius).**
+The optimiser has fallen into a local minimum, or the model assumptions do not match the data. Stop, revisit the initial ellipses and the mask, and avoid using such a result.
+
+**χ² is low but the predicted arcs still look wrong.**
+The optimiser may be reducing residuals in low-weight regions at the expense of the arc structure. Adjust the initial model and re-check the noise map and the `Mask Radius`.
+
+## Scope
+
+Hoopla handles single-lens, single-source, galaxy-scale systems with an SIE mass model and an elliptical Sérsic source. It is not intended for cluster-scale lensing, multi-plane systems, or multi-component and pixelated reconstructions.
+
+The parameters it returns are exploratory point estimates for initialisation. Statistically rigorous constraints require a full sampling run on top of them.
