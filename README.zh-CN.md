@@ -62,6 +62,7 @@ npm run build   # 构建静态文件到 ./dist，可部署到任意 Web 服务�
 5. **优化** —— 点击 `Optimization`。χ² 曲线应先下降后趋于平台，各参数轨迹可判断是否稳定；结束后 `Source Plane` 会自动进入 `Freezing` 状态。
 6. **检查诊断** —— 查看 `Residual Map`：噪声状残差说明拟合可接受，出现明显结构则意味着模型仍有遗漏。
 7. **保存** —— 点击 `Save Models` 导出参数。若要和已知结果对比，用 `Load Models` 载入参考 `.json`，并保持 `Draw Model Comparison Line` 勾选。
+8. **贝叶斯建模（可选）** —— 点击 `Backend Sampling`，将当前模型提交给后端服务执行完整的贝叶斯采样推断，由 TinyLensGPU 提供加速。后端服务需单独部署，见 [Hoopla-Backend-Service](https://github.com/longjianchao/Hoopla-Backend-Service)。
 
 ## 如何解读诊断信息
 

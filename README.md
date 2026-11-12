@@ -62,6 +62,7 @@ You also need the pixel scale of the observation in arcsec/pixel; it converts th
 5. **Optimise** — click `Optimization`. The χ² curve should drop and then plateau; the parameter traces show whether each parameter has settled. When it finishes, the `Source Plane` switches to `Freezing` automatically.
 6. **Inspect** — check the `Residual Map`: a noise-like residual is consistent with an adequate fit; coherent structures mean the model is still missing something.
 7. **Save** — click `Save Models` to export the parameters. To compare against a known answer, `Load Models` a reference `.json` and keep `Draw Model Comparison Line` checked.
+8. **Bayesian modelling (optional)** — click `Backend Sampling` to submit the current model to the backend service for full Bayesian sampling, accelerated by TinyLensGPU. The backend is deployed separately; see [Hoopla-Backend-Service](https://github.com/longjianchao/Hoopla-Backend-Service).
 
 ## Reading the Diagnostics
 
