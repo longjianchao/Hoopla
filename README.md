@@ -8,6 +8,8 @@ Rather than repeatedly adjusting the initial parameters to obtain a reasonable r
 
 Hoopla is not a substitute for a Bayesian solver: it does not produce final parameter constraints with statistical uncertainties. It handles the interactive initialisation stage — what you see is what you get.
 
+**Try it online** — no installation needed: open <https://longjianchao.github.io/Hoopla/> to try the Hoopla frontend directly in your browser.
+
 ## What You Can Do
 
 - **Load real or simulated images** — FITS and HDF5, with an optional per-pixel noise map and a PSF, plus the pixel scale in arcsec/pixel.
@@ -69,17 +71,6 @@ You also need the pixel scale of the observation in arcsec/pixel; it converts th
 - **χ² curve** — fluctuations in the early iterations are normal for a derivative-free search; a persistent plateau indicates convergence, sustained large oscillations late in the run indicate failure.
 - **Parameter traces** — 12 panels, one per free parameter. Use them to spot parameters still drifting or pushed to unphysical values.
 - **Residual map** — the primary qualitative check. Judge the fit by whether the arcs are reproduced, not only by the final χ² value.
-
-## Common Questions
-
-**The χ² curve jumps around — is something wrong?**
-Early-stage exploration of the parameter space looks like this. Only large, persistent oscillations in the late phase signal a non-converged model.
-
-**Parameters drift to extreme values (huge axis ratio or Einstein radius).**
-The optimiser has fallen into a local minimum, or the model assumptions do not match the data. Stop, revisit the initial ellipses and the mask, and avoid using such a result.
-
-**χ² is low but the predicted arcs still look wrong.**
-The optimiser may be reducing residuals in low-weight regions at the expense of the arc structure. Adjust the initial model and re-check the noise map and the `Mask Radius`.
 
 ## Scope
 
